@@ -133,7 +133,8 @@ Still out of scope for v1:
 Known unresolved UI issues:
 1. Large arrays can compress until labels become unreadable. Panels need automatic width expansion plus user-controlled proportional scaling.
 2. Tree panels need better density control and viewport panning inside the panel when the tree grows.
-3. Dragging panels currently has rough edges:
+3. `VisArray` does not yet provide real nested-array rendering or inner-list mutation tracking. Multi-dimensional arrays currently degrade to stringified top-level cells unless values are written back through the outer `VisArray`.
+4. Dragging panels currently has rough edges:
    - visible reposition jump at drag start
    - text-selection highlight can appear during drag
    - drag interaction needs smoothing

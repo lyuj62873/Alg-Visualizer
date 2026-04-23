@@ -72,6 +72,51 @@ class _TraceState:
     def set_current_location(self, line: Optional[int]) -> None:
         self._current_line = line
 
+    def suggest_panel_layout(
+        self,
+        *,
+        preferred_x: float,
+        preferred_y: float,
+        width: float,
+        height: float,
+        scale: float,
+        padding: float = 3.0,
+    ) -> _PanelLayout:
+        candidates = [
+            (preferred_x, preferred_y),
+            (preferred_x, preferred_y + 20.0),
+            (preferred_x, preferred_y + 40.0),
+            (preferred_x, preferred_y + 60.0),
+            (preferred_x + 8.0, preferred_y + 20.0),
+            (preferred_x + 8.0, preferred_y + 40.0),
+        ]
+
+        def overlaps(x: float, y: float) -> bool:
+            left = x - padding
+            top = y - padding
+            right = x + width + padding
+            bottom = y + height + padding
+            for obj in self._objects:
+                other = obj.layout
+                if right <= other.x or left >= other.x + other.width:
+                    continue
+                if bottom <= other.y or top >= other.y + other.height:
+                    continue
+                return True
+            return False
+
+        for x, y in candidates:
+            if not overlaps(x, y):
+                return _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
+
+        return _PanelLayout(
+            x=preferred_x,
+            y=preferred_y + (len(self._objects) * 18.0),
+            width=width,
+            height=height,
+            scale=scale,
+        )
+
     @property
     def last_touched(self) -> Optional[str]:
         return self._last_touched
@@ -156,11 +201,29 @@ class VisArray(_VisObject):
         height: float = 16,
         scale: float = 1.0,
     ) -> None:
+        if (
+            panel_id is None
+            and x == 8
+            and y == 12
+            and width == 42
+            and height == 16
+            and scale == 1.0
+        ):
+            layout = _TRACE.suggest_panel_layout(
+                preferred_x=x,
+                preferred_y=y,
+                width=width,
+                height=height,
+                scale=scale,
+            )
+        else:
+            layout = _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
+
         super().__init__(
             title=name,
             type_label="VisArray",
             panel_id=panel_id,
-            layout=_PanelLayout(x=x, y=y, width=width, height=height, scale=scale),
+            layout=layout,
         )
         self._values: List[Any] = list(values)
         self._active_index: Optional[int] = None

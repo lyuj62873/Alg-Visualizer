@@ -191,7 +191,16 @@ Required fix:
 - make nodes and overall tree presentation more compact
 - allow dragging empty space inside the panel to pan the visible tree viewport
 
-3. Panel dragging interaction is rough.
+3. `VisArray` does not truly support nested-array visualization yet.
+Current limitation:
+- nested arrays can be stored, but they render only as stringified top-level items
+- inner-list mutations are not reliably tracked unless the modified row is written back through `VisArray.__setitem__`
+
+Required fix:
+- add nested-array-specific rendering for 2D / nested structures
+- add child-level change tracking so inner mutations emit trace frames correctly
+
+4. Panel dragging interaction is rough.
 Current problems:
 - a visible jump/reposition can happen when drag starts
 - text-selection blue highlight can appear while dragging
@@ -204,8 +213,9 @@ Priority order for the next pass:
 1. fix panel drag UX
 2. make array panels auto-expand for long arrays
 3. add tree viewport panning and better compact layout
-4. add more `dsviz` structures
-5. revisit an editor-assisted `watch(...)` insertion workflow
+4. add nested-array rendering and child mutation tracking for `VisArray`
+5. add more `dsviz` structures
+6. revisit an editor-assisted `watch(...)` insertion workflow
 
 ## Fast Start For A New Agent
 If a new agent needs to continue this repo, the most useful reading order is:

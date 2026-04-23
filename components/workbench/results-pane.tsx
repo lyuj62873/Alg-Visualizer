@@ -201,20 +201,25 @@ export function ResultsPane({
   const [positions, setPositions] = useState<DragPositions>({});
 
   useEffect(() => {
-    const nextPositions: DragPositions = {};
-    for (const panel of frame.panels) {
-      nextPositions[panelKey(panel.id)] = {
-        x: panel.x,
-        y: panel.y,
-        width: panel.width,
-        height: panel.height,
-        scale: panel.scale,
-      };
-      for (const item of panel.items) {
-        nextPositions[itemKey(panel.id, item.id)] = { x: item.x, y: item.y };
+    setPositions((current) => {
+      const nextPositions: DragPositions = {};
+      for (const panel of frame.panels) {
+        nextPositions[panelKey(panel.id)] = current[panelKey(panel.id)] ?? {
+          x: panel.x,
+          y: panel.y,
+          width: panel.width,
+          height: panel.height,
+          scale: panel.scale,
+        };
+        for (const item of panel.items) {
+          nextPositions[itemKey(panel.id, item.id)] = current[itemKey(panel.id, item.id)] ?? {
+            x: item.x,
+            y: item.y,
+          };
+        }
       }
-    }
-    setPositions(nextPositions);
+      return nextPositions;
+    });
   }, [frame]);
 
   return (
