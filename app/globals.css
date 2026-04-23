@@ -21,13 +21,8 @@ body {
 button {
   cursor: pointer;
   transition:
-    transform 140ms ease,
     box-shadow 140ms ease,
     background-color 140ms ease;
-}
-
-button:hover {
-  transform: translateY(-1px);
 }
 
 button:focus-visible {
