@@ -26,10 +26,19 @@ export function Workbench() {
   const [leftPaneWidth, setLeftPaneWidth] = useState(33.333);
   const [isResizing, setIsResizing] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
+  const [guidesOpen, setGuidesOpen] = useState(false);
   const [runError, setRunError] = useState<RunErrorDetail | null>(null);
   const activeFrame = frames[activeFrameIndex] ?? frames[0];
 
   const exampleItems = [
+    {
+      label: "Balanced Rebuild",
+      description: "inorder collect, quicksort, then rebuild a balanced tree",
+      path: "/examples/balanced-rebuild-example.py",
+    },
+  ];
+
+  const guideItems = [
     {
       label: "VisArray",
       description: "array init, append, insert, get/set, delete, reverse",
@@ -54,6 +63,7 @@ export function Workbench() {
     setPhase("ready");
     setRunError(null);
     setExamplesOpen(false);
+    setGuidesOpen(false);
   }
 
   async function handleRunTrace() {
@@ -162,7 +172,6 @@ export function Workbench() {
             </div>
             <nav className="hidden items-center gap-5 text-sm text-[#6b7280] md:flex">
               <span className="font-medium text-[#111827]">Workbench</span>
-              <span>Trace</span>
               <div
                 className="relative"
                 onMouseEnter={() => setExamplesOpen(true)}
@@ -180,6 +189,42 @@ export function Workbench() {
                     onMouseEnter={() => setExamplesOpen(true)}
                   >
                     {exampleItems.map((item) => (
+                      <button
+                        key={item.path}
+                        type="button"
+                        onClick={() => {
+                          void loadExample(item.path);
+                        }}
+                        className="flex w-full flex-col gap-1 border-b border-[#f3f4f6] px-4 py-3 text-left last:border-b-0 hover:bg-[#f9fafb]"
+                      >
+                        <span className="text-sm font-semibold text-[#111827]">
+                          {item.label}
+                        </span>
+                        <span className="text-xs leading-5 text-[#6b7280]">
+                          {item.description}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              <div
+                className="relative"
+                onMouseEnter={() => setGuidesOpen(true)}
+                onMouseLeave={() => setGuidesOpen(false)}
+              >
+                <button
+                  type="button"
+                  className="font-medium text-[#111827]"
+                >
+                  Guides
+                </button>
+                {guidesOpen ? (
+                  <div
+                    className="absolute left-0 top-full z-30 w-80 overflow-hidden rounded-xl border border-[#e5e7eb] bg-white shadow-lg"
+                    onMouseEnter={() => setGuidesOpen(true)}
+                  >
+                    {guideItems.map((item) => (
                       <button
                         key={item.path}
                         type="button"
