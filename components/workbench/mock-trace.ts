@@ -1,24 +1,25 @@
-export const codeSample = `from dsviz import VisArray, VisBST, watch
+export const codeSample = `from dsviz import VisArray, VisTreeNode, watch
 
 class Solution:
-    def solve(self, nums):
+    def solve(self, root):
         max_val = 0
         watch("max_val", max_val)
 
-        bst = VisBST("working tree")
-        for i, value in enumerate(nums):
-            watch("i", i)
-            bst.insert(value)
-            if value > max_val:
-                max_val = value
-                watch("max_val", max_val)
+        # Example mutation: attach a new node during execution.
+        if root.right is not None:
+            root.right.right = VisTreeNode(9)
+            watch("added", 9)
 
-        return max_val
+        return root.val
 
 def run_case():
-    nums = VisArray(inputs["nums"], name="nums")
+    # Define your test input here (LeetCode-style node objects).
+    root = VisTreeNode(5)
+    root.left = VisTreeNode(3)
+    root.right = VisTreeNode(8)
+    root.left.right = VisTreeNode(4)
     sol = Solution()
-    return sol.solve(nums)`;
+    return sol.solve(root)`;
 
 export type TraceVisualItem = {
   id: string;
@@ -60,6 +61,7 @@ export type TracePanel =
 export type TraceFrame = {
   index: number;
   label: string;
+  line: number | null;
   panels: TracePanel[];
   variables: Array<{ name: string; value: string }>;
   status: string;
@@ -72,6 +74,7 @@ export const traceFrames: TraceFrame[] = [
   {
     index: 0,
     label: "initialize",
+    line: 5,
     panels: [
       {
         id: "nums",
@@ -112,6 +115,7 @@ export const traceFrames: TraceFrame[] = [
   {
     index: 1,
     label: "insert(5)",
+    line: 9,
     panels: [
       {
         id: "nums",
@@ -156,6 +160,7 @@ export const traceFrames: TraceFrame[] = [
   {
     index: 2,
     label: "insert(3)",
+    line: 10,
     panels: [
       {
         id: "nums",
@@ -203,6 +208,7 @@ export const traceFrames: TraceFrame[] = [
   {
     index: 3,
     label: "insert(8)",
+    line: 11,
     panels: [
       {
         id: "nums",
@@ -270,6 +276,7 @@ export const traceFrames: TraceFrame[] = [
   {
     index: 4,
     label: "insert(4)",
+    line: 17,
     panels: [
       {
         id: "nums",

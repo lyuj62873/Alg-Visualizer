@@ -2,7 +2,9 @@ PROJECT_PROPOSAL.md
 version1.pdf
 node_modules/
 .next/
+.playwright-mcp/
 out/
+tsconfig.tsbuildinfo
 .env
 .env.local
 .env.development.local

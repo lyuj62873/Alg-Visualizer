@@ -1,25 +1,11 @@
 "use client";
 
-import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
-import { TraceFrame, TracePanel, TraceVisualItem } from "./mock-trace";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { TraceFrame, TracePanel } from "./mock-trace";
+import { TreeFlowViewport } from "./tree-flow";
 
-function edgeStyle(from: { x: number; y: number }, to: { x: number; y: number }) {
-  const x1 = from.x;
-  const y1 = from.y;
-  const x2 = to.x;
-  const y2 = to.y;
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const length = Math.sqrt(dx * dx + dy * dy);
-  const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-
-  return {
-    left: `${x1}%`,
-    top: `${y1}%`,
-    width: `${length}%`,
-    transform: `rotate(${angle}deg)`,
-    transformOrigin: "0 50%",
-  };
+function isTreeKind(kind: string) {
+  return kind === "bst" || kind === "tree";
 }
 
 type DragPositions = Record<
@@ -110,16 +96,6 @@ function VisualizationPanel({
     };
   }, [draggingPanelId, resizingPanelId, panel.height, panel.scale, panel.width, panel.x, panel.y, setPositions]);
 
-  const itemMap = useMemo(
-    () =>
-      new Map(
-        panel.items.map((item) => {
-          const key = itemKey(panel.id, item.id);
-          return [item.id, positions[key] ?? { x: item.x, y: item.y }];
-        }),
-      ),
-    [panel.id, panel.items, positions],
-  );
   const currentPanelPosition = positions[panelKey(panel.id)] ?? {
     x: panel.x,
     y: panel.y,
@@ -158,55 +134,44 @@ function VisualizationPanel({
             : "bg-[#fcfcfd]"
         }`}
       >
-        <div className="absolute inset-0 origin-top-left" style={{ transform: `scale(${currentScale})` }}>
-        {panel.kind === "bst"
-          ? panel.edges.map((edge) => {
-              const from = itemMap.get(edge.from);
-              const to = itemMap.get(edge.to);
-              if (!from || !to) return null;
+        {isTreeKind(panel.kind) ? (
+          <TreeFlowViewport
+            panel={panel as Extract<TracePanel, { kind: "bst" }>}
+            positions={positions}
+            setPositions={setPositions}
+          />
+        ) : (
+          <div className="absolute inset-0 origin-top-left" style={{ transform: `scale(${currentScale})` }}>
+            {panel.items.length === 0 ? (
+              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-[#d1d5db] text-sm text-[#6b7280]">
+                No objects yet for this step.
+              </div>
+            ) : null}
 
+            {panel.items.map((item) => {
+              const key = itemKey(panel.id, item.id);
+              const current = positions[key] ?? { x: item.x, y: item.y };
+              const isCircle = item.shape !== "pill";
               return (
                 <div
-                  key={`${panel.id}-${edge.from}-${edge.to}`}
-                  className="absolute h-px bg-stone-500/60"
-                  style={edgeStyle(
-                    { x: from.x, y: from.y },
-                    { x: to.x, y: to.y },
-                  )}
-                />
+                  key={key}
+                  className={`absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center border text-sm font-semibold shadow-sm transition-[left,top] duration-300 ease-out ${
+                    isCircle
+                      ? "h-14 w-14 rounded-full"
+                      : "h-12 min-w-16 rounded-xl px-4 py-3"
+                  } ${
+                    item.tone === "active"
+                      ? "border-[#fb923c] bg-[#fff7ed] text-[#c2410c]"
+                      : "border-[#d1d5db] bg-white text-[#111827]"
+                  }`}
+                  style={{ left: `${current.x}%`, top: `${current.y}%` }}
+                >
+                  {item.label}
+                </div>
               );
-            })
-          : null}
-
-        {panel.items.length === 0 ? (
-          <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-[#d1d5db] text-sm text-[#6b7280]">
-            No objects yet for this step.
+            })}
           </div>
-        ) : null}
-
-        {panel.items.map((item) => {
-          const key = itemKey(panel.id, item.id);
-          const current = positions[key] ?? { x: item.x, y: item.y };
-          const isCircle = item.shape !== "pill";
-          return (
-            <div
-              key={key}
-              className={`absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center border text-sm font-semibold shadow-sm ${
-                isCircle
-                  ? "h-14 w-14 rounded-full"
-                  : "h-12 min-w-16 rounded-xl px-4 py-3"
-              } ${
-                item.tone === "active"
-                  ? "border-[#fb923c] bg-[#fff7ed] text-[#c2410c]"
-                  : "border-[#d1d5db] bg-white text-[#111827]"
-              }`}
-              style={{ left: `${current.x}%`, top: `${current.y}%` }}
-            >
-              {item.label}
-            </div>
-          );
-        })}
-        </div>
+        )}
         <button
           type="button"
           onPointerDown={() => setResizingPanelId(panel.id)}
@@ -221,11 +186,15 @@ function VisualizationPanel({
 export function ResultsPane({
   frame,
   totalFrames,
+  phase,
+  errorInfo,
   onPrev,
   onNext,
 }: {
   frame: TraceFrame;
   totalFrames: number;
+  phase: "idle" | "running" | "ready" | "error";
+  errorInfo: { errorType: string; message: string; traceback: string; line: number | null } | null;
   onPrev: () => void;
   onNext: () => void;
 }) {
@@ -253,14 +222,14 @@ export function ResultsPane({
       <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white/95 p-2 shadow-sm backdrop-blur">
         <button
           onClick={onPrev}
-          disabled={frame.index === 0}
+          disabled={phase === "running" || frame.index === 0}
           className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
         >
           Prev
         </button>
         <button
           onClick={onNext}
-          disabled={frame.index === totalFrames - 1}
+          disabled={phase === "running" || frame.index === totalFrames - 1}
           className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
         >
           Next
@@ -289,12 +258,41 @@ export function ResultsPane({
           Output
         </div>
         <div className="space-y-3 p-4 text-sm text-[#4b5563]">
-          <div className="rounded-lg border border-[#d1fae5] bg-[#ecfdf5] px-3 py-3 text-[#065f46]">
-            {frame.status}
-          </div>
-          <div className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-3 py-3 font-mono text-xs text-[#374151]">
-            {frame.stdout}
-          </div>
+          {phase === "error" && errorInfo ? (
+            <div className="rounded-xl border border-[#fecaca] bg-[#fef2f2] p-3 text-[#7f1d1d]">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#dc2626]">
+                Runtime error
+              </div>
+              <div className="mt-2 text-sm font-semibold text-[#991b1b]">
+                {errorInfo.errorType}
+              </div>
+              <div className="mt-1 text-sm text-[#7f1d1d]">
+                {errorInfo.message}
+              </div>
+              {errorInfo.line ? (
+                <div className="mt-2 text-xs font-medium text-[#b91c1c]">
+                  Line {errorInfo.line}
+                </div>
+              ) : null}
+              <details className="mt-3 rounded-lg border border-[#fecaca] bg-white px-3 py-2 text-xs text-[#7f1d1d]">
+                <summary className="cursor-pointer select-none font-medium text-[#b91c1c]">
+                  Traceback
+                </summary>
+                <pre className="mt-2 overflow-auto whitespace-pre-wrap font-mono text-[11px] leading-5 text-[#7f1d1d]">
+                  {errorInfo.traceback}
+                </pre>
+              </details>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-lg border border-[#d1fae5] bg-[#ecfdf5] px-3 py-3 text-[#065f46]">
+                {frame.status}
+              </div>
+              <div className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-3 py-3 font-mono text-xs text-[#374151]">
+                {frame.stdout}
+              </div>
+            </>
+          )}
         </div>
       </aside>
 
