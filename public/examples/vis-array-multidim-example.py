@@ -8,16 +8,14 @@ class Solution:
                 [1, 2, 3],
                 [4, 5, 6],
                 [7, 8, 9],
-            ],
-            name="matrix",
+            ]
         )
 
         cube = VisArray(
             [
                 [[1, 2], [3, 4]],
                 [[5, 6], [7, 8]],
-            ],
-            name="cube",
+            ]
         )
 
         # 2D list item mutation.

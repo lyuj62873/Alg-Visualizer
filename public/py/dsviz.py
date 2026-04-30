@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import ast
 from collections import OrderedDict
 from dataclasses import dataclass
+import inspect
+import linecache
 from typing import Any, Dict, List, Optional, Tuple
 
 
@@ -165,6 +168,79 @@ def set_current_location(line: Optional[int]) -> None:
 
 def export_trace() -> Dict[str, Any]:
     return {"frames": _TRACE.export_frames()}
+
+
+def _call_uses_constructor(node: ast.AST, constructor_name: str) -> bool:
+    if not isinstance(node, ast.Call):
+        return False
+    if isinstance(node.func, ast.Name):
+        return node.func.id == constructor_name
+    if isinstance(node.func, ast.Attribute):
+        return node.func.attr == constructor_name
+    return False
+
+
+def _node_spans_line(node: ast.AST, lineno: int) -> bool:
+    start = getattr(node, "lineno", None)
+    end = getattr(node, "end_lineno", start)
+    if start is None:
+        return False
+    return start <= lineno <= (end if end is not None else start)
+
+
+def _extract_assigned_name(target: ast.expr) -> Optional[str]:
+    if isinstance(target, ast.Name):
+        return target.id
+    return None
+
+
+def _infer_constructor_target_name(frame, constructor_name: str) -> Optional[str]:
+    filename = getattr(frame.f_code, "co_filename", "")
+    if not filename:
+        return None
+
+    source_lines = linecache.getlines(filename, frame.f_globals)
+    if not source_lines:
+        return None
+
+    try:
+        tree = ast.parse("".join(source_lines), filename=filename)
+    except SyntaxError:
+        return None
+
+    best_name: Optional[str] = None
+    best_span: Optional[Tuple[int, int]] = None
+    current_line = frame.f_lineno
+
+    for node in ast.walk(tree):
+        target = None
+        value = None
+        if isinstance(node, ast.Assign) and len(node.targets) == 1:
+            target = node.targets[0]
+            value = node.value
+        elif isinstance(node, ast.AnnAssign):
+            target = node.target
+            value = node.value
+
+        if target is None or value is None:
+            continue
+        if not _call_uses_constructor(value, constructor_name):
+            continue
+        if not _node_spans_line(value, current_line):
+            continue
+
+        assigned_name = _extract_assigned_name(target)
+        if not assigned_name:
+            continue
+
+        start = getattr(value, "lineno", current_line)
+        end = getattr(value, "end_lineno", start)
+        span = (end - start, start)
+        if best_span is None or span < best_span:
+            best_name = assigned_name
+            best_span = span
+
+    return best_name
 
 
 class _VisObject:
@@ -372,7 +448,7 @@ class VisArray(_VisObject):
     def __init__(
         self,
         values: List[Any],
-        name: str = "array",
+        name: Optional[str] = None,
         *,
         panel_id: Optional[str] = None,
         x: float = 8,
@@ -381,6 +457,21 @@ class VisArray(_VisObject):
         height: float = 16,
         scale: float = 1.0,
     ) -> None:
+        resolved_name = name
+        if resolved_name is None:
+            frame = inspect.currentframe()
+            try:
+                caller = frame.f_back if frame is not None else None
+                resolved_name = (
+                    _infer_constructor_target_name(caller, "VisArray")
+                    if caller is not None
+                    else None
+                )
+            finally:
+                del frame
+            if not resolved_name:
+                resolved_name = "array"
+
         if (
             panel_id is None
             and x == 8
@@ -400,14 +491,14 @@ class VisArray(_VisObject):
             layout = _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
 
         super().__init__(
-            title=name,
+            title=resolved_name,
             type_label="VisArray",
             panel_id=panel_id,
             layout=layout,
         )
         self._active_path: Optional[Tuple[int, ...]] = None
         self._root_array = _NestedArray(self, (), list(values))
-        _TRACE.emit(label=f"{name}: init")
+        _TRACE.emit(label=f"{resolved_name}: init")
 
     def __len__(self) -> int:
         return len(self._root_array)

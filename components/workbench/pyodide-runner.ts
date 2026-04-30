@@ -101,6 +101,7 @@ export async function runPyodideTrace(code: string): Promise<PyodideRunOutput | 
 import sys
 import types
 import json
+import linecache
 import traceback
 
 _dsviz_src = r\"\"\"${escapePyString(dsviz)}\"\"\"
@@ -114,6 +115,12 @@ dsviz.reset_trace()
 _user_src = r\"\"\"${userCode}\"\"\"
 try:
     _trace_filename = "user_code.py"
+    linecache.cache[_trace_filename] = (
+        len(_user_src),
+        None,
+        _user_src.splitlines(True),
+        _trace_filename,
+    )
 
     def _trace(frame, event, arg):
         if event == "line" and frame.f_code.co_filename == _trace_filename:
