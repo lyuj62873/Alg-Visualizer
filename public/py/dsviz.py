@@ -457,6 +457,14 @@ class VisArray(_VisObject):
         height: float = 16,
         scale: float = 1.0,
     ) -> None:
+        self._uses_default_layout = (
+            panel_id is None
+            and x == 8
+            and y == 12
+            and width == 42
+            and height == 16
+            and scale == 1.0
+        )
         resolved_name = name
         if resolved_name is None:
             frame = inspect.currentframe()
@@ -472,14 +480,7 @@ class VisArray(_VisObject):
             if not resolved_name:
                 resolved_name = "array"
 
-        if (
-            panel_id is None
-            and x == 8
-            and y == 12
-            and width == 42
-            and height == 16
-            and scale == 1.0
-        ):
+        if self._uses_default_layout:
             layout = _TRACE.suggest_panel_layout(
                 preferred_x=x,
                 preferred_y=y,
@@ -702,9 +703,22 @@ class VisArray(_VisObject):
     def _render_panel(self) -> Dict[str, Any]:
         root_values = self._root_array._values
         rendered_root = self._render_array_node(root_values, ())
+        layout = rendered_root["layout"]
         width_units, height_units = self._measure_block(root_values)
-        min_width = min(88.0, max(self.layout.width, 12.0 + (width_units * 0.55)))
-        min_height = min(84.0, max(self.layout.height, 8.0 + (height_units * 8.0)))
+        max_width = 54.0 if layout == "row" else 58.0 if layout == "matrix" else 62.0
+        min_width = 22.0 if layout == "row" else 26.0 if layout == "matrix" else 30.0
+        preferred_width = min(max_width, max(min_width, 10.0 + (width_units * 0.48)))
+
+        min_height = 12.0 if layout == "row" else 18.0 if layout == "matrix" else 20.0
+        if layout == "row":
+            preferred_height = min(28.0, max(min_height, 4.5 + (height_units * 4.1)))
+        elif layout == "matrix":
+            preferred_height = min(78.0, max(min_height, 5.0 + (height_units * 5.2)))
+        else:
+            preferred_height = min(78.0, max(min_height, 6.0 + (height_units * 5.8)))
+
+        width = preferred_width if self._uses_default_layout else max(self.layout.width, min_width)
+        height = preferred_height if self._uses_default_layout else max(self.layout.height, min_height)
 
         return {
             "id": self.id,
@@ -713,10 +727,11 @@ class VisArray(_VisObject):
             "typeLabel": self.type_label,
             "x": self.layout.x,
             "y": self.layout.y,
-            "width": max(self.layout.width, min_width),
-            "height": max(self.layout.height, min_height),
+            "width": width,
+            "height": height,
             "minWidth": min_width,
             "minHeight": min_height,
+            "maxWidth": max_width,
             "scale": self.layout.scale,
             "layout": rendered_root["layout"],
             "dimensions": rendered_root["dimensions"],

@@ -59,6 +59,8 @@ type TracePanelBase = {
   scale: number;
   minWidth?: number;
   minHeight?: number;
+  maxWidth?: number;
+  maxHeight?: number;
 };
 
 export type TracePanel =
