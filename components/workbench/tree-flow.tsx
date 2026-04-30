@@ -29,7 +29,7 @@ const nodeTypes: NodeTypes = {
 };
 
 const TREE_LAYOUT_WIDTH = 320;
-const TREE_LAYOUT_HEIGHT = 200;
+const TREE_LAYOUT_HEIGHT = 240;
 
 function TreeNode({ data }: NodeProps<TreeNodeModel>) {
   const active = data.tone === "active";
@@ -81,6 +81,7 @@ function useElementSize<T extends HTMLElement>() {
 export function TreeFlowViewport({ panel }: TreeFlowProps) {
   const { ref, size } = useElementSize<HTMLDivElement>();
   const flowRef = useRef<Pick<ReactFlowInstance<any, any>, "fitView"> | null>(null);
+  const lastFitSignatureRef = useRef<string | null>(null);
 
   const initialNodes: TreeNodeModel[] = useMemo(() => {
     return panel.items.map((item) => ({
@@ -121,14 +122,16 @@ export function TreeFlowViewport({ panel }: TreeFlowProps) {
 
   useEffect(() => {
     if (!flowRef.current || !size.width || !size.height || !panel.items.length) return;
+    if (lastFitSignatureRef.current === layoutSignature) return;
 
     const rafId = window.requestAnimationFrame(() => {
       flowRef.current?.fitView({
-        padding: 0.12,
+        padding: 0.14,
         duration: 180,
-        minZoom: 0.55,
-        maxZoom: 0.85,
+        minZoom: 0.5,
+        maxZoom: 0.95,
       });
+      lastFitSignatureRef.current = layoutSignature;
     });
 
     return () => window.cancelAnimationFrame(rafId);
@@ -149,13 +152,13 @@ export function TreeFlowViewport({ panel }: TreeFlowProps) {
           elementsSelectable={false}
           panOnDrag
           selectionOnDrag={false}
-          zoomOnScroll={false}
+          zoomOnScroll
           zoomOnPinch={false}
           zoomOnDoubleClick={false}
           preventScrolling
           proOptions={{ hideAttribution: true }}
-          minZoom={0.55}
-          maxZoom={0.9}
+          minZoom={0.5}
+          maxZoom={1.5}
           className="bg-[radial-gradient(circle_at_top,#fff7ed,transparent_35%),linear-gradient(#ffffff,#fcfcfd)]"
         >
           <Background gap={16} size={1} color="rgba(229,231,235,0.42)" />
