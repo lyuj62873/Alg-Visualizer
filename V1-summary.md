@@ -107,6 +107,56 @@ Implemented:
 Relevant file:
 - `public/py/dsviz.py`
 
+### Unified panel interaction model
+The visualization system now follows one shared interaction model across arrays and trees.
+
+Shared behavior:
+- every structure appears in a floating panel on the visualization canvas
+- the panel header drags the whole structure
+- drag start no longer jumps
+- panel drag suppresses accidental text selection
+- single elements inside the structure are not user-draggable
+- panel size and internal content scale are controlled separately
+
+This is now the baseline standard for future structures as well.
+
+### `VisArray` rendering direction
+`VisArray` is no longer treated as a simple row-only visual.
+
+Current behavior:
+- variable names are inferred automatically when possible, so `arr = VisArray(...)` shows `arr`
+- 1D arrays render as compact horizontal rows
+- 2D arrays render as matrices
+- 3D and deeper arrays render as stacked slices
+- nested list mutations emit frames without requiring manual write-back through the outer array
+- cell padding and inter-cell gaps were tightened to keep the default presentation compact
+- panel width has a maximum bound; overflow is explored inside the panel rather than by unlimited outer growth
+- array panel resize is non-proportional
+- array content zoom uses the mouse wheel
+- array overflow can be explored by dragging inside the panel body
+
+Relevant files:
+- `public/py/dsviz.py`
+- `components/workbench/results-pane.tsx`
+- `components/workbench/pyodide-runner.ts`
+
+### `VisTreeNode` rendering direction
+`VisTreeNode` now follows the same panel model, but keeps a tree-specific viewport inside the panel.
+
+Current behavior:
+- tree nodes are compact and non-draggable
+- the user pans by dragging empty space inside the panel
+- the user zooms with the mouse wheel
+- tree panel resize stays proportional
+- vertical level spacing is fixed and readable
+- horizontal layout uses full-level binary tree slots to avoid overlap in deeper levels
+- the tree auto-fits when the traced structure changes, but normal panel resize should not reset manual viewport exploration
+
+Relevant files:
+- `public/py/dsviz.py`
+- `components/workbench/tree-flow.tsx`
+- `components/workbench/results-pane.tsx`
+
 ### Tree rendering
 The tree renderer was changed from a custom static edge layout to `React Flow`.
 
@@ -178,48 +228,24 @@ The following were explicitly checked during implementation:
 - built-in examples load from the navbar menus
 - active-line highlighting changes when stepping frames
 
-## Known Open Issues
-These are the main unresolved items carried forward from v1.
+## Current Visualization Standard
+The repo now has a usable default standard for visual structures:
+1. elements should start compact rather than spacious
+2. the outer panel is a viewport and can be resized independently
+3. inner content scale is controlled by wheel zoom, not by panel resize
+4. the user moves the whole structure by dragging the panel
+5. the user may pan inside the panel when the structure overflows its viewport
+6. single visual elements are not draggable
 
-1. Large arrays can compress until labels become unreadable.
-Required fix:
-- automatically expand panel width based on content count
-- preserve user-controlled proportional scale after expansion
+This standard is now implemented for `VisArray` and `VisTreeNode` and should be reused for future structures.
 
-Related current bug:
-- when `VisArray.append(...)` grows the logical array, the visualization can fail to show an additional visible cell
-- the underlying array state still updates correctly, so this is currently a rendering/layout bug rather than a data bug
+## Remaining Follow-Up
+The next meaningful work is no longer the old interaction fixes. Those are now in place.
 
-2. Tree panels need better internal navigation.
-Required fix:
-- make nodes and overall tree presentation more compact
-- allow dragging empty space inside the panel to pan the visible tree viewport
-
-3. `VisArray` does not truly support nested-array visualization yet.
-Current limitation:
-- nested arrays can be stored, but they render only as stringified top-level items
-- inner-list mutations are not reliably tracked unless the modified row is written back through `VisArray.__setitem__`
-
-Required fix:
-- add nested-array-specific rendering for 2D / nested structures
-- add child-level change tracking so inner mutations emit trace frames correctly
-
-4. Panel dragging interaction is rough.
-Current problems:
-- a visible jump/reposition can happen when drag starts
-- text-selection blue highlight can appear while dragging
-- drag behavior needs smoothing and better pointer handling
-
-These are accepted carry-over issues for the next iteration.
-
-## Recommended Next Iteration
-Priority order for the next pass:
-1. fix panel drag UX
-2. make array panels auto-expand for long arrays
-3. add tree viewport panning and better compact layout
-4. add nested-array rendering and child mutation tracking for `VisArray`
-5. add more `dsviz` structures
-6. revisit an editor-assisted `watch(...)` insertion workflow
+More relevant follow-up areas are:
+1. add more `dsviz` structures while preserving the same interaction standard
+2. further tune compact defaults for atypical large values or unusual trace density
+3. revisit an editor-assisted `watch(...)` insertion workflow
 
 ## Fast Start For A New Agent
 If a new agent needs to continue this repo, the most useful reading order is:

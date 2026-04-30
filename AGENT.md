@@ -100,6 +100,30 @@ Rendering split:
 - custom React panels handle arrays
 - custom overlay panels handle variables and runtime output
 
+## Current Visualization Standard
+`VisArray` and `VisTreeNode` now follow one shared interaction standard.
+
+Shared rules:
+- every structure renders in a floating panel on the canvas
+- panel headers drag the whole structure
+- drag start should not jump and should not trigger text selection
+- panel resize and inner content zoom are separate controls
+- individual visual elements are not user-draggable
+
+Array-specific rules:
+- defaults should be compact
+- long horizontal content should overflow inside the panel rather than forcing unlimited panel growth
+- array panel resize is non-proportional
+- array contents zoom with the mouse wheel
+- overflowed array content can be explored by dragging inside the panel body
+
+Tree-specific rules:
+- nodes are non-draggable
+- the tree viewport pans by dragging empty space
+- the tree zooms with the mouse wheel
+- tree panel resize remains proportional
+- tree layout should prefer readable fixed level spacing and avoid subtree overlap
+
 ## Trace Model
 The frontend is a replay client.
 
@@ -130,15 +154,10 @@ Still out of scope for v1:
 - production-grade layout polish for every visualization edge case
 
 ## Known v1 Gaps
-Known unresolved UI issues:
-1. Large arrays can compress until labels become unreadable. Panels need automatic width expansion plus user-controlled proportional scaling.
-   - Related bug: `VisArray.append(...)` can update the underlying structure without making the additional array cell visibly appear in the panel.
-2. Tree panels need better density control and viewport panning inside the panel when the tree grows.
-3. `VisArray` does not yet provide real nested-array rendering or inner-list mutation tracking. Multi-dimensional arrays currently degrade to stringified top-level cells unless values are written back through the outer `VisArray`.
-4. Dragging panels currently has rough edges:
-   - visible reposition jump at drag start
-   - text-selection highlight can appear during drag
-   - drag interaction needs smoothing
+Known remaining gaps are narrower now:
+1. The unified interaction standard exists only for arrays and trees so far.
+2. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
+3. Future structures should preserve the current separation between panel resize, internal panning, and wheel zoom instead of inventing per-structure interaction models.
 
 ## Collaboration Rules
 - Repo-facing docs should stay in English.

@@ -122,6 +122,61 @@ Notes:
 - `bst` is the frontend panel kind used for tree rendering, including `VisTreeNode`
 - the frontend uses one large visualization canvas that contains multiple draggable panels
 
+## Unified Visualization Scheme
+Array and tree panels now follow one shared interaction model with structure-specific rendering rules.
+
+Shared panel rules:
+- each visualized structure renders inside a floating panel on the main canvas
+- panels can be dragged by the header to reposition the whole structure
+- panel dragging must not cause a visible jump at drag start
+- panel dragging must suppress accidental text selection
+- panel contents are not directly editable from the canvas
+- individual elements inside a structure are not user-draggable
+
+Shared density rules:
+- default layouts should be compact before any user adjustment
+- spacing between visible elements should stay as tight as readability allows
+- the outer panel size and the inner content scale are controlled independently
+
+Shared zoom / resize rules:
+- panel resize changes the outer viewport only
+- content zoom changes the inner visualization scale only
+- resize should not implicitly rescale the internal content
+- wheel interaction is reserved for content zoom inside the panel
+
+### Array Rendering Rules
+`VisArray` panels use custom React rendering rather than a node graph.
+
+Current array behavior:
+- array cells use tight padding and compact gaps by default
+- panel width has a maximum bound so long arrays stop growing horizontally after a point
+- overflow is handled inside the panel instead of by infinite outer expansion
+- the user can drag inside the array panel to pan across overflowed content
+- the user can zoom array contents with the mouse wheel
+- resizing an array panel is non-proportional so width and height can be adjusted independently
+
+Supported array layouts:
+- 1D arrays render as a compact horizontal row
+- 2D arrays render as a matrix with row indices
+- 3D and deeper arrays render as stacked slices
+- nested array mutations emit frames without requiring write-back through the outer container
+
+### Tree Rendering Rules
+`VisTreeNode` panels use `React Flow` as the viewport and edge renderer.
+
+Current tree behavior:
+- tree nodes are compact and non-draggable
+- edges are derived from the traced tree structure and stay attached automatically
+- the user can pan the tree viewport by dragging empty space inside the panel
+- the user can zoom the tree with the mouse wheel
+- tree panel resize remains proportional so the viewport grows and shrinks as one surface
+
+Current tree layout rules:
+- vertical level spacing is fixed and readable
+- horizontal placement is computed from full binary-tree level slots rather than local subtree compression
+- larger trees expand their internal layout space instead of overlapping lower levels
+- the visible tree is auto-fit when the traced layout changes, but routine panel resizing should not reset the user's manual viewport exploration
+
 ## UI Model
 The current single-page workbench contains:
 - a code editor pane
@@ -154,10 +209,8 @@ Current error payload includes:
 
 ## Known Limitations
 Current unresolved limitations:
-1. Arrays with many values can compress until text becomes unreadable.
-   - Related current bug: `VisArray.append(...)` can change the array state without visibly increasing the rendered cell count in the panel.
-2. Tree panels need better internal panning and more compact node sizing.
-3. `VisArray` does not yet support true nested-array rendering or reliable inner-list mutation tracking. Nested arrays currently render as stringified top-level cells unless the edited row is written back through the outer `VisArray`.
-4. Panel drag behavior needs refinement to remove jumpiness and accidental text selection.
+1. The current visual system is tuned only for arrays and trees.
+2. Compact defaults have been tuned manually and may need further calibration for very large traces or unusual value lengths.
+3. Array and tree interaction rules are now stable, but future structures should reuse the same separation between panel resize, content zoom, and internal panning where appropriate.
 
 These are post-v1 polish items, not blockers for the current prototype.
