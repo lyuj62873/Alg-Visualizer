@@ -821,7 +821,7 @@ class _TreePanel(_VisObject):
         node_depth: Dict[str, int] = {}
         max_depth = 0
         top_y = 18.0
-        row_gap = 18.0
+        row_gap = 36.0
 
         def layout(n: Optional[VisTreeNode], depth: int, x0: float, x1: float, seen: set) -> None:
             nonlocal max_depth
@@ -834,15 +834,15 @@ class _TreePanel(_VisObject):
             node_pos[n._id] = (xm, top_y + (depth * row_gap))
             left_ok = isinstance(n.left, VisTreeNode)
             right_ok = isinstance(n.right, VisTreeNode)
-            gap = 1.0
+            gap = 2.0
             if left_ok and right_ok:
                 layout(n.left, depth + 1, x0, xm - gap, seen)
                 layout(n.right, depth + 1, xm + gap, x1, seen)
             elif left_ok:
                 # Avoid huge slants when only one child exists.
-                layout(n.left, depth + 1, x0 + 0.9, xm, seen)
+                layout(n.left, depth + 1, x0 + 1.8, xm, seen)
             elif right_ok:
-                layout(n.right, depth + 1, xm, x1 - 0.9, seen)
+                layout(n.right, depth + 1, xm, x1 - 1.8, seen)
 
         cursor = x_left
         for r, c in root_sizes:
