@@ -734,6 +734,8 @@ class _TreePanel(_VisObject):
                 "y": self.layout.y,
                 "width": self.layout.width,
                 "height": self.layout.height,
+                "minWidth": 24.0,
+                "minHeight": 22.0,
                 "scale": self.layout.scale,
                 "items": [],
                 "edges": [],
@@ -876,6 +878,9 @@ class _TreePanel(_VisObject):
         # Sort items by y then x for stable render.
         items.sort(key=lambda it: (it["y"], it["x"]))
 
+        min_width = min(68.0, max(24.0, 20.0 + (c * 6.0)))
+        min_height = min(78.0, max(22.0, 20.0 + (max_depth * 10.0)))
+
         return {
             "id": self.id,
             "kind": "bst",
@@ -885,6 +890,8 @@ class _TreePanel(_VisObject):
             "y": self.layout.y,
             "width": self.layout.width,
             "height": self.layout.height,
+            "minWidth": min_width,
+            "minHeight": min_height,
             "scale": self.layout.scale,
             "items": items,
             "edges": edges,
