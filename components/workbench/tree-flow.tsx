@@ -32,6 +32,9 @@ const nodeTypes: NodeTypes = {
   treeNode: TreeNode,
 };
 
+const TREE_LAYOUT_WIDTH = 360;
+const TREE_LAYOUT_HEIGHT = 220;
+
 function itemKey(panelId: string, itemId: string) {
   return `${panelId}:${itemId}`;
 }
@@ -86,15 +89,15 @@ function useElementSize<T extends HTMLElement>() {
 export function TreeFlowViewport({ panel, positions, setPositions }: TreeFlowProps) {
   const { ref, size } = useElementSize<HTMLDivElement>();
   const flowRef = useRef<Pick<ReactFlowInstance<any, any>, "fitView"> | null>(null);
+  const lastFitSignatureRef = useRef<string | null>(null);
 
   const initialNodes: TreeNodeModel[] = useMemo(() => {
-    if (!size.width || !size.height) return [];
     return panel.items.map((item) => ({
       id: item.id,
       type: "treeNode",
       position: {
-        x: ((positions[itemKey(panel.id, item.id)]?.x ?? item.x) / 100) * size.width,
-        y: ((positions[itemKey(panel.id, item.id)]?.y ?? item.y) / 100) * size.height,
+        x: ((positions[itemKey(panel.id, item.id)]?.x ?? item.x) / 100) * TREE_LAYOUT_WIDTH,
+        y: ((positions[itemKey(panel.id, item.id)]?.y ?? item.y) / 100) * TREE_LAYOUT_HEIGHT,
       },
       data: {
         label: item.label,
@@ -103,7 +106,7 @@ export function TreeFlowViewport({ panel, positions, setPositions }: TreeFlowPro
       sourcePosition: Position.Bottom,
       targetPosition: Position.Top,
     }));
-  }, [panel.id, panel.items, positions, size.height, size.width]);
+  }, [panel.id, panel.items, positions]);
 
   const initialEdges = useMemo(
     () =>
@@ -135,14 +138,16 @@ export function TreeFlowViewport({ panel, positions, setPositions }: TreeFlowPro
 
   useEffect(() => {
     if (!flowRef.current || !size.width || !size.height || !panel.items.length) return;
+    if (lastFitSignatureRef.current === layoutSignature) return;
 
     const rafId = window.requestAnimationFrame(() => {
       flowRef.current?.fitView({
-        padding: 0.22,
+        padding: 0.18,
         duration: 180,
-        minZoom: 0.6,
-        maxZoom: 1.2,
+        minZoom: 0.5,
+        maxZoom: 0.9,
       });
+      lastFitSignatureRef.current = layoutSignature;
     });
 
     return () => window.cancelAnimationFrame(rafId);
@@ -163,8 +168,8 @@ export function TreeFlowViewport({ panel, positions, setPositions }: TreeFlowPro
             setPositions((current) => ({
               ...current,
               [itemKey(panel.id, node.id)]: {
-                x: (node.position.x / size.width) * 100,
-                y: (node.position.y / size.height) * 100,
+                x: (node.position.x / TREE_LAYOUT_WIDTH) * 100,
+                y: (node.position.y / TREE_LAYOUT_HEIGHT) * 100,
               },
             }));
           }}
@@ -179,8 +184,8 @@ export function TreeFlowViewport({ panel, positions, setPositions }: TreeFlowPro
           zoomOnDoubleClick={false}
           preventScrolling
           proOptions={{ hideAttribution: true }}
-          minZoom={0.6}
-          maxZoom={1.2}
+          minZoom={0.5}
+          maxZoom={1}
           className="bg-[radial-gradient(circle_at_top,#fff7ed,transparent_35%),linear-gradient(#ffffff,#fcfcfd)]"
         >
           <Background gap={18} size={1} color="rgba(229,231,235,0.45)" />

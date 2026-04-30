@@ -635,8 +635,8 @@ class VisBST(_VisObject):
         collect_edges(self._root)
 
         max_depth = max(depths.values()) if depths else 0
-        x_left = 14.0
-        x_right = 86.0
+        x_left = 20.0
+        x_right = 80.0
         x_step = 0.0 if len(nodes) == 1 else (x_right - x_left) / (len(nodes) - 1)
 
         node_to_id: Dict[_BSTNode, str] = {}
@@ -832,15 +832,15 @@ class _TreePanel(_VisObject):
             node_pos[n._id] = (xm, 0.0)
             left_ok = isinstance(n.left, VisTreeNode)
             right_ok = isinstance(n.right, VisTreeNode)
-            gap = 2.0
+            gap = 1.4
             if left_ok and right_ok:
                 layout(n.left, depth + 1, x0, xm - gap, seen)
                 layout(n.right, depth + 1, xm + gap, x1, seen)
             elif left_ok:
                 # Avoid huge slants when only one child exists.
-                layout(n.left, depth + 1, x0, xm, seen)
+                layout(n.left, depth + 1, x0 + 1.0, xm, seen)
             elif right_ok:
-                layout(n.right, depth + 1, xm, x1, seen)
+                layout(n.right, depth + 1, xm, x1 - 1.0, seen)
 
         cursor = x_left
         for r, c in root_sizes:
@@ -856,7 +856,7 @@ class _TreePanel(_VisObject):
             x, _ = node_pos[node._id]
             d = node_depth.get(node._id, 0)
             # Keep top padding so nodes don't collide with the panel header.
-            y = 18.0 if max_depth == 0 else 18.0 + (56.0 * (d / max_depth))
+            y = 18.0 if max_depth == 0 else 18.0 + (40.0 * (d / max_depth))
             items.append(
                 {
                     "id": node._id,
@@ -878,8 +878,8 @@ class _TreePanel(_VisObject):
         # Sort items by y then x for stable render.
         items.sort(key=lambda it: (it["y"], it["x"]))
 
-        min_width = min(68.0, max(24.0, 20.0 + (c * 6.0)))
-        min_height = min(78.0, max(22.0, 20.0 + (max_depth * 10.0)))
+        min_width = min(56.0, max(22.0, 18.0 + (c * 4.5)))
+        min_height = min(56.0, max(20.0, 18.0 + (max_depth * 7.5)))
 
         return {
             "id": self.id,
