@@ -72,6 +72,13 @@ export type TracePanel =
       edges: Array<{ from: string; to: string }>;
     })
   | (TracePanelBase & {
+      kind: "list";
+      layoutWidth?: number;
+      layoutHeight?: number;
+      items: TraceVisualItem[];
+      edges: Array<{ from: string; to: string }>;
+    })
+  | (TracePanelBase & {
       kind: "array";
       layout?: "row" | "matrix" | "stack";
       dimensions?: number[];

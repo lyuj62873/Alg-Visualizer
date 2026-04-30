@@ -142,7 +142,9 @@ def reset_trace() -> None:
     # Ensure singleton panels and counters don't leak across runs when users call reset_trace()
     # in a long-lived interpreter (e.g. local Python, notebooks).
     global _TREE_PANEL
+    global _LIST_PANEL
     _TREE_PANEL = None
+    _LIST_PANEL = None
     # Best-effort counter reset (module might not have loaded these symbols yet).
     try:
         _VisObject._id_counter = 0
@@ -150,6 +152,10 @@ def reset_trace() -> None:
         pass
     try:
         globals().get("VisTreeNode")._node_counter = 0  # type: ignore[union-attr]
+    except Exception:
+        pass
+    try:
+        globals().get("VisListNode")._node_counter = 0  # type: ignore[union-attr]
     except Exception:
         pass
 
@@ -893,6 +899,27 @@ class VisTreeNode:
         object.__setattr__(self, name, value)
 
 
+class VisListNode:
+    _node_counter = 0
+
+    def __init__(self, val: Any, right: Optional["VisListNode"] = None) -> None:
+        VisListNode._node_counter += 1
+        object.__setattr__(self, "_id", f"ln_{VisListNode._node_counter}")
+        object.__setattr__(self, "val", val)
+        object.__setattr__(self, "right", right)
+        _ensure_list_panel()._register(self)
+        _TRACE.emit(label=f"list_node({self._id}): init")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in ("val", "right"):
+            object.__setattr__(self, name, value)
+            _TRACE.touch(self._id)
+            rendered = value if name == "val" else getattr(value, "_id", value)
+            _TRACE.emit(label=f"{self._id}.{name} = {_safe_str(rendered)}")
+            return
+        object.__setattr__(self, name, value)
+
+
 class _TreePanel(_VisObject):
     def __init__(
         self,
@@ -1087,6 +1114,140 @@ class _TreePanel(_VisObject):
 _TREE_PANEL: Optional[_TreePanel] = None
 
 
+class _ListPanel(_VisObject):
+    def __init__(
+        self,
+        title: str = "head",
+        *,
+        panel_id: str = "list",
+        x: float = 14,
+        y: float = 56,
+        width: float = 54,
+        height: float = 22,
+        scale: float = 1.0,
+    ) -> None:
+        super().__init__(
+            title=title,
+            type_label="VisListNode",
+            panel_id=panel_id,
+            layout=_PanelLayout(x=x, y=y, width=width, height=height, scale=scale),
+        )
+        self._nodes: Dict[str, VisListNode] = {}
+
+    def _register(self, node: VisListNode) -> None:
+        self._nodes[node._id] = node
+
+    def _render_panel(self) -> Dict[str, Any]:
+        all_nodes = list(self._nodes.values())
+        nodes_by_id: Dict[str, VisListNode] = {n._id: n for n in all_nodes}
+        if not all_nodes:
+            return {
+                "id": self.id,
+                "kind": "list",
+                "title": self.title,
+                "typeLabel": self.type_label,
+                "x": self.layout.x,
+                "y": self.layout.y,
+                "width": self.layout.width,
+                "height": self.layout.height,
+                "minWidth": 28.0,
+                "minHeight": 18.0,
+                "scale": self.layout.scale,
+                "items": [],
+                "edges": [],
+            }
+
+        child_ids = set()
+        for n in all_nodes:
+            if isinstance(n.right, VisListNode):
+                child_ids.add(n.right._id)
+        roots = [n for n in all_nodes if n._id not in child_ids]
+        if not roots:
+            roots = [all_nodes[0]]
+
+        def reachable_ids(root: VisListNode) -> set:
+            seen: set = set()
+            cur: Optional[VisListNode] = root
+            while cur is not None and isinstance(cur, VisListNode) and cur._id not in seen:
+                seen.add(cur._id)
+                cur = cur.right if isinstance(cur.right, VisListNode) else None
+            return seen
+
+        def node_order(n: VisListNode) -> int:
+            try:
+                return int(str(n._id).split("_", 1)[1])
+            except Exception:
+                return 10**9
+
+        primary_root = roots[0]
+        primary_ids = reachable_ids(primary_root)
+        best_size = len(primary_ids)
+        best_order = node_order(primary_root)
+        for r in roots[1:]:
+            ids = reachable_ids(r)
+            size = len(ids)
+            order = node_order(r)
+            if size > best_size or (size == best_size and order < best_order):
+                primary_root = r
+                primary_ids = ids
+                best_size = size
+                best_order = order
+
+        ordered_nodes: List[VisListNode] = []
+        seen_ids = set()
+        cur: Optional[VisListNode] = primary_root
+        while cur is not None and isinstance(cur, VisListNode) and cur._id not in seen_ids:
+            if cur._id not in primary_ids or cur._id not in nodes_by_id:
+                break
+            ordered_nodes.append(cur)
+            seen_ids.add(cur._id)
+            cur = cur.right if isinstance(cur.right, VisListNode) else None
+
+        items = []
+        edges = []
+        left_padding = 28.0
+        top_y = 54.0
+        node_gap = 118.0
+        bottom_padding = 28.0
+        for index, node in enumerate(ordered_nodes):
+            x = left_padding + (index * node_gap)
+            items.append(
+                {
+                    "id": node._id,
+                    "label": _safe_str(node.val),
+                    "x": x,
+                    "y": top_y,
+                    "shape": "pill",
+                    "tone": "active" if _TRACE.last_touched == node._id else "default",
+                }
+            )
+            if isinstance(node.right, VisListNode) and node.right._id in primary_ids:
+                edges.append({"from": node._id, "to": node.right._id})
+
+        layout_width = max(320.0, left_padding * 2 + 72.0 + max(0, len(ordered_nodes) - 1) * node_gap)
+        layout_height = 120.0
+        min_width = min(72.0, max(28.0, 20.0 + (len(ordered_nodes) * 8.5)))
+        min_height = 20.0
+
+        return {
+            "id": self.id,
+            "kind": "list",
+            "title": self.title,
+            "typeLabel": self.type_label,
+            "x": self.layout.x,
+            "y": self.layout.y,
+            "width": self.layout.width,
+            "height": self.layout.height,
+            "minWidth": min_width,
+            "minHeight": min_height,
+            "layoutWidth": layout_width,
+            "layoutHeight": layout_height,
+            "scale": self.layout.scale,
+            "items": items,
+            "edges": edges,
+        }
+
+
 def _ensure_tree_panel() -> _TreePanel:
     global _TREE_PANEL
     if _TREE_PANEL is None:
@@ -1094,9 +1255,20 @@ def _ensure_tree_panel() -> _TreePanel:
     return _TREE_PANEL
 
 
+_LIST_PANEL: Optional[_ListPanel] = None
+
+
+def _ensure_list_panel() -> _ListPanel:
+    global _LIST_PANEL
+    if _LIST_PANEL is None:
+        _LIST_PANEL = _ListPanel()
+    return _LIST_PANEL
+
+
 __all__ = [
     "VisArray",
     "VisBST",
+    "VisListNode",
     "VisTreeNode",
     "emit",
     "export_trace",

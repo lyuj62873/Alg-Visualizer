@@ -51,6 +51,7 @@ AlgoLens v1 visualizes only explicitly tracked values.
 
 Current supported primitives:
 - `VisArray`
+- `VisListNode`
 - `VisTreeNode`
 - `watch(name, value)`
 
@@ -190,6 +191,7 @@ Current built-in `Examples`:
 
 Current built-in `Guides`:
 - `VisArray`
+- `VisListNode`
 - `VisTreeNode`
 
 ## Rendering Direction

@@ -54,6 +54,11 @@ export function Workbench() {
       description: "node init, set/get, attach/detach children",
       path: "/examples/vis-tree-node-example.py",
     },
+    {
+      label: "VisListNode",
+      description: "linked-list init, insert, rewire next pointers, replace tail",
+      path: "/examples/vis-list-node-example.py",
+    },
   ];
 
   async function loadExample(path: string) {

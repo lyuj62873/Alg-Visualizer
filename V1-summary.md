@@ -82,6 +82,7 @@ Relevant files:
 ### Visualization primitives
 Implemented:
 - `VisArray`
+- `VisListNode`
 - `VisTreeNode`
 - explicit scalar tracking with `watch(name, value)`
 
@@ -170,6 +171,7 @@ Relevant file:
 ### Examples and guides
 Implemented:
 - `Guides -> VisArray`
+- `Guides -> VisListNode`
 - `Guides -> VisTreeNode`
 - `Examples -> Balanced Rebuild`
 
@@ -181,6 +183,7 @@ The `Balanced Rebuild` example demonstrates:
 
 Relevant files:
 - `public/examples/vis-array-example.py`
+- `public/examples/vis-list-node-example.py`
 - `public/examples/vis-tree-node-example.py`
 - `public/examples/balanced-rebuild-example.py`
 

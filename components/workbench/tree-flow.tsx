@@ -3,6 +3,7 @@
 import {
   Background,
   Handle,
+  MarkerType,
   Node,
   NodeProps,
   Position,
@@ -17,12 +18,13 @@ import { TracePanel } from "./mock-trace";
 type TreeNodeData = {
   label: string;
   tone?: "default" | "active";
+  shape?: "circle" | "pill";
 };
 
 type TreeNodeModel = Node<TreeNodeData, "treeNode">;
 
 type TreeFlowProps = {
-  panel: Extract<TracePanel, { kind: "bst" }>;
+  panel: Extract<TracePanel, { kind: "bst" | "list" }>;
   scale: number;
   onScaleChange: (nextScale: number) => void;
 };
@@ -36,9 +38,12 @@ const TREE_LAYOUT_HEIGHT = 240;
 
 function TreeNode({ data }: NodeProps<TreeNodeModel>) {
   const active = data.tone === "active";
+  const isListNode = data.shape === "pill";
   return (
     <div
-      className={`relative flex h-10 w-10 items-center justify-center rounded-full border text-[11px] font-semibold shadow-sm ${
+      className={`relative flex items-center justify-center border text-[11px] font-semibold shadow-sm ${
+        isListNode ? "h-11 min-w-[56px] rounded-2xl px-4" : "h-10 w-10 rounded-full"
+      } ${
         active
           ? "border-[#fb923c] bg-[#fff7ed] text-[#c2410c]"
           : "border-[#d1d5db] bg-white text-[#111827]"
@@ -46,13 +51,13 @@ function TreeNode({ data }: NodeProps<TreeNodeModel>) {
     >
       <Handle
         type="target"
-        position={Position.Top}
+        position={isListNode ? Position.Left : Position.Top}
         style={{ width: 8, height: 8, border: "none", background: "transparent", opacity: 0 }}
       />
       <span className="select-none">{data.label}</span>
       <Handle
         type="source"
-        position={Position.Bottom}
+        position={isListNode ? Position.Right : Position.Bottom}
         style={{ width: 8, height: 8, border: "none", background: "transparent", opacity: 0 }}
       />
     </div>
@@ -136,27 +141,29 @@ function TreeViewportSync({
   return null;
 }
 
-export function TreeFlowViewport({ panel, scale, onScaleChange }: TreeFlowProps) {
+export function NodeFlowViewport({ panel, scale, onScaleChange }: TreeFlowProps) {
   const { ref, size } = useElementSize<HTMLDivElement>();
   const layoutWidth = panel.layoutWidth ?? TREE_LAYOUT_WIDTH;
   const layoutHeight = panel.layoutHeight ?? TREE_LAYOUT_HEIGHT;
+  const isListPanel = panel.kind === "list";
 
   const initialNodes: TreeNodeModel[] = useMemo(() => {
     return panel.items.map((item) => ({
       id: item.id,
       type: "treeNode",
       position: {
-        x: (item.x / 100) * layoutWidth,
-        y: (item.y / 100) * layoutHeight,
+        x: isListPanel ? item.x : (item.x / 100) * layoutWidth,
+        y: isListPanel ? item.y : (item.y / 100) * layoutHeight,
       },
       data: {
         label: item.label,
         tone: item.tone,
+        shape: item.shape,
       },
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top,
+      sourcePosition: item.shape === "pill" ? Position.Right : Position.Bottom,
+      targetPosition: item.shape === "pill" ? Position.Left : Position.Top,
     }));
-  }, [layoutHeight, layoutWidth, panel.items]);
+  }, [isListPanel, layoutHeight, layoutWidth, panel.items]);
 
   const initialEdges = useMemo(
     () =>
@@ -164,9 +171,23 @@ export function TreeFlowViewport({ panel, scale, onScaleChange }: TreeFlowProps)
         id: `${edge.from}-${edge.to}`,
         source: edge.from,
         target: edge.to,
-        type: "smoothstep" as const,
+        type: isListPanel ? ("straight" as const) : ("smoothstep" as const),
+        markerEnd: isListPanel
+          ? {
+              type: MarkerType.ArrowClosed,
+              width: 18,
+              height: 18,
+              color: "#475569",
+            }
+          : undefined,
+        style: isListPanel
+          ? {
+              stroke: "#475569",
+              strokeWidth: 2.2,
+            }
+          : undefined,
       })),
-    [panel.edges],
+    [isListPanel, panel.edges],
   );
 
   const layoutSignature = useMemo(
@@ -207,7 +228,11 @@ export function TreeFlowViewport({ panel, scale, onScaleChange }: TreeFlowProps)
           proOptions={{ hideAttribution: true }}
           minZoom={0.5}
           maxZoom={1.9}
-          className="bg-[radial-gradient(circle_at_top,#fff7ed,transparent_35%),linear-gradient(#ffffff,#fcfcfd)]"
+          className={`${
+            isListPanel
+              ? "bg-[linear-gradient(#ffffff,#fcfcfd)]"
+              : "bg-[radial-gradient(circle_at_top,#fff7ed,transparent_35%),linear-gradient(#ffffff,#fcfcfd)]"
+          }`}
         >
           <TreeViewportSync
             scale={scale}
@@ -216,7 +241,11 @@ export function TreeFlowViewport({ panel, scale, onScaleChange }: TreeFlowProps)
             size={size}
             onScaleChange={onScaleChange}
           />
-          <Background gap={16} size={1} color="rgba(229,231,235,0.42)" />
+          <Background
+            gap={isListPanel ? 20 : 16}
+            size={1}
+            color={isListPanel ? "rgba(226,232,240,0.52)" : "rgba(229,231,235,0.42)"}
+          />
         </ReactFlow>
       ) : null}
     </div>

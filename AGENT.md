@@ -52,6 +52,7 @@ Only explicitly instrumented values are visualized.
 
 Current supported instrumentation:
 - `VisArray`
+- `VisListNode`
 - `VisTreeNode`
 - `watch("name", value)`
 
@@ -85,6 +86,7 @@ Current built-in examples:
 
 Current built-in guides:
 - `VisArray`
+- `VisListNode`
 - `VisTreeNode`
 
 ## Current Rendering Direction

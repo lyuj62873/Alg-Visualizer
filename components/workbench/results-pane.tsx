@@ -7,10 +7,12 @@ import type {
 } from "react";
 import { useEffect, useRef, useState } from "react";
 import { TraceArrayCell, TraceFrame, TracePanel } from "./mock-trace";
-import { TreeFlowViewport } from "./tree-flow";
+import { NodeFlowViewport } from "./tree-flow";
 
-function isTreeKind(panel: TracePanel): panel is Extract<TracePanel, { kind: "bst" }> {
-  return panel.kind === "bst";
+function isNodeFlowKind(
+  panel: TracePanel,
+): panel is Extract<TracePanel, { kind: "bst" | "list" }> {
+  return panel.kind === "bst" || panel.kind === "list";
 }
 
 type DragPositions = Record<
@@ -495,8 +497,8 @@ function VisualizationPanel({
             : "bg-[#fcfcfd]"
         }`}
       >
-        {isTreeKind(panel) ? (
-          <TreeFlowViewport
+        {isNodeFlowKind(panel) ? (
+          <NodeFlowViewport
             panel={panel}
             scale={currentPanelPosition.scale}
             onScaleChange={(nextScale) => setPanelScale(setPositions, panel, nextScale)}
@@ -560,7 +562,7 @@ export function ResultsPane({
           scale,
         };
 
-        if (!isTreeKind(panel)) {
+        if (!isNodeFlowKind(panel)) {
           continue;
         }
 
