@@ -877,9 +877,17 @@ class _TreePanel(_VisObject):
         # Sort items by y then x for stable render.
         items.sort(key=lambda it: (it["y"], it["x"]))
 
+        depth_counts: Dict[int, int] = {}
+        for depth in node_depth.values():
+            depth_counts[depth] = depth_counts.get(depth, 0) + 1
+
+        max_level_nodes = max(depth_counts.values()) if depth_counts else 1
         node_diameter = 9.0
         bottom_padding = 12.0
-        min_width = min(58.0, max(20.0, 16.0 + (c * 4.0)))
+        width_scale = max(1.0, (max_level_nodes - 1) / 3.0)
+        layout_width = 320.0 * width_scale
+        layout_height = max(240.0, top_y + node_diameter + (max_depth * row_gap) + bottom_padding + 16.0)
+        min_width = min(72.0, max(20.0, 18.0 + (max_level_nodes * 4.5)))
         min_height = min(72.0, max(20.0, top_y + node_diameter + (max_depth * row_gap) + bottom_padding))
 
         return {
@@ -893,6 +901,8 @@ class _TreePanel(_VisObject):
             "height": self.layout.height,
             "minWidth": min_width,
             "minHeight": min_height,
+            "layoutWidth": layout_width,
+            "layoutHeight": layout_height,
             "scale": self.layout.scale,
             "items": items,
             "edges": edges,

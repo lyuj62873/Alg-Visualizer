@@ -62,6 +62,8 @@ type TracePanelBase = {
 export type TracePanel =
   | (TracePanelBase & {
       kind: "bst";
+      layoutWidth?: number;
+      layoutHeight?: number;
       items: TraceVisualItem[];
       edges: Array<{ from: string; to: string }>;
     })

@@ -82,14 +82,16 @@ export function TreeFlowViewport({ panel }: TreeFlowProps) {
   const { ref, size } = useElementSize<HTMLDivElement>();
   const flowRef = useRef<Pick<ReactFlowInstance<any, any>, "fitView"> | null>(null);
   const lastFitSignatureRef = useRef<string | null>(null);
+  const layoutWidth = panel.layoutWidth ?? TREE_LAYOUT_WIDTH;
+  const layoutHeight = panel.layoutHeight ?? TREE_LAYOUT_HEIGHT;
 
   const initialNodes: TreeNodeModel[] = useMemo(() => {
     return panel.items.map((item) => ({
       id: item.id,
       type: "treeNode",
       position: {
-        x: (item.x / 100) * TREE_LAYOUT_WIDTH,
-        y: (item.y / 100) * TREE_LAYOUT_HEIGHT,
+        x: (item.x / 100) * layoutWidth,
+        y: (item.y / 100) * layoutHeight,
       },
       data: {
         label: item.label,
@@ -98,7 +100,7 @@ export function TreeFlowViewport({ panel }: TreeFlowProps) {
       sourcePosition: Position.Bottom,
       targetPosition: Position.Top,
     }));
-  }, [panel.items]);
+  }, [layoutHeight, layoutWidth, panel.items]);
 
   const initialEdges = useMemo(
     () =>
@@ -114,10 +116,12 @@ export function TreeFlowViewport({ panel }: TreeFlowProps) {
   const layoutSignature = useMemo(
     () =>
       JSON.stringify({
+        layoutWidth,
+        layoutHeight,
         items: panel.items.map((item) => [item.id, item.x, item.y]),
         edges: panel.edges,
       }),
-    [panel.edges, panel.items],
+    [layoutHeight, layoutWidth, panel.edges, panel.items],
   );
 
   useEffect(() => {
