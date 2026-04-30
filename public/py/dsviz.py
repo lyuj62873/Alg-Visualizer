@@ -794,68 +794,48 @@ class _TreePanel(_VisObject):
         # don't cause the visible tree to jump around between frames.
         nodes = [nodes_by_id[nid] for nid in primary_ids if nid in nodes_by_id]
 
-        # Allocate horizontal space across roots proportional to leaf count, then layout each root
-        # with an interval-based tree layout (root centered, children in sub-intervals).
-        root_sizes: List[Tuple[VisTreeNode, int]] = []
-
-        def leaf_count(n: Optional[VisTreeNode], seen: set) -> int:
-            if n is None or not isinstance(n, VisTreeNode) or n._id in seen:
-                return 0
-            seen.add(n._id)
-            left = leaf_count(n.left, seen)
-            right = leaf_count(n.right, seen)
-            if left == 0 and right == 0:
-                return 1
-            return max(1, left) + max(1, right)
-
-        total = 0
-        c = max(1, leaf_count(primary_root, set()))
-        root_sizes.append((primary_root, c))
-        total += c
-
         x_left = 22.0
         x_right = 78.0
         x_span = x_right - x_left
 
         node_pos: Dict[str, Tuple[float, float]] = {}
         node_depth: Dict[str, int] = {}
+        node_slot: Dict[str, int] = {}
         max_depth = 0
         top_y = 18.0
         row_gap = 36.0
 
-        def layout(n: Optional[VisTreeNode], depth: int, x0: float, x1: float, seen: set) -> None:
+        def layout(n: Optional[VisTreeNode], depth: int, slot: int, seen: set) -> None:
             nonlocal max_depth
             if n is None or not isinstance(n, VisTreeNode) or n._id in seen:
                 return
             seen.add(n._id)
             max_depth = max(max_depth, depth)
             node_depth[n._id] = depth
-            xm = (x0 + x1) / 2.0
-            node_pos[n._id] = (xm, top_y + (depth * row_gap))
+            node_slot[n._id] = slot
             left_ok = isinstance(n.left, VisTreeNode)
             right_ok = isinstance(n.right, VisTreeNode)
-            gap = 2.0
             if left_ok and right_ok:
-                layout(n.left, depth + 1, x0, xm - gap, seen)
-                layout(n.right, depth + 1, xm + gap, x1, seen)
+                layout(n.left, depth + 1, slot * 2, seen)
+                layout(n.right, depth + 1, slot * 2 + 1, seen)
             elif left_ok:
-                # Avoid huge slants when only one child exists.
-                layout(n.left, depth + 1, x0 + 1.8, xm, seen)
+                layout(n.left, depth + 1, slot * 2, seen)
             elif right_ok:
-                layout(n.right, depth + 1, xm, x1 - 1.8, seen)
+                layout(n.right, depth + 1, slot * 2 + 1, seen)
 
-        cursor = x_left
-        for r, c in root_sizes:
-            sub_left = cursor
-            sub_right = cursor + (x_span * (c / total))
-            cursor = sub_right
-            layout(r, 0, sub_left, sub_right, set())
+        layout(primary_root, 0, 0, set())
 
         items = []
+        max_depth_slots = max(1, 2 ** max_depth)
         for node in nodes:
-            if node._id not in node_pos:
+            if node._id not in node_slot:
                 continue
-            x, y = node_pos[node._id]
+            depth = node_depth.get(node._id, 0)
+            slot = node_slot[node._id]
+            slot_fraction = (2 * slot + 1) / (2 ** (depth + 1))
+            x = x_left + (x_span * slot_fraction)
+            y = top_y + (depth * row_gap)
+            node_pos[node._id] = (x, y)
             items.append(
                 {
                     "id": node._id,
@@ -884,7 +864,7 @@ class _TreePanel(_VisObject):
         max_level_nodes = max(depth_counts.values()) if depth_counts else 1
         node_diameter = 9.0
         bottom_padding = 12.0
-        width_scale = max(1.0, (max_level_nodes - 1) / 3.0)
+        width_scale = max(1.0, max_depth_slots / 4.0)
         layout_width = 320.0 * width_scale
         layout_height = max(240.0, top_y + node_diameter + (max_depth * row_gap) + bottom_padding + 16.0)
         min_width = min(72.0, max(20.0, 18.0 + (max_level_nodes * 4.5)))
