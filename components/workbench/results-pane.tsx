@@ -48,11 +48,10 @@ function panelKey(panelId: string) {
   return `panel:${panelId}`;
 }
 
-function getEffectiveMinSize(panel: TracePanel, scale: number) {
-  const scaleRatio = panel.scale > 0 ? scale / panel.scale : 1;
+function getEffectiveMinSize(panel: TracePanel) {
   return {
-    width: (panel.minWidth ?? panel.width) * scaleRatio,
-    height: (panel.minHeight ?? panel.height) * scaleRatio,
+    width: panel.minWidth ?? panel.width,
+    height: panel.minHeight ?? panel.height,
   };
 }
 
@@ -65,7 +64,7 @@ function getPanelPosition(panel: TracePanel, positions: DragPositions): PanelPos
     scale: panel.scale,
   };
   const scale = current.scale ?? panel.scale;
-  const minSize = getEffectiveMinSize(panel, scale);
+  const minSize = getEffectiveMinSize(panel);
 
   return {
     x: current.x,
@@ -258,7 +257,7 @@ function VisualizationPanel({
     event.preventDefault();
     event.stopPropagation();
 
-    const minSize = getEffectiveMinSize(panel, currentPanelPosition.scale);
+    const minSize = getEffectiveMinSize(panel);
     setInteraction({
       mode,
       panelId: panel.id,
@@ -352,7 +351,7 @@ export function ResultsPane({
           scale: panel.scale,
         };
         const scale = prior.scale ?? panel.scale;
-        const minSize = getEffectiveMinSize(panel, scale);
+        const minSize = getEffectiveMinSize(panel);
 
         nextPositions[panelKey(panel.id)] = {
           x: prior.x,
