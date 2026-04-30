@@ -68,7 +68,7 @@ class Solution:
 
     def solve(self, root):
         # Collect the tree values with an inorder traversal.
-        inorder_values = VisArray([], name="inorder_values")
+        inorder_values = VisArray([])
         self.inorder_collect(root, inorder_values)
 
         # Sort the array in-place with quicksort so every swap is visible.

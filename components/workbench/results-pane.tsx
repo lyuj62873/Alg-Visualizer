@@ -5,7 +5,7 @@ import type {
   PointerEvent as ReactPointerEvent,
   SetStateAction,
 } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TraceArrayCell, TraceFrame, TracePanel } from "./mock-trace";
 import { TreeFlowViewport } from "./tree-flow";
 
@@ -29,29 +29,60 @@ type PanelPosition = {
 type InteractionState = {
   mode: "drag" | "resize";
   panelId: string;
+  panelKind: TracePanel["kind"];
   startClientX: number;
   startClientY: number;
   panelStart: PanelPosition;
   minWidth: number;
   minHeight: number;
+  maxWidth: number;
+  maxHeight: number;
 };
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function itemKey(panelId: string, itemId: string) {
-  return `${panelId}:${itemId}`;
-}
-
 function panelKey(panelId: string) {
   return `panel:${panelId}`;
+}
+
+function setPanelScale(
+  setPositions: Dispatch<SetStateAction<DragPositions>>,
+  panel: TracePanel,
+  nextScale: number,
+) {
+  setPositions((current) => {
+    const key = panelKey(panel.id);
+    const prior = current[key] ?? {
+      x: panel.x,
+      y: panel.y,
+      width: panel.width,
+      height: panel.height,
+      scale: panel.scale,
+    };
+
+    return {
+      ...current,
+      [key]: {
+        ...prior,
+        scale: clamp(nextScale, 0.75, 1.9),
+      },
+    };
+  });
 }
 
 function getEffectiveMinSize(panel: TracePanel) {
   return {
     width: panel.minWidth ?? panel.width,
     height: panel.minHeight ?? panel.height,
+  };
+}
+
+function getEffectiveMaxSize(panel: TracePanel) {
+  return {
+    width: panel.maxWidth ?? 96,
+    height: panel.maxHeight ?? 96,
   };
 }
 
@@ -65,14 +96,103 @@ function getPanelPosition(panel: TracePanel, positions: DragPositions): PanelPos
   };
   const scale = current.scale ?? panel.scale;
   const minSize = getEffectiveMinSize(panel);
+  const maxSize = getEffectiveMaxSize(panel);
 
   return {
     x: current.x,
     y: current.y,
-    width: Math.max(current.width ?? panel.width, minSize.width),
-    height: Math.max(current.height ?? panel.height, minSize.height),
+    width: clamp(current.width ?? panel.width, minSize.width, maxSize.width),
+    height: clamp(current.height ?? panel.height, minSize.height, maxSize.height),
     scale,
   };
+}
+
+function formatDimensions(dimensions?: number[]) {
+  return dimensions && dimensions.length ? dimensions.join(" x ") : null;
+}
+
+function ArrayValueCell({ cell }: { cell: Extract<TraceArrayCell, { kind: "value" }> }) {
+  const isActive = cell.tone === "active";
+  const containsActive = !!cell.containsActive;
+
+  return (
+    <div
+      className={`flex min-h-10 min-w-[52px] items-center justify-center rounded-lg border px-2.5 py-2 text-[13px] font-semibold shadow-sm ${
+        isActive
+          ? "border-[#fb923c] bg-[#fff7ed] text-[#c2410c]"
+          : containsActive
+            ? "border-[#fdba74] bg-[#fffbeb] text-[#9a3412]"
+            : "border-[#d1d5db] bg-white text-[#111827]"
+      }`}
+    >
+      <span className="whitespace-nowrap">{cell.label}</span>
+    </div>
+  );
+}
+
+function ArrayContentView({
+  layout,
+  cells,
+  depth,
+}: {
+  layout: "row" | "matrix" | "stack";
+  cells: TraceArrayCell[];
+  depth: number;
+}) {
+  if (layout === "matrix") {
+    return (
+      <div className="space-y-1.5">
+        {cells.map((row, rowIndex) => {
+          if (row.kind === "array") {
+            return (
+              <div key={row.id} className="flex items-center gap-1.5">
+                <div className="w-5 text-right text-[10px] font-semibold text-[#94a3b8]">
+                  {rowIndex}
+                </div>
+                <div className="flex min-w-max items-start gap-1.5">
+                  {row.cells.map((child) => (
+                    <ArrayCellView key={child.id} cell={child} depth={depth + 1} />
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={row.id} className="flex items-center gap-1.5">
+              <div className="w-5 text-right text-[10px] font-semibold text-[#94a3b8]">
+                {rowIndex}
+              </div>
+              <ArrayCellView cell={row} depth={depth + 1} />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (layout === "stack") {
+    return (
+      <div className="space-y-2">
+        {cells.map((child, index) => (
+          <div key={child.id} className="rounded-xl border border-[#e2e8f0] bg-white/70 px-2.5 py-2.5">
+            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#94a3b8]">
+              Slice {index}
+            </div>
+            <ArrayCellView cell={child} depth={depth + 1} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-w-max items-start gap-1.5 pb-1">
+      {cells.map((child) => (
+        <ArrayCellView key={child.id} cell={child} depth={depth + 1} />
+      ))}
+    </div>
+  );
 }
 
 function ArrayCellView({
@@ -82,30 +202,19 @@ function ArrayCellView({
   cell: TraceArrayCell;
   depth: number;
 }) {
-  const isActive = cell.tone === "active";
-  const containsActive = !!cell.containsActive;
-
+  const nestedBg = depth % 2 === 0 ? "bg-[#fffaf5]" : "bg-white";
   if (cell.kind === "value") {
-    return (
-      <div
-        className={`flex min-h-12 min-w-[68px] items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold shadow-sm ${
-          isActive
-            ? "border-[#fb923c] bg-[#fff7ed] text-[#c2410c]"
-            : containsActive
-              ? "border-[#fdba74] bg-[#fffbeb] text-[#9a3412]"
-              : "border-[#d1d5db] bg-white text-[#111827]"
-        }`}
-      >
-        <span className="whitespace-nowrap">{cell.label}</span>
-      </div>
-    );
+    return <ArrayValueCell cell={cell} />;
   }
 
-  const nestedBg = depth % 2 === 0 ? "bg-[#fffaf5]" : "bg-white";
+  const isActive = cell.tone === "active";
+  const containsActive = !!cell.containsActive;
+  const dimensionsLabel = formatDimensions(cell.dimensions);
+  const layout = cell.layout ?? "row";
 
   return (
     <div
-      className={`rounded-2xl border px-3 py-3 shadow-sm ${nestedBg} ${
+      className={`rounded-xl border px-2.5 py-2.5 shadow-sm ${nestedBg} ${
         isActive
           ? "border-[#fb923c] ring-1 ring-[#fdba74]"
           : containsActive
@@ -113,20 +222,19 @@ function ArrayCellView({
             : "border-[#e5e7eb]"
       }`}
     >
-      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9ca3af]">
-        Nested Array
+      <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9ca3af]">
+        <span>
+          {layout === "matrix" ? "Matrix" : layout === "stack" ? "Nested Blocks" : "Nested Array"}
+        </span>
+        {dimensionsLabel ? <span>{dimensionsLabel}</span> : null}
       </div>
-      <div className="flex min-w-max items-start gap-3">
-        {cell.cells.length ? (
-          cell.cells.map((child) => (
-            <ArrayCellView key={child.id} cell={child} depth={depth + 1} />
-          ))
-        ) : (
-          <div className="rounded-xl border border-dashed border-[#d1d5db] px-4 py-3 text-xs text-[#6b7280]">
-            Empty
-          </div>
-        )}
-      </div>
+      {cell.cells.length ? (
+        <ArrayContentView layout={layout} cells={cell.cells} depth={depth} />
+      ) : (
+        <div className="rounded-lg border border-dashed border-[#d1d5db] px-3 py-2 text-xs text-[#6b7280]">
+          Empty
+        </div>
+      )}
     </div>
   );
 }
@@ -134,25 +242,92 @@ function ArrayCellView({
 function ArrayPanelBody({
   panel,
   scale,
+  setPositions,
 }: {
   panel: Extract<TracePanel, { kind: "array" }>;
   scale: number;
+  setPositions: Dispatch<SetStateAction<DragPositions>>;
 }) {
+  const dimensionsLabel = formatDimensions(panel.dimensions);
+  const layout = panel.layout ?? "row";
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [dragScroll, setDragScroll] = useState<{
+    pointerId: number;
+    startClientX: number;
+    startClientY: number;
+    scrollLeft: number;
+    scrollTop: number;
+  } | null>(null);
+
+  function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const delta = event.deltaY === 0 ? event.deltaX : event.deltaY;
+    const zoomStep = delta > 0 ? -0.08 : 0.08;
+    setPanelScale(setPositions, panel, scale + zoomStep);
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    const container = scrollRef.current;
+    if (!container) return;
+
+    setDragScroll({
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      scrollLeft: container.scrollLeft,
+      scrollTop: container.scrollTop,
+    });
+    container.setPointerCapture(event.pointerId);
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!dragScroll || dragScroll.pointerId !== event.pointerId) return;
+    const container = scrollRef.current;
+    if (!container) return;
+
+    container.scrollLeft = dragScroll.scrollLeft - (event.clientX - dragScroll.startClientX);
+    container.scrollTop = dragScroll.scrollTop - (event.clientY - dragScroll.startClientY);
+  }
+
+  function endPointerDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const container = scrollRef.current;
+    if (container && dragScroll?.pointerId === event.pointerId && container.hasPointerCapture(event.pointerId)) {
+      container.releasePointerCapture(event.pointerId);
+    }
+    setDragScroll(null);
+  }
+
   return (
-    <div className="absolute inset-0 overflow-auto p-3">
+    <div
+      ref={scrollRef}
+      onWheel={handleWheel}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={endPointerDrag}
+      onPointerCancel={endPointerDrag}
+      className={`absolute inset-0 overflow-auto p-3 ${
+        dragScroll ? "cursor-grabbing" : "cursor-grab"
+      }`}
+    >
       <div
-        className="origin-top-left"
+        className="inline-block min-w-full origin-top-left align-top"
         style={{
-          transform: `scale(${scale})`,
-          width: `${100 / scale}%`,
-          minHeight: `${100 / scale}%`,
+          zoom: scale,
         }}
       >
         {panel.cells.length ? (
-          <div className="flex min-w-max items-start gap-3 pb-2">
-            {panel.cells.map((cell) => (
-              <ArrayCellView key={cell.id} cell={cell} depth={0} />
-            ))}
+          <div className="min-w-max pb-1">
+            <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#94a3b8]">
+              <span>
+                {layout === "matrix" ? "2D Array" : layout === "stack" ? "Multi-D Array" : "Array"}
+              </span>
+              <div className="flex items-center gap-2">
+                {dimensionsLabel ? <span>{dimensionsLabel}</span> : null}
+                <span>{Math.round(scale * 100)}%</span>
+              </div>
+            </div>
+            <ArrayContentView layout={layout} cells={panel.cells} depth={0} />
           </div>
         ) : (
           <div className="flex h-full min-h-24 items-center justify-center rounded-xl border border-dashed border-[#d1d5db] text-sm text-[#6b7280]">
@@ -214,20 +389,38 @@ function VisualizationPanel({
         const nextWidth = clamp(
           startWidth + dxPct,
           activeInteraction.minWidth,
-          Math.max(activeInteraction.minWidth, 96 - activeInteraction.panelStart.x),
+          Math.max(
+            activeInteraction.minWidth,
+            Math.min(activeInteraction.maxWidth, 96 - activeInteraction.panelStart.x),
+          ),
         );
-        const ratio = startWidth > 0 ? nextWidth / startWidth : 1;
-        const nextHeight = clamp(
-          startHeight * ratio,
+        const maxHeight = Math.max(
           activeInteraction.minHeight,
-          Math.max(activeInteraction.minHeight, 96 - activeInteraction.panelStart.y),
+          Math.min(activeInteraction.maxHeight, 96 - activeInteraction.panelStart.y),
         );
+
+        if (activeInteraction.panelKind === "array") {
+          const nextHeight = clamp(
+            startHeight + dyPct,
+            activeInteraction.minHeight,
+            maxHeight,
+          );
+
+          next[panelKey(activeInteraction.panelId)] = {
+            ...activeInteraction.panelStart,
+            width: nextWidth,
+            height: nextHeight,
+          };
+          return next;
+        }
+
+        const ratio = startWidth > 0 ? nextWidth / startWidth : 1;
+        const nextHeight = clamp(startHeight * ratio, activeInteraction.minHeight, maxHeight);
 
         next[panelKey(activeInteraction.panelId)] = {
           ...activeInteraction.panelStart,
           width: nextWidth,
           height: nextHeight,
-          scale: clamp(activeInteraction.panelStart.scale * ratio, 0.7, 2.2),
         };
         return next;
       });
@@ -258,14 +451,18 @@ function VisualizationPanel({
     event.stopPropagation();
 
     const minSize = getEffectiveMinSize(panel);
+    const maxSize = getEffectiveMaxSize(panel);
     setInteraction({
       mode,
       panelId: panel.id,
+      panelKind: panel.kind,
       startClientX: event.clientX,
       startClientY: event.clientY,
       panelStart: currentPanelPosition,
       minWidth: minSize.width,
       minHeight: minSize.height,
+      maxWidth: maxSize.width,
+      maxHeight: maxSize.height,
     });
   }
 
@@ -301,11 +498,14 @@ function VisualizationPanel({
         {isTreeKind(panel) ? (
           <TreeFlowViewport
             panel={panel}
+            scale={currentPanelPosition.scale}
+            onScaleChange={(nextScale) => setPanelScale(setPositions, panel, nextScale)}
           />
         ) : (
           <ArrayPanelBody
             panel={panel as Extract<TracePanel, { kind: "array" }>}
             scale={currentPanelPosition.scale}
+            setPositions={setPositions}
           />
         )}
         <button
@@ -350,12 +550,13 @@ export function ResultsPane({
         };
         const scale = prior.scale ?? panel.scale;
         const minSize = getEffectiveMinSize(panel);
+        const maxSize = getEffectiveMaxSize(panel);
 
         nextPositions[panelKey(panel.id)] = {
           x: prior.x,
           y: prior.y,
-          width: Math.max(prior.width ?? panel.width, minSize.width),
-          height: Math.max(prior.height ?? panel.height, minSize.height),
+          width: clamp(prior.width ?? panel.width, minSize.width, maxSize.width),
+          height: clamp(prior.height ?? panel.height, minSize.height, maxSize.height),
           scale,
         };
 
