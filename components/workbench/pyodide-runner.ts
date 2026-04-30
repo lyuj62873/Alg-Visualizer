@@ -1,8 +1,10 @@
+import type { TracePanel } from "./mock-trace";
+
 export type PyodideTraceFrame = {
   index: number;
   label: string;
   line: number | null;
-  panels: any[];
+  panels: TracePanel[];
   variables: Array<{ name: string; value: string }>;
   status: string;
   stdout: string;

@@ -21,6 +21,22 @@ def run_case():
     sol = Solution()
     return sol.solve(root)`;
 
+export type TraceArrayCell =
+  | {
+      id: string;
+      kind: "value";
+      label: string;
+      tone?: "default" | "active";
+      containsActive?: boolean;
+    }
+  | {
+      id: string;
+      kind: "array";
+      tone?: "default" | "active";
+      containsActive?: boolean;
+      cells: TraceArrayCell[];
+    };
+
 export type TraceVisualItem = {
   id: string;
   label: string;
@@ -30,33 +46,29 @@ export type TraceVisualItem = {
   tone?: "default" | "active";
 };
 
+type TracePanelBase = {
+  id: string;
+  title: string;
+  typeLabel: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scale: number;
+  minWidth?: number;
+  minHeight?: number;
+};
+
 export type TracePanel =
-  | {
-      id: string;
+  | (TracePanelBase & {
       kind: "bst";
-      title: string;
-      typeLabel: string;
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      scale: number;
       items: TraceVisualItem[];
       edges: Array<{ from: string; to: string }>;
-    }
-  | {
-      id: string;
+    })
+  | (TracePanelBase & {
       kind: "array";
-      title: string;
-      typeLabel: string;
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      scale: number;
-      items: TraceVisualItem[];
-      edges: [];
-    };
+      cells: TraceArrayCell[];
+    });
 
 export type TraceFrame = {
   index: number;
@@ -68,13 +80,28 @@ export type TraceFrame = {
   stdout: string;
 };
 
-export const inputConfig = `inputs = {\n  "nums": [5, 3, 8, 4],\n  "targets": [4, 8]\n}`;
+function valueCell(
+  id: string,
+  label: string,
+  tone: "default" | "active" = "default",
+): TraceArrayCell {
+  return { id, kind: "value", label, tone };
+}
+
+function arrayCell(
+  id: string,
+  cells: TraceArrayCell[],
+  tone: "default" | "active" = "default",
+  containsActive = false,
+): TraceArrayCell {
+  return { id, kind: "array", cells, tone, containsActive };
+}
 
 export const traceFrames: TraceFrame[] = [
   {
     index: 0,
-    label: "initialize",
-    line: 5,
+    label: "nums: init",
+    line: 15,
     panels: [
       {
         id: "nums",
@@ -84,37 +111,62 @@ export const traceFrames: TraceFrame[] = [
         x: 8,
         y: 12,
         width: 42,
-        height: 16,
+        height: 18,
         scale: 1,
-        items: [
-          { id: "n0", label: "5", x: 14, y: 60, shape: "pill" },
-          { id: "n1", label: "3", x: 36, y: 60, shape: "pill" },
-          { id: "n2", label: "8", x: 58, y: 60, shape: "pill" },
-          { id: "n3", label: "4", x: 80, y: 60, shape: "pill" },
+        minWidth: 42,
+        minHeight: 18,
+        cells: [
+          valueCell("n0", "5"),
+          valueCell("n1", "3"),
+          valueCell("n2", "8"),
+          valueCell("n3", "4"),
         ],
-        edges: [],
       },
       {
-        id: "bst",
+        id: "matrix",
+        kind: "array",
+        title: "matrix",
+        typeLabel: "VisArray",
+        x: 54,
+        y: 12,
+        width: 30,
+        height: 20,
+        scale: 1,
+        minWidth: 30,
+        minHeight: 20,
+        cells: [
+          arrayCell("m0", [valueCell("m0c0", "1"), valueCell("m0c1", "2")]),
+          arrayCell("m1", [valueCell("m1c0", "3"), valueCell("m1c1", "4")]),
+        ],
+      },
+      {
+        id: "tree",
         kind: "bst",
         title: "working tree",
-        typeLabel: "VisBST",
+        typeLabel: "VisTreeNode",
         x: 18,
-        y: 36,
+        y: 38,
         width: 52,
-        height: 50,
+        height: 48,
         scale: 1,
-        items: [],
-        edges: [],
+        items: [
+          { id: "tn_1", label: "5", x: 50, y: 22, shape: "circle" },
+          { id: "tn_2", label: "3", x: 28, y: 54, shape: "circle" },
+          { id: "tn_3", label: "8", x: 72, y: 54, shape: "circle" },
+        ],
+        edges: [
+          { from: "tn_1", to: "tn_2" },
+          { from: "tn_1", to: "tn_3" },
+        ],
       },
     ],
     variables: [{ name: "max_val", value: "0" }],
-    status: "Trace ready. No inserted nodes yet.",
+    status: "Trace ready. Edit run_case() and click Run Trace.",
     stdout: "stdout: run_case() started",
   },
   {
     index: 1,
-    label: "insert(5)",
+    label: "nums[2] = 9",
     line: 9,
     panels: [
       {
@@ -125,41 +177,67 @@ export const traceFrames: TraceFrame[] = [
         x: 8,
         y: 12,
         width: 42,
-        height: 16,
+        height: 18,
         scale: 1,
-        items: [
-          { id: "n0", label: "5", x: 14, y: 60, shape: "pill", tone: "active" },
-          { id: "n1", label: "3", x: 36, y: 60, shape: "pill" },
-          { id: "n2", label: "8", x: 58, y: 60, shape: "pill" },
-          { id: "n3", label: "4", x: 80, y: 60, shape: "pill" },
+        minWidth: 42,
+        minHeight: 18,
+        cells: [
+          valueCell("n0", "5"),
+          valueCell("n1", "3"),
+          valueCell("n2", "9", "active"),
+          valueCell("n3", "4"),
         ],
-        edges: [],
       },
       {
-        id: "bst",
+        id: "matrix",
+        kind: "array",
+        title: "matrix",
+        typeLabel: "VisArray",
+        x: 54,
+        y: 12,
+        width: 34,
+        height: 22,
+        scale: 1,
+        minWidth: 34,
+        minHeight: 22,
+        cells: [
+          arrayCell("m0", [valueCell("m0c0", "1"), valueCell("m0c1", "2")]),
+          arrayCell("m1", [valueCell("m1c0", "3"), valueCell("m1c1", "4")]),
+        ],
+      },
+      {
+        id: "tree",
         kind: "bst",
         title: "working tree",
-        typeLabel: "VisBST",
+        typeLabel: "VisTreeNode",
         x: 18,
-        y: 36,
+        y: 38,
         width: 52,
-        height: 50,
+        height: 48,
         scale: 1,
-        items: [{ id: "5", label: "5", x: 50, y: 18, shape: "circle" }],
-        edges: [],
+        items: [
+          { id: "tn_1", label: "5", x: 50, y: 22, shape: "circle" },
+          { id: "tn_2", label: "3", x: 28, y: 54, shape: "circle" },
+          { id: "tn_3", label: "8", x: 72, y: 54, shape: "circle", tone: "active" },
+          { id: "tn_4", label: "9", x: 82, y: 82, shape: "circle" },
+        ],
+        edges: [
+          { from: "tn_1", to: "tn_2" },
+          { from: "tn_1", to: "tn_3" },
+          { from: "tn_3", to: "tn_4" },
+        ],
       },
     ],
     variables: [
-      { name: "i", value: "0" },
-      { name: "max_val", value: "5" },
-      { name: "current", value: "5" },
+      { name: "max_val", value: "0" },
+      { name: "added", value: "9" },
     ],
-    status: "Inserted root node 5 and updated max_val.",
-    stdout: "stdout: 1 frame emitted by dsviz",
+    status: "Tree node 9 attached on the right branch.",
+    stdout: "stdout: 2 frames emitted by dsviz",
   },
   {
     index: 2,
-    label: "insert(3)",
+    label: "matrix[1].append(7)",
     line: 10,
     panels: [
       {
@@ -170,44 +248,73 @@ export const traceFrames: TraceFrame[] = [
         x: 8,
         y: 12,
         width: 42,
-        height: 16,
+        height: 18,
         scale: 1,
-        items: [
-          { id: "n0", label: "5", x: 14, y: 60, shape: "pill" },
-          { id: "n1", label: "3", x: 36, y: 60, shape: "pill", tone: "active" },
-          { id: "n2", label: "8", x: 58, y: 60, shape: "pill" },
-          { id: "n3", label: "4", x: 80, y: 60, shape: "pill" },
+        minWidth: 42,
+        minHeight: 18,
+        cells: [
+          valueCell("n0", "5"),
+          valueCell("n1", "3"),
+          valueCell("n2", "9"),
+          valueCell("n3", "4"),
         ],
-        edges: [],
       },
       {
-        id: "bst",
+        id: "matrix",
+        kind: "array",
+        title: "matrix",
+        typeLabel: "VisArray",
+        x: 54,
+        y: 12,
+        width: 44,
+        height: 26,
+        scale: 1,
+        minWidth: 44,
+        minHeight: 26,
+        cells: [
+          arrayCell("m0", [valueCell("m0c0", "1"), valueCell("m0c1", "2")]),
+          arrayCell(
+            "m1",
+            [valueCell("m1c0", "3"), valueCell("m1c1", "4"), valueCell("m1c2", "7", "active")],
+            "default",
+            true,
+          ),
+        ],
+      },
+      {
+        id: "tree",
         kind: "bst",
         title: "working tree",
-        typeLabel: "VisBST",
+        typeLabel: "VisTreeNode",
         x: 18,
-        y: 36,
+        y: 38,
         width: 52,
-        height: 50,
+        height: 48,
         scale: 1,
         items: [
-          { id: "5", label: "5", x: 50, y: 18, shape: "circle" },
-          { id: "3", label: "3", x: 24, y: 48, shape: "circle" },
+          { id: "tn_1", label: "5", x: 50, y: 22, shape: "circle" },
+          { id: "tn_2", label: "3", x: 28, y: 54, shape: "circle" },
+          { id: "tn_3", label: "8", x: 72, y: 54, shape: "circle" },
+          { id: "tn_4", label: "9", x: 82, y: 82, shape: "circle" },
         ],
-        edges: [{ from: "5", to: "3" }],
+        edges: [
+          { from: "tn_1", to: "tn_2" },
+          { from: "tn_1", to: "tn_3" },
+          { from: "tn_3", to: "tn_4" },
+        ],
       },
     ],
     variables: [
-      { name: "i", value: "1" },
-      { name: "max_val", value: "5" },
-      { name: "current", value: "3" },
+      { name: "max_val", value: "0" },
+      { name: "added", value: "9" },
+      { name: "tail", value: "7" },
     ],
-    status: "Inserted 3 into the left subtree.",
-    stdout: "stdout: 2 frames emitted by dsviz",
+    status: "Nested array mutation emits a frame without writing the row back.",
+    stdout: "stdout: nested array traced",
   },
   {
     index: 3,
-    label: "insert(8)",
+    label: "return root.val",
     line: 11,
     panels: [
       {
@@ -218,129 +325,63 @@ export const traceFrames: TraceFrame[] = [
         x: 8,
         y: 12,
         width: 42,
-        height: 16,
+        height: 18,
         scale: 1,
-        items: [
-          { id: "n0", label: "5", x: 14, y: 60, shape: "pill" },
-          { id: "n1", label: "3", x: 36, y: 60, shape: "pill" },
-          { id: "n2", label: "8", x: 58, y: 60, shape: "pill", tone: "active" },
-          { id: "n3", label: "4", x: 80, y: 60, shape: "pill" },
-        ],
-        edges: [],
-      },
-      {
-        id: "bst",
-        kind: "bst",
-        title: "working tree",
-        typeLabel: "VisBST",
-        x: 18,
-        y: 36,
-        width: 52,
-        height: 50,
-        scale: 1,
-        items: [
-          { id: "5", label: "5", x: 50, y: 18, shape: "circle" },
-          { id: "3", label: "3", x: 24, y: 48, shape: "circle" },
-          { id: "8", label: "8", x: 72, y: 48, shape: "circle" },
-        ],
-        edges: [
-          { from: "5", to: "3" },
-          { from: "5", to: "8" },
+        minWidth: 42,
+        minHeight: 18,
+        cells: [
+          valueCell("n0", "5"),
+          valueCell("n1", "3"),
+          valueCell("n2", "9"),
+          valueCell("n3", "4"),
         ],
       },
       {
-        id: "targets",
+        id: "matrix",
         kind: "array",
-        title: "targets",
+        title: "matrix",
         typeLabel: "VisArray",
-        x: 58,
-        y: 14,
-        width: 26,
-        height: 16,
-        scale: 1,
-        items: [
-          { id: "t0", label: "4", x: 30, y: 60, shape: "pill" },
-          { id: "t1", label: "8", x: 64, y: 60, shape: "pill", tone: "active" },
-        ],
-        edges: [],
-      },
-    ],
-    variables: [
-      { name: "i", value: "2" },
-      { name: "max_val", value: "8" },
-      { name: "current", value: "8" },
-    ],
-    status: "Inserted 8 into the right subtree and updated max_val.",
-    stdout: "stdout: 3 frames emitted by dsviz",
-  },
-  {
-    index: 4,
-    label: "insert(4)",
-    line: 17,
-    panels: [
-      {
-        id: "nums",
-        kind: "array",
-        title: "nums",
-        typeLabel: "VisArray",
-        x: 8,
+        x: 54,
         y: 12,
-        width: 42,
-        height: 16,
+        width: 44,
+        height: 26,
         scale: 1,
-        items: [
-          { id: "n0", label: "5", x: 14, y: 60, shape: "pill" },
-          { id: "n1", label: "3", x: 36, y: 60, shape: "pill" },
-          { id: "n2", label: "8", x: 58, y: 60, shape: "pill" },
-          { id: "n3", label: "4", x: 80, y: 60, shape: "pill", tone: "active" },
+        minWidth: 44,
+        minHeight: 26,
+        cells: [
+          arrayCell("m0", [valueCell("m0c0", "1"), valueCell("m0c1", "2")]),
+          arrayCell("m1", [valueCell("m1c0", "3"), valueCell("m1c1", "4"), valueCell("m1c2", "7")]),
         ],
-        edges: [],
       },
       {
-        id: "bst",
+        id: "tree",
         kind: "bst",
         title: "working tree",
-        typeLabel: "VisBST",
+        typeLabel: "VisTreeNode",
         x: 18,
-        y: 36,
+        y: 38,
         width: 52,
-        height: 50,
+        height: 48,
         scale: 1,
         items: [
-          { id: "5", label: "5", x: 50, y: 18, shape: "circle" },
-          { id: "3", label: "3", x: 24, y: 48, shape: "circle" },
-          { id: "8", label: "8", x: 72, y: 48, shape: "circle" },
-          { id: "4", label: "4", x: 36, y: 78, shape: "circle" },
+          { id: "tn_1", label: "5", x: 50, y: 22, shape: "circle", tone: "active" },
+          { id: "tn_2", label: "3", x: 28, y: 54, shape: "circle" },
+          { id: "tn_3", label: "8", x: 72, y: 54, shape: "circle" },
+          { id: "tn_4", label: "9", x: 82, y: 82, shape: "circle" },
         ],
         edges: [
-          { from: "5", to: "3" },
-          { from: "5", to: "8" },
-          { from: "3", to: "4" },
+          { from: "tn_1", to: "tn_2" },
+          { from: "tn_1", to: "tn_3" },
+          { from: "tn_3", to: "tn_4" },
         ],
-      },
-      {
-        id: "targets",
-        kind: "array",
-        title: "targets",
-        typeLabel: "VisArray",
-        x: 58,
-        y: 14,
-        width: 26,
-        height: 16,
-        scale: 1,
-        items: [
-          { id: "t0", label: "4", x: 30, y: 60, shape: "pill", tone: "active" },
-          { id: "t1", label: "8", x: 64, y: 60, shape: "pill" },
-        ],
-        edges: [],
       },
     ],
     variables: [
-      { name: "i", value: "3" },
-      { name: "max_val", value: "8" },
-      { name: "current", value: "4" },
+      { name: "max_val", value: "0" },
+      { name: "added", value: "9" },
+      { name: "tail", value: "7" },
     ],
-    status: "Inserted 4 as the right child of 3.",
-    stdout: "stdout: 4 frames emitted by dsviz",
+    status: "Trace ready. Step through frames to inspect state.",
+    stdout: "stdout: run_case() finished",
   },
 ];

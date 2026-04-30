@@ -1,11 +1,16 @@
 "use client";
 
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { TraceFrame, TracePanel } from "./mock-trace";
+import type {
+  Dispatch,
+  PointerEvent as ReactPointerEvent,
+  SetStateAction,
+} from "react";
+import { useEffect, useState } from "react";
+import { TraceArrayCell, TraceFrame, TracePanel } from "./mock-trace";
 import { TreeFlowViewport } from "./tree-flow";
 
-function isTreeKind(kind: string) {
-  return kind === "bst" || kind === "tree";
+function isTreeKind(panel: TracePanel): panel is Extract<TracePanel, { kind: "bst" }> {
+  return panel.kind === "bst";
 }
 
 type DragPositions = Record<
@@ -13,12 +18,151 @@ type DragPositions = Record<
   { x: number; y: number; width?: number; height?: number; scale?: number }
 >;
 
+type PanelPosition = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scale: number;
+};
+
+type InteractionState = {
+  mode: "drag" | "resize";
+  panelId: string;
+  startClientX: number;
+  startClientY: number;
+  panelStart: PanelPosition;
+  minWidth: number;
+  minHeight: number;
+};
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
 function itemKey(panelId: string, itemId: string) {
   return `${panelId}:${itemId}`;
 }
 
 function panelKey(panelId: string) {
   return `panel:${panelId}`;
+}
+
+function getEffectiveMinSize(panel: TracePanel, scale: number) {
+  const scaleRatio = panel.scale > 0 ? scale / panel.scale : 1;
+  return {
+    width: (panel.minWidth ?? panel.width) * scaleRatio,
+    height: (panel.minHeight ?? panel.height) * scaleRatio,
+  };
+}
+
+function getPanelPosition(panel: TracePanel, positions: DragPositions): PanelPosition {
+  const current = positions[panelKey(panel.id)] ?? {
+    x: panel.x,
+    y: panel.y,
+    width: panel.width,
+    height: panel.height,
+    scale: panel.scale,
+  };
+  const scale = current.scale ?? panel.scale;
+  const minSize = getEffectiveMinSize(panel, scale);
+
+  return {
+    x: current.x,
+    y: current.y,
+    width: Math.max(current.width ?? panel.width, minSize.width),
+    height: Math.max(current.height ?? panel.height, minSize.height),
+    scale,
+  };
+}
+
+function ArrayCellView({
+  cell,
+  depth,
+}: {
+  cell: TraceArrayCell;
+  depth: number;
+}) {
+  const isActive = cell.tone === "active";
+  const containsActive = !!cell.containsActive;
+
+  if (cell.kind === "value") {
+    return (
+      <div
+        className={`flex min-h-12 min-w-[68px] items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold shadow-sm ${
+          isActive
+            ? "border-[#fb923c] bg-[#fff7ed] text-[#c2410c]"
+            : containsActive
+              ? "border-[#fdba74] bg-[#fffbeb] text-[#9a3412]"
+              : "border-[#d1d5db] bg-white text-[#111827]"
+        }`}
+      >
+        <span className="whitespace-nowrap">{cell.label}</span>
+      </div>
+    );
+  }
+
+  const nestedBg = depth % 2 === 0 ? "bg-[#fffaf5]" : "bg-white";
+
+  return (
+    <div
+      className={`rounded-2xl border px-3 py-3 shadow-sm ${nestedBg} ${
+        isActive
+          ? "border-[#fb923c] ring-1 ring-[#fdba74]"
+          : containsActive
+            ? "border-[#fdba74]"
+            : "border-[#e5e7eb]"
+      }`}
+    >
+      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9ca3af]">
+        Nested Array
+      </div>
+      <div className="flex min-w-max items-start gap-3">
+        {cell.cells.length ? (
+          cell.cells.map((child) => (
+            <ArrayCellView key={child.id} cell={child} depth={depth + 1} />
+          ))
+        ) : (
+          <div className="rounded-xl border border-dashed border-[#d1d5db] px-4 py-3 text-xs text-[#6b7280]">
+            Empty
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ArrayPanelBody({
+  panel,
+  scale,
+}: {
+  panel: Extract<TracePanel, { kind: "array" }>;
+  scale: number;
+}) {
+  return (
+    <div className="absolute inset-0 overflow-auto p-3">
+      <div
+        className="origin-top-left"
+        style={{
+          transform: `scale(${scale})`,
+          width: `${100 / scale}%`,
+          minHeight: `${100 / scale}%`,
+        }}
+      >
+        {panel.cells.length ? (
+          <div className="flex min-w-max items-start gap-3 pb-2">
+            {panel.cells.map((cell) => (
+              <ArrayCellView key={cell.id} cell={cell} depth={0} />
+            ))}
+          </div>
+        ) : (
+          <div className="flex h-full min-h-24 items-center justify-center rounded-xl border border-dashed border-[#d1d5db] text-sm text-[#6b7280]">
+            No objects yet for this step.
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function VisualizationPanel({
@@ -30,80 +174,101 @@ function VisualizationPanel({
   positions: DragPositions;
   setPositions: Dispatch<SetStateAction<DragPositions>>;
 }) {
-  const [draggingPanelId, setDraggingPanelId] = useState<string | null>(null);
-  const [resizingPanelId, setResizingPanelId] = useState<string | null>(null);
+  const currentPanelPosition = getPanelPosition(panel, positions);
+  const [interaction, setInteraction] = useState<InteractionState | null>(null);
 
   useEffect(() => {
-    if (!draggingPanelId && !resizingPanelId) return;
+    if (!interaction) return;
+    const activeInteraction = interaction;
+
+    const previousUserSelect = document.body.style.userSelect;
+    const previousCursor = document.body.style.cursor;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = activeInteraction.mode === "drag" ? "grabbing" : "se-resize";
 
     function onPointerMove(event: PointerEvent) {
-      const host = document.querySelector<HTMLElement>(`[data-canvas-root="true"]`);
+      const host = document.querySelector<HTMLElement>('[data-canvas-root="true"]');
       if (!host) return;
+
+      event.preventDefault();
+
       const rect = host.getBoundingClientRect();
-      const x = ((event.clientX - rect.left) / rect.width) * 100;
-      const y = ((event.clientY - rect.top) / rect.height) * 100;
+      const dxPct = ((event.clientX - activeInteraction.startClientX) / rect.width) * 100;
+      const dyPct = ((event.clientY - activeInteraction.startClientY) / rect.height) * 100;
+
       setPositions((current) => {
         const next = { ...current };
 
-        if (draggingPanelId) {
-          const currentPanel = next[panelKey(draggingPanelId)] ?? {
-            x: panel.x,
-            y: panel.y,
-            width: panel.width,
-            height: panel.height,
-            scale: panel.scale,
+        if (activeInteraction.mode === "drag") {
+          const maxX = Math.max(2, 98 - activeInteraction.panelStart.width);
+          const maxY = Math.max(4, 96 - activeInteraction.panelStart.height);
+          next[panelKey(activeInteraction.panelId)] = {
+            ...activeInteraction.panelStart,
+            x: clamp(activeInteraction.panelStart.x + dxPct, 2, maxX),
+            y: clamp(activeInteraction.panelStart.y + dyPct, 4, maxY),
           };
-          next[panelKey(draggingPanelId)] = {
-            ...currentPanel,
-            x: Math.min(78, Math.max(2, x)),
-            y: Math.min(82, Math.max(4, y)),
-          };
+          return next;
         }
 
-        if (resizingPanelId) {
-          const currentPanel = next[panelKey(resizingPanelId)] ?? {
-            x: panel.x,
-            y: panel.y,
-            width: panel.width,
-            height: panel.height,
-            scale: panel.scale,
-          };
-          const width = Math.min(70, Math.max(18, x - currentPanel.x));
-          const ratio = width / panel.width;
-          next[panelKey(resizingPanelId)] = {
-            ...currentPanel,
-            width,
-            height: panel.height * ratio,
-            scale: Math.min(1.8, Math.max(0.7, panel.scale * ratio)),
-          };
-        }
+        const startWidth = activeInteraction.panelStart.width;
+        const startHeight = activeInteraction.panelStart.height;
+        const nextWidth = clamp(
+          startWidth + dxPct,
+          activeInteraction.minWidth,
+          Math.max(activeInteraction.minWidth, 96 - activeInteraction.panelStart.x),
+        );
+        const ratio = startWidth > 0 ? nextWidth / startWidth : 1;
+        const nextHeight = clamp(
+          startHeight * ratio,
+          activeInteraction.minHeight,
+          Math.max(activeInteraction.minHeight, 96 - activeInteraction.panelStart.y),
+        );
 
+        next[panelKey(activeInteraction.panelId)] = {
+          ...activeInteraction.panelStart,
+          width: nextWidth,
+          height: nextHeight,
+          scale: clamp(activeInteraction.panelStart.scale * ratio, 0.7, 2.2),
+        };
         return next;
       });
     }
 
     function onPointerUp() {
-      setDraggingPanelId(null);
-      setResizingPanelId(null);
+      setInteraction(null);
     }
 
-    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointermove", onPointerMove, { passive: false });
     window.addEventListener("pointerup", onPointerUp);
 
     return () => {
+      document.body.style.userSelect = previousUserSelect;
+      document.body.style.cursor = previousCursor;
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [draggingPanelId, resizingPanelId, panel.height, panel.scale, panel.width, panel.x, panel.y, setPositions]);
+  }, [interaction, setPositions]);
 
-  const currentPanelPosition = positions[panelKey(panel.id)] ?? {
-    x: panel.x,
-    y: panel.y,
-    width: panel.width,
-    height: panel.height,
-    scale: panel.scale,
-  };
-  const currentScale = currentPanelPosition.scale ?? panel.scale;
+  function startInteraction(
+    event: ReactPointerEvent<HTMLElement>,
+    mode: InteractionState["mode"],
+  ) {
+    if (event.button !== 0) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const minSize = getEffectiveMinSize(panel, currentPanelPosition.scale);
+    setInteraction({
+      mode,
+      panelId: panel.id,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      panelStart: currentPanelPosition,
+      minWidth: minSize.width,
+      minHeight: minSize.height,
+    });
+  }
 
   return (
     <article
@@ -111,12 +276,12 @@ function VisualizationPanel({
       style={{
         left: `${currentPanelPosition.x}%`,
         top: `${currentPanelPosition.y}%`,
-        width: `${currentPanelPosition.width ?? panel.width}%`,
-        height: `${currentPanelPosition.height ?? panel.height}%`,
+        width: `${currentPanelPosition.width}%`,
+        height: `${currentPanelPosition.height}%`,
       }}
     >
       <div
-        onPointerDown={() => setDraggingPanelId(panel.id)}
+        onPointerDown={(event) => startInteraction(event, "drag")}
         className="flex cursor-grab items-center justify-between border-b border-[#f3f4f6] bg-white/95 px-3 py-2 text-xs active:cursor-grabbing"
       >
         <div className="flex min-w-0 items-center gap-2">
@@ -128,54 +293,28 @@ function VisualizationPanel({
         <span className="text-[10px] text-[#6b7280]">drag</span>
       </div>
       <div
-        className={`relative h-[calc(100%-37px)] overflow-hidden p-2 ${
+        className={`relative h-[calc(100%-37px)] overflow-hidden ${
           panel.kind === "bst"
             ? "bg-[radial-gradient(circle_at_top,#fff7ed,transparent_35%),linear-gradient(#ffffff,#fcfcfd)]"
             : "bg-[#fcfcfd]"
         }`}
       >
-        {isTreeKind(panel.kind) ? (
+        {isTreeKind(panel) ? (
           <TreeFlowViewport
-            panel={panel as Extract<TracePanel, { kind: "bst" }>}
+            panel={panel}
             positions={positions}
             setPositions={setPositions}
           />
         ) : (
-          <div className="absolute inset-0 origin-top-left" style={{ transform: `scale(${currentScale})` }}>
-            {panel.items.length === 0 ? (
-              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-[#d1d5db] text-sm text-[#6b7280]">
-                No objects yet for this step.
-              </div>
-            ) : null}
-
-            {panel.items.map((item) => {
-              const key = itemKey(panel.id, item.id);
-              const current = positions[key] ?? { x: item.x, y: item.y };
-              const isCircle = item.shape !== "pill";
-              return (
-                <div
-                  key={key}
-                  className={`absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center border text-sm font-semibold shadow-sm transition-[left,top] duration-300 ease-out ${
-                    isCircle
-                      ? "h-14 w-14 rounded-full"
-                      : "h-12 min-w-16 rounded-xl px-4 py-3"
-                  } ${
-                    item.tone === "active"
-                      ? "border-[#fb923c] bg-[#fff7ed] text-[#c2410c]"
-                      : "border-[#d1d5db] bg-white text-[#111827]"
-                  }`}
-                  style={{ left: `${current.x}%`, top: `${current.y}%` }}
-                >
-                  {item.label}
-                </div>
-              );
-            })}
-          </div>
+          <ArrayPanelBody
+            panel={panel as Extract<TracePanel, { kind: "array" }>}
+            scale={currentPanelPosition.scale}
+          />
         )}
         <button
           type="button"
-          onPointerDown={() => setResizingPanelId(panel.id)}
-          className="absolute bottom-1.5 right-1.5 h-3.5 w-3.5 cursor-se-resize rounded-sm border border-[#d1d5db] bg-white"
+          onPointerDown={(event) => startInteraction(event, "resize")}
+          className="absolute bottom-1.5 right-1.5 z-10 h-3.5 w-3.5 cursor-se-resize rounded-sm border border-[#d1d5db] bg-white"
           aria-label={`Resize ${panel.title}`}
         />
       </div>
@@ -203,14 +342,30 @@ export function ResultsPane({
   useEffect(() => {
     setPositions((current) => {
       const nextPositions: DragPositions = {};
+
       for (const panel of frame.panels) {
-        nextPositions[panelKey(panel.id)] = current[panelKey(panel.id)] ?? {
+        const prior = current[panelKey(panel.id)] ?? {
           x: panel.x,
           y: panel.y,
           width: panel.width,
           height: panel.height,
           scale: panel.scale,
         };
+        const scale = prior.scale ?? panel.scale;
+        const minSize = getEffectiveMinSize(panel, scale);
+
+        nextPositions[panelKey(panel.id)] = {
+          x: prior.x,
+          y: prior.y,
+          width: Math.max(prior.width ?? panel.width, minSize.width),
+          height: Math.max(prior.height ?? panel.height, minSize.height),
+          scale,
+        };
+
+        if (!isTreeKind(panel)) {
+          continue;
+        }
+
         for (const item of panel.items) {
           nextPositions[itemKey(panel.id, item.id)] = current[itemKey(panel.id, item.id)] ?? {
             x: item.x,
@@ -218,6 +373,7 @@ export function ResultsPane({
           };
         }
       }
+
       return nextPositions;
     });
   }, [frame]);

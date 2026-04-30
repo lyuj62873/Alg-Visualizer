@@ -39,7 +39,7 @@ function TreeNode({ data }: NodeProps<TreeNodeModel>) {
   const active = data.tone === "active";
   return (
     <div
-      className={`relative flex h-14 w-14 items-center justify-center rounded-full border text-sm font-semibold shadow-sm ${
+      className={`relative flex h-12 w-12 items-center justify-center rounded-full border text-xs font-semibold shadow-sm ${
         active
           ? "border-[#fb923c] bg-[#fff7ed] text-[#c2410c]"
           : "border-[#d1d5db] bg-white text-[#111827]"
@@ -143,7 +143,8 @@ export function TreeFlowViewport({ panel, positions, setPositions }: TreeFlowPro
           nodesDraggable
           nodesConnectable={false}
           elementsSelectable={false}
-          panOnDrag={false}
+          panOnDrag
+          selectionOnDrag={false}
           zoomOnScroll={false}
           zoomOnPinch={false}
           zoomOnDoubleClick={false}
@@ -153,7 +154,7 @@ export function TreeFlowViewport({ panel, positions, setPositions }: TreeFlowPro
           maxZoom={1.4}
           className="bg-[radial-gradient(circle_at_top,#fff7ed,transparent_35%),linear-gradient(#ffffff,#fcfcfd)]"
         >
-          <Background gap={28} size={1} color="rgba(229,231,235,0.55)" />
+          <Background gap={22} size={1} color="rgba(229,231,235,0.48)" />
         </ReactFlow>
       ) : null}
     </div>

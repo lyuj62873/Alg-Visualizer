@@ -188,6 +188,186 @@ class _VisObject:
         raise NotImplementedError
 
 
+class _NestedArray:
+    def __init__(self, root: "VisArray", path: Tuple[int, ...], values: List[Any]) -> None:
+        self._root = root
+        self._path = path
+        self._values: List[Any] = []
+        for idx, value in enumerate(values):
+            self._values.append(self._root._wrap_array_value(value, path + (idx,)))
+
+    def __len__(self) -> int:
+        return len(self._values)
+
+    def __iter__(self):
+        for i in range(len(self._values)):
+            yield self[i]
+
+    def __getitem__(self, idx: int) -> Any:
+        resolved = self._resolve_index(idx)
+        value = self._values[resolved]
+        self._root._active_path = self._path + (resolved,)
+        return value
+
+    def __setitem__(self, idx: int, value: Any) -> None:
+        if isinstance(idx, slice):
+            incoming = list(value)
+            wrapped = [
+                self._root._wrap_array_value(item, self._path + (start_idx,))
+                for start_idx, item in enumerate(incoming, start=self._slice_anchor(idx))
+            ]
+            self._values[idx] = wrapped
+            self._reindex_descendants()
+            self._root._active_path = None
+            self._root._emit_array_change(
+                f"{self._path_expr()}[{idx.start}:{idx.stop}:{idx.step}] = {_safe_str(incoming)}"
+            )
+            return
+
+        resolved = self._resolve_index(idx)
+        self._values[resolved] = self._root._wrap_array_value(value, self._path + (resolved,))
+        self._root._emit_array_change(
+            f"{self._path_expr()}[{idx}] = {_safe_str(self._root._plain_array_value(value))}",
+            active_path=self._path + (resolved,),
+        )
+
+    def __delitem__(self, idx) -> None:
+        if isinstance(idx, slice):
+            del self._values[idx]
+            self._reindex_descendants()
+            self._root._active_path = None
+            self._root._emit_array_change(
+                f"del {self._path_expr()}[{idx.start}:{idx.stop}:{idx.step}]"
+            )
+            return
+
+        resolved = self._resolve_index(idx)
+        del self._values[resolved]
+        self._reindex_descendants()
+        next_active = None if not self._values else self._path + (min(resolved, len(self._values) - 1),)
+        self._root._emit_array_change(
+            f"del {self._path_expr()}[{idx}]",
+            active_path=next_active,
+        )
+
+    def append(self, value: Any) -> None:
+        next_index = len(self._values)
+        self._values.append(self._root._wrap_array_value(value, self._path + (next_index,)))
+        self._reindex_descendants()
+        self._root._emit_array_change(
+            f"{self._path_expr()}.append({_safe_str(self._root._plain_array_value(value))})",
+            active_path=self._path + (next_index,),
+        )
+
+    def insert(self, index: int, value: Any) -> None:
+        resolved = self._normalize_insert_index(index)
+        self._values.insert(resolved, self._root._wrap_array_value(value, self._path + (resolved,)))
+        self._reindex_descendants()
+        self._root._emit_array_change(
+            f"{self._path_expr()}.insert({index}, {_safe_str(self._root._plain_array_value(value))})",
+            active_path=self._path + (resolved,),
+        )
+
+    def pop(self, index: int = -1) -> Any:
+        resolved = self._resolve_index(index)
+        value = self._values.pop(resolved)
+        self._reindex_descendants()
+        next_active = None if not self._values else self._path + (min(resolved, len(self._values) - 1),)
+        self._root._emit_array_change(
+            f"{self._path_expr()}.pop({index})",
+            active_path=next_active,
+        )
+        return value
+
+    def remove(self, value: Any) -> None:
+        needle = self._root._plain_array_value(value)
+        for idx, current in enumerate(self._values):
+            if self._root._plain_array_value(current) == needle:
+                del self._values[idx]
+                self._reindex_descendants()
+                next_active = None if not self._values else self._path + (min(idx, len(self._values) - 1),)
+                self._root._emit_array_change(
+                    f"{self._path_expr()}.remove({_safe_str(needle)})",
+                    active_path=next_active,
+                )
+                return
+        raise ValueError("list.remove(x): x not in list")
+
+    def reverse(self) -> None:
+        self._values.reverse()
+        self._reindex_descendants()
+        active_path = None
+        if self._root._active_path is not None and self._root._active_path[: len(self._path)] == self._path:
+            if len(self._root._active_path) > len(self._path):
+                old_index = self._root._active_path[len(self._path)]
+                active_path = self._path + (len(self._values) - 1 - old_index,)
+        self._root._emit_array_change(
+            f"{self._path_expr()}.reverse()",
+            active_path=active_path,
+        )
+
+    def clear(self) -> None:
+        self._values.clear()
+        self._root._emit_array_change(f"{self._path_expr()}.clear()", active_path=None)
+
+    def extend(self, values: List[Any]) -> None:
+        incoming = list(values)
+        start = len(self._values)
+        for offset, value in enumerate(incoming):
+            self._values.append(self._root._wrap_array_value(value, self._path + (start + offset,)))
+        self._reindex_descendants()
+        active_path = None if not self._values else self._path + (len(self._values) - 1,)
+        self._root._emit_array_change(
+            f"{self._path_expr()}.extend({_safe_str([self._root._plain_array_value(v) for v in incoming])})",
+            active_path=active_path,
+        )
+
+    def to_plain_list(self) -> List[Any]:
+        return [self._root._plain_array_value(value) for value in self._values]
+
+    def _resolve_index(self, idx: int) -> int:
+        if not self._values:
+            raise IndexError("list index out of range")
+        if idx < 0:
+            idx += len(self._values)
+        if idx < 0 or idx >= len(self._values):
+            raise IndexError("list index out of range")
+        return idx
+
+    def _normalize_insert_index(self, idx: int) -> int:
+        if idx < 0:
+            idx += len(self._values)
+        if idx < 0:
+            return 0
+        if idx > len(self._values):
+            return len(self._values)
+        return idx
+
+    def _slice_anchor(self, idx: slice) -> int:
+        start = idx.start if idx.start is not None else 0
+        if start < 0:
+            start += len(self._values)
+        return max(0, min(len(self._values), start))
+
+    def _path_expr(self) -> str:
+        return self._root._path_expr(self._path)
+
+    def _reindex_descendants(self) -> None:
+        for idx, value in enumerate(self._values):
+            if isinstance(value, _NestedArray):
+                value._set_path(self._path + (idx,))
+
+    def _set_path(self, path: Tuple[int, ...]) -> None:
+        self._path = path
+        self._reindex_descendants()
+
+    def __repr__(self) -> str:
+        return repr(self.to_plain_list())
+
+    def __str__(self) -> str:
+        return str(self.to_plain_list())
+
+
 class VisArray(_VisObject):
     def __init__(
         self,
@@ -225,119 +405,129 @@ class VisArray(_VisObject):
             panel_id=panel_id,
             layout=layout,
         )
-        self._values: List[Any] = list(values)
-        self._active_index: Optional[int] = None
+        self._active_path: Optional[Tuple[int, ...]] = None
+        self._root_array = _NestedArray(self, (), list(values))
         _TRACE.emit(label=f"{name}: init")
 
     def __len__(self) -> int:
-        return len(self._values)
+        return len(self._root_array)
 
     def __iter__(self):
-        for i in range(len(self._values)):
-            yield self[i]
+        return iter(self._root_array)
 
     def __getitem__(self, idx: int) -> Any:
-        resolved = self._resolve_index(idx)
-        self._active_index = resolved
-        return self._values[resolved]
+        return self._root_array[idx]
 
     def __setitem__(self, idx: int, value: Any) -> None:
-        if isinstance(idx, slice):
-            self._values[idx] = list(value)
-            self._active_index = None
-            _TRACE.emit(label=f"{self.title}[{idx.start}:{idx.stop}:{idx.step}] = {_safe_str(value)}")
-            return
-        resolved = self._resolve_index(idx)
-        self._values[resolved] = value
-        self._active_index = resolved
-        _TRACE.emit(label=f"{self.title}[{idx}] = {_safe_str(value)}")
+        self._root_array[idx] = value
 
     def __delitem__(self, idx) -> None:
-        if isinstance(idx, slice):
-            del self._values[idx]
-            self._active_index = None
-            _TRACE.emit(label=f"del {self.title}[{idx.start}:{idx.stop}:{idx.step}]")
-            return
-        resolved = self._resolve_index(idx)
-        del self._values[resolved]
-        self._active_index = None if not self._values else min(resolved, len(self._values) - 1)
-        _TRACE.emit(label=f"del {self.title}[{idx}]")
+        del self._root_array[idx]
 
     def append(self, value: Any) -> None:
-        self._values.append(value)
-        self._active_index = len(self._values) - 1
-        _TRACE.emit(label=f"{self.title}.append({_safe_str(value)})")
+        self._root_array.append(value)
 
     def insert(self, index: int, value: Any) -> None:
-        resolved = self._normalize_insert_index(index)
-        self._values.insert(resolved, value)
-        self._active_index = resolved
-        _TRACE.emit(label=f"{self.title}.insert({index}, {_safe_str(value)})")
+        self._root_array.insert(index, value)
 
     def pop(self, index: int = -1) -> Any:
-        resolved = self._resolve_index(index)
-        value = self._values.pop(resolved)
-        self._active_index = None if not self._values else min(resolved, len(self._values) - 1)
-        _TRACE.emit(label=f"{self.title}.pop({index})")
-        return value
+        return self._root_array.pop(index)
 
     def remove(self, value: Any) -> None:
-        index = self._values.index(value)
-        del self._values[index]
-        self._active_index = None if not self._values else min(index, len(self._values) - 1)
-        _TRACE.emit(label=f"{self.title}.remove({_safe_str(value)})")
+        self._root_array.remove(value)
 
     def reverse(self) -> None:
-        self._values.reverse()
-        if self._active_index is not None:
-            self._active_index = len(self._values) - 1 - self._active_index
-        _TRACE.emit(label=f"{self.title}.reverse()")
+        self._root_array.reverse()
 
     def clear(self) -> None:
-        self._values.clear()
-        self._active_index = None
-        _TRACE.emit(label=f"{self.title}.clear()")
+        self._root_array.clear()
 
     def extend(self, values: List[Any]) -> None:
-        self._values.extend(values)
-        self._active_index = len(self._values) - 1 if self._values else None
-        _TRACE.emit(label=f"{self.title}.extend({_safe_str(values)})")
+        self._root_array.extend(values)
 
-    def _resolve_index(self, idx: int) -> int:
-        if not self._values:
-            raise IndexError("list index out of range")
-        if idx < 0:
-            idx += len(self._values)
-        if idx < 0 or idx >= len(self._values):
-            raise IndexError("list index out of range")
-        return idx
+    def _path_expr(self, path: Tuple[int, ...]) -> str:
+        result = self.title
+        for segment in path:
+            result += f"[{segment}]"
+        return result
 
-    def _normalize_insert_index(self, idx: int) -> int:
-        if idx < 0:
-            idx += len(self._values)
-        if idx < 0:
-            return 0
-        if idx > len(self._values):
-            return len(self._values)
-        return idx
+    def _wrap_array_value(self, value: Any, path: Tuple[int, ...]) -> Any:
+        if isinstance(value, _NestedArray):
+            value = value.to_plain_list()
+        if isinstance(value, list):
+            return _NestedArray(self, path, list(value))
+        return value
 
-    def _render_panel(self) -> Dict[str, Any]:
-        n = max(1, len(self._values))
-        left = 14.0
-        right = 86.0
-        step = 0.0 if n == 1 else (right - left) / (n - 1)
-        items = []
-        for i, v in enumerate(self._values):
-            items.append(
+    def _plain_array_value(self, value: Any) -> Any:
+        if isinstance(value, _NestedArray):
+            return value.to_plain_list()
+        return value
+
+    def _emit_array_change(self, label: str, active_path: Optional[Tuple[int, ...]] = None) -> None:
+        self._active_path = active_path
+        _TRACE.emit(label=label)
+
+    def _measure_cells(self, values: List[Any]) -> Tuple[float, float]:
+        if not values:
+            return 12.0, 1.4
+
+        child_widths: List[float] = []
+        child_heights: List[float] = []
+        for value in values:
+            if isinstance(value, _NestedArray):
+                nested_width, nested_height = self._measure_cells(value._values)
+                child_widths.append(max(18.0, nested_width + 7.0))
+                child_heights.append(max(1.8, nested_height + 0.9))
+            else:
+                label = _safe_str(value)
+                child_widths.append(min(20.0, max(10.0, 6.0 + (len(label) * 0.9))))
+                child_heights.append(1.0)
+
+        total_width = sum(child_widths) + max(0, len(values) - 1) * 3.0 + 4.0
+        total_height = max(child_heights) + 0.8
+        return total_width, total_height
+
+    def _render_cells(self, values: List[Any], path: Tuple[int, ...]) -> List[Dict[str, Any]]:
+        cells: List[Dict[str, Any]] = []
+        for idx, value in enumerate(values):
+            cell_path = path + (idx,)
+            is_active = self._active_path == cell_path
+            contains_active = (
+                self._active_path is not None
+                and len(self._active_path) > len(cell_path)
+                and self._active_path[: len(cell_path)] == cell_path
+            )
+            cell_id = f"{self.id}_{'_'.join(str(part) for part in cell_path)}"
+
+            if isinstance(value, _NestedArray):
+                cells.append(
+                    {
+                        "id": cell_id,
+                        "kind": "array",
+                        "tone": "active" if is_active else "default",
+                        "containsActive": contains_active,
+                        "cells": self._render_cells(value._values, cell_path),
+                    }
+                )
+                continue
+
+            cells.append(
                 {
-                    "id": f"{self.id}_i{i}",
-                    "label": _safe_str(v),
-                    "x": left + step * i,
-                    "y": 60.0,
-                    "shape": "pill",
-                    "tone": "active" if self._active_index == i else "default",
+                    "id": cell_id,
+                    "kind": "value",
+                    "label": _safe_str(value),
+                    "tone": "active" if is_active else "default",
+                    "containsActive": contains_active,
                 }
             )
+        return cells
+
+    def _render_panel(self) -> Dict[str, Any]:
+        root_values = self._root_array._values
+        width_units, height_units = self._measure_cells(root_values)
+        min_width = min(88.0, max(self.layout.width, 12.0 + (width_units * 0.55)))
+        min_height = min(84.0, max(self.layout.height, 8.0 + (height_units * 8.0)))
+
         return {
             "id": self.id,
             "kind": "array",
@@ -345,11 +535,12 @@ class VisArray(_VisObject):
             "typeLabel": self.type_label,
             "x": self.layout.x,
             "y": self.layout.y,
-            "width": self.layout.width,
-            "height": self.layout.height,
+            "width": max(self.layout.width, min_width),
+            "height": max(self.layout.height, min_height),
+            "minWidth": min_width,
+            "minHeight": min_height,
             "scale": self.layout.scale,
-            "items": items,
-            "edges": [],
+            "cells": self._render_cells(root_values, ()),
         }
 
 
@@ -639,7 +830,7 @@ class _TreePanel(_VisObject):
             node_pos[n._id] = (xm, 0.0)
             left_ok = isinstance(n.left, VisTreeNode)
             right_ok = isinstance(n.right, VisTreeNode)
-            gap = 2.5
+            gap = 2.0
             if left_ok and right_ok:
                 layout(n.left, depth + 1, x0, xm - gap, seen)
                 layout(n.right, depth + 1, xm + gap, x1, seen)
@@ -663,7 +854,7 @@ class _TreePanel(_VisObject):
             x, _ = node_pos[node._id]
             d = node_depth.get(node._id, 0)
             # Keep top padding so nodes don't collide with the panel header.
-            y = 22.0 if max_depth == 0 else 22.0 + (64.0 * (d / max_depth))
+            y = 18.0 if max_depth == 0 else 18.0 + (56.0 * (d / max_depth))
             items.append(
                 {
                     "id": node._id,
