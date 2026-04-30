@@ -45,6 +45,11 @@ export function Workbench() {
       path: "/examples/vis-array-example.py",
     },
     {
+      label: "VisArray 2D/3D",
+      description: "matrix and nested-list mutations with tracked inner updates",
+      path: "/examples/vis-array-multidim-example.py",
+    },
+    {
       label: "VisTreeNode",
       description: "node init, set/get, attach/detach children",
       path: "/examples/vis-tree-node-example.py",

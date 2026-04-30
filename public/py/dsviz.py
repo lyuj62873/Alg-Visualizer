@@ -467,7 +467,54 @@ class VisArray(_VisObject):
         self._active_path = active_path
         _TRACE.emit(label=label)
 
-    def _measure_cells(self, values: List[Any]) -> Tuple[float, float]:
+    def _infer_dimensions(self, values: List[Any]) -> Optional[Tuple[int, ...]]:
+        if not values:
+            return (0,)
+
+        child_dims: List[Tuple[int, ...]] = []
+        has_arrays = False
+        has_scalars = False
+
+        for value in values:
+            if isinstance(value, _NestedArray):
+                has_arrays = True
+                nested_dims = self._infer_dimensions(value._values)
+                if nested_dims is None:
+                    return None
+                child_dims.append(nested_dims)
+            else:
+                has_scalars = True
+                child_dims.append(())
+
+        if has_arrays and has_scalars:
+            return None
+        if not has_arrays:
+            return (len(values),)
+
+        first = child_dims[0]
+        if any(dims != first for dims in child_dims[1:]):
+            return None
+        return (len(values),) + first
+
+    def _array_layout(self, values: List[Any]) -> str:
+        if not values:
+            return "row"
+        if all(not isinstance(value, _NestedArray) for value in values):
+            return "row"
+        if all(isinstance(value, _NestedArray) for value in values):
+            if all(
+                all(not isinstance(child, _NestedArray) for child in value._values)
+                for value in values
+            ):
+                return "matrix"
+            return "stack"
+        return "row"
+
+    def _measure_scalar_width(self, value: Any) -> float:
+        label = _safe_str(value)
+        return min(20.0, max(10.0, 6.0 + (len(label) * 0.9)))
+
+    def _measure_row(self, values: List[Any]) -> Tuple[float, float]:
         if not values:
             return 12.0, 1.4
 
@@ -475,20 +522,51 @@ class VisArray(_VisObject):
         child_heights: List[float] = []
         for value in values:
             if isinstance(value, _NestedArray):
-                nested_width, nested_height = self._measure_cells(value._values)
-                child_widths.append(max(18.0, nested_width + 7.0))
-                child_heights.append(max(1.8, nested_height + 0.9))
+                nested_width, nested_height = self._measure_block(value._values)
+                child_widths.append(max(12.0, nested_width))
+                child_heights.append(max(1.8, nested_height))
             else:
-                label = _safe_str(value)
-                child_widths.append(min(20.0, max(10.0, 6.0 + (len(label) * 0.9))))
+                child_widths.append(self._measure_scalar_width(value))
                 child_heights.append(1.0)
 
         total_width = sum(child_widths) + max(0, len(values) - 1) * 3.0 + 4.0
         total_height = max(child_heights) + 0.8
         return total_width, total_height
 
-    def _render_cells(self, values: List[Any], path: Tuple[int, ...]) -> List[Dict[str, Any]]:
-        cells: List[Dict[str, Any]] = []
+    def _measure_block(self, values: List[Any]) -> Tuple[float, float]:
+        layout = self._array_layout(values)
+
+        if layout == "row":
+            return self._measure_row(values)
+
+        if layout == "matrix":
+            row_sizes = [
+                self._measure_row(value._values)
+                for value in values
+                if isinstance(value, _NestedArray)
+            ]
+            if not row_sizes:
+                return 14.0, 4.0
+            width = max(size[0] for size in row_sizes) + 6.0
+            height = sum(size[1] for size in row_sizes) + max(0, len(row_sizes) - 1) * 2.4 + 6.0
+            return width, height
+
+        child_sizes = [
+            self._measure_block(value._values)
+            for value in values
+            if isinstance(value, _NestedArray)
+        ]
+        if not child_sizes:
+            return 14.0, 4.0
+        width = max(size[0] for size in child_sizes) + 8.0
+        height = sum(size[1] for size in child_sizes) + max(0, len(child_sizes) - 1) * 3.2 + 6.0
+        return width, height
+
+    def _render_array_node(self, values: List[Any], path: Tuple[int, ...]) -> Dict[str, Any]:
+        layout = self._array_layout(values)
+        dimensions = self._infer_dimensions(values)
+        rendered_cells: List[Dict[str, Any]] = []
+
         for idx, value in enumerate(values):
             cell_path = path + (idx,)
             is_active = self._active_path == cell_path
@@ -500,18 +578,21 @@ class VisArray(_VisObject):
             cell_id = f"{self.id}_{'_'.join(str(part) for part in cell_path)}"
 
             if isinstance(value, _NestedArray):
-                cells.append(
+                nested = self._render_array_node(value._values, cell_path)
+                rendered_cells.append(
                     {
                         "id": cell_id,
                         "kind": "array",
+                        "layout": nested["layout"],
+                        "dimensions": nested["dimensions"],
                         "tone": "active" if is_active else "default",
                         "containsActive": contains_active,
-                        "cells": self._render_cells(value._values, cell_path),
+                        "cells": nested["cells"],
                     }
                 )
                 continue
 
-            cells.append(
+            rendered_cells.append(
                 {
                     "id": cell_id,
                     "kind": "value",
@@ -520,11 +601,17 @@ class VisArray(_VisObject):
                     "containsActive": contains_active,
                 }
             )
-        return cells
+
+        return {
+            "layout": layout,
+            "dimensions": list(dimensions) if dimensions is not None else None,
+            "cells": rendered_cells,
+        }
 
     def _render_panel(self) -> Dict[str, Any]:
         root_values = self._root_array._values
-        width_units, height_units = self._measure_cells(root_values)
+        rendered_root = self._render_array_node(root_values, ())
+        width_units, height_units = self._measure_block(root_values)
         min_width = min(88.0, max(self.layout.width, 12.0 + (width_units * 0.55)))
         min_height = min(84.0, max(self.layout.height, 8.0 + (height_units * 8.0)))
 
@@ -540,7 +627,9 @@ class VisArray(_VisObject):
             "minWidth": min_width,
             "minHeight": min_height,
             "scale": self.layout.scale,
-            "cells": self._render_cells(root_values, ()),
+            "layout": rendered_root["layout"],
+            "dimensions": rendered_root["dimensions"],
+            "cells": rendered_root["cells"],
         }
 
 

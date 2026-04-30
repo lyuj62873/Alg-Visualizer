@@ -32,6 +32,8 @@ export type TraceArrayCell =
   | {
       id: string;
       kind: "array";
+      layout?: "row" | "matrix" | "stack";
+      dimensions?: number[];
       tone?: "default" | "active";
       containsActive?: boolean;
       cells: TraceArrayCell[];
@@ -69,6 +71,8 @@ export type TracePanel =
     })
   | (TracePanelBase & {
       kind: "array";
+      layout?: "row" | "matrix" | "stack";
+      dimensions?: number[];
       cells: TraceArrayCell[];
     });
 
@@ -93,10 +97,12 @@ function valueCell(
 function arrayCell(
   id: string,
   cells: TraceArrayCell[],
+  layout: "row" | "matrix" | "stack" = "row",
+  dimensions?: number[],
   tone: "default" | "active" = "default",
   containsActive = false,
 ): TraceArrayCell {
-  return { id, kind: "array", cells, tone, containsActive };
+  return { id, kind: "array", cells, layout, dimensions, tone, containsActive };
 }
 
 export const traceFrames: TraceFrame[] = [
@@ -136,9 +142,11 @@ export const traceFrames: TraceFrame[] = [
         scale: 1,
         minWidth: 30,
         minHeight: 20,
+        layout: "matrix",
+        dimensions: [2, 2],
         cells: [
-          arrayCell("m0", [valueCell("m0c0", "1"), valueCell("m0c1", "2")]),
-          arrayCell("m1", [valueCell("m1c0", "3"), valueCell("m1c1", "4")]),
+          arrayCell("m0", [valueCell("m0c0", "1"), valueCell("m0c1", "2")], "row", [2]),
+          arrayCell("m1", [valueCell("m1c0", "3"), valueCell("m1c1", "4")], "row", [2]),
         ],
       },
       {
@@ -202,9 +210,11 @@ export const traceFrames: TraceFrame[] = [
         scale: 1,
         minWidth: 34,
         minHeight: 22,
+        layout: "matrix",
+        dimensions: [2, 2],
         cells: [
-          arrayCell("m0", [valueCell("m0c0", "1"), valueCell("m0c1", "2")]),
-          arrayCell("m1", [valueCell("m1c0", "3"), valueCell("m1c1", "4")]),
+          arrayCell("m0", [valueCell("m0c0", "1"), valueCell("m0c1", "2")], "row", [2]),
+          arrayCell("m1", [valueCell("m1c0", "3"), valueCell("m1c1", "4")], "row", [2]),
         ],
       },
       {
@@ -273,11 +283,15 @@ export const traceFrames: TraceFrame[] = [
         scale: 1,
         minWidth: 44,
         minHeight: 26,
+        layout: "matrix",
+        dimensions: [2, 3],
         cells: [
-          arrayCell("m0", [valueCell("m0c0", "1"), valueCell("m0c1", "2")]),
+          arrayCell("m0", [valueCell("m0c0", "1"), valueCell("m0c1", "2")], "row", [2]),
           arrayCell(
             "m1",
             [valueCell("m1c0", "3"), valueCell("m1c1", "4"), valueCell("m1c2", "7", "active")],
+            "row",
+            [3],
             "default",
             true,
           ),
@@ -350,9 +364,11 @@ export const traceFrames: TraceFrame[] = [
         scale: 1,
         minWidth: 44,
         minHeight: 26,
+        layout: "matrix",
+        dimensions: [2, 3],
         cells: [
-          arrayCell("m0", [valueCell("m0c0", "1"), valueCell("m0c1", "2")]),
-          arrayCell("m1", [valueCell("m1c0", "3"), valueCell("m1c1", "4"), valueCell("m1c2", "7")]),
+          arrayCell("m0", [valueCell("m0c0", "1"), valueCell("m0c1", "2")], "row", [2]),
+          arrayCell("m1", [valueCell("m1c0", "3"), valueCell("m1c1", "4"), valueCell("m1c2", "7")], "row", [3]),
         ],
       },
       {

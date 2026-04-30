@@ -40,10 +40,6 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function itemKey(panelId: string, itemId: string) {
-  return `${panelId}:${itemId}`;
-}
-
 function panelKey(panelId: string) {
   return `panel:${panelId}`;
 }
@@ -75,6 +71,94 @@ function getPanelPosition(panel: TracePanel, positions: DragPositions): PanelPos
   };
 }
 
+function formatDimensions(dimensions?: number[]) {
+  return dimensions && dimensions.length ? dimensions.join(" x ") : null;
+}
+
+function ArrayValueCell({ cell }: { cell: Extract<TraceArrayCell, { kind: "value" }> }) {
+  const isActive = cell.tone === "active";
+  const containsActive = !!cell.containsActive;
+
+  return (
+    <div
+      className={`flex min-h-12 min-w-[68px] items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold shadow-sm ${
+        isActive
+          ? "border-[#fb923c] bg-[#fff7ed] text-[#c2410c]"
+          : containsActive
+            ? "border-[#fdba74] bg-[#fffbeb] text-[#9a3412]"
+            : "border-[#d1d5db] bg-white text-[#111827]"
+      }`}
+    >
+      <span className="whitespace-nowrap">{cell.label}</span>
+    </div>
+  );
+}
+
+function ArrayContentView({
+  layout,
+  cells,
+  depth,
+}: {
+  layout: "row" | "matrix" | "stack";
+  cells: TraceArrayCell[];
+  depth: number;
+}) {
+  if (layout === "matrix") {
+    return (
+      <div className="space-y-2">
+        {cells.map((row, rowIndex) => {
+          if (row.kind === "array") {
+            return (
+              <div key={row.id} className="flex items-center gap-2">
+                <div className="w-7 text-right text-[10px] font-semibold text-[#94a3b8]">
+                  {rowIndex}
+                </div>
+                <div className="flex min-w-max items-start gap-2">
+                  {row.cells.map((child) => (
+                    <ArrayCellView key={child.id} cell={child} depth={depth + 1} />
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={row.id} className="flex items-center gap-2">
+              <div className="w-7 text-right text-[10px] font-semibold text-[#94a3b8]">
+                {rowIndex}
+              </div>
+              <ArrayCellView cell={row} depth={depth + 1} />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (layout === "stack") {
+    return (
+      <div className="space-y-3">
+        {cells.map((child, index) => (
+          <div key={child.id} className="rounded-2xl border border-[#e2e8f0] bg-white/70 px-3 py-3">
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#94a3b8]">
+              Slice {index}
+            </div>
+            <ArrayCellView cell={child} depth={depth + 1} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-w-max items-start gap-3 pb-2">
+      {cells.map((child) => (
+        <ArrayCellView key={child.id} cell={child} depth={depth + 1} />
+      ))}
+    </div>
+  );
+}
+
 function ArrayCellView({
   cell,
   depth,
@@ -82,26 +166,15 @@ function ArrayCellView({
   cell: TraceArrayCell;
   depth: number;
 }) {
-  const isActive = cell.tone === "active";
-  const containsActive = !!cell.containsActive;
-
+  const nestedBg = depth % 2 === 0 ? "bg-[#fffaf5]" : "bg-white";
   if (cell.kind === "value") {
-    return (
-      <div
-        className={`flex min-h-12 min-w-[68px] items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold shadow-sm ${
-          isActive
-            ? "border-[#fb923c] bg-[#fff7ed] text-[#c2410c]"
-            : containsActive
-              ? "border-[#fdba74] bg-[#fffbeb] text-[#9a3412]"
-              : "border-[#d1d5db] bg-white text-[#111827]"
-        }`}
-      >
-        <span className="whitespace-nowrap">{cell.label}</span>
-      </div>
-    );
+    return <ArrayValueCell cell={cell} />;
   }
 
-  const nestedBg = depth % 2 === 0 ? "bg-[#fffaf5]" : "bg-white";
+  const isActive = cell.tone === "active";
+  const containsActive = !!cell.containsActive;
+  const dimensionsLabel = formatDimensions(cell.dimensions);
+  const layout = cell.layout ?? "row";
 
   return (
     <div
@@ -113,20 +186,19 @@ function ArrayCellView({
             : "border-[#e5e7eb]"
       }`}
     >
-      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9ca3af]">
-        Nested Array
+      <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9ca3af]">
+        <span>
+          {layout === "matrix" ? "Matrix" : layout === "stack" ? "Nested Blocks" : "Nested Array"}
+        </span>
+        {dimensionsLabel ? <span>{dimensionsLabel}</span> : null}
       </div>
-      <div className="flex min-w-max items-start gap-3">
-        {cell.cells.length ? (
-          cell.cells.map((child) => (
-            <ArrayCellView key={child.id} cell={child} depth={depth + 1} />
-          ))
-        ) : (
+      {cell.cells.length ? (
+        <ArrayContentView layout={layout} cells={cell.cells} depth={depth} />
+      ) : (
           <div className="rounded-xl border border-dashed border-[#d1d5db] px-4 py-3 text-xs text-[#6b7280]">
             Empty
           </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -138,6 +210,9 @@ function ArrayPanelBody({
   panel: Extract<TracePanel, { kind: "array" }>;
   scale: number;
 }) {
+  const dimensionsLabel = formatDimensions(panel.dimensions);
+  const layout = panel.layout ?? "row";
+
   return (
     <div className="absolute inset-0 overflow-auto p-3">
       <div
@@ -149,10 +224,14 @@ function ArrayPanelBody({
         }}
       >
         {panel.cells.length ? (
-          <div className="flex min-w-max items-start gap-3 pb-2">
-            {panel.cells.map((cell) => (
-              <ArrayCellView key={cell.id} cell={cell} depth={0} />
-            ))}
+          <div className="min-w-max pb-2">
+            <div className="mb-3 flex items-center justify-between gap-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#94a3b8]">
+              <span>
+                {layout === "matrix" ? "2D Array" : layout === "stack" ? "Multi-D Array" : "Array"}
+              </span>
+              {dimensionsLabel ? <span>{dimensionsLabel}</span> : null}
+            </div>
+            <ArrayContentView layout={layout} cells={panel.cells} depth={0} />
           </div>
         ) : (
           <div className="flex h-full min-h-24 items-center justify-center rounded-xl border border-dashed border-[#d1d5db] text-sm text-[#6b7280]">
