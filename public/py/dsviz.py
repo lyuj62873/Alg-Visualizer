@@ -813,13 +813,15 @@ class _TreePanel(_VisObject):
         root_sizes.append((primary_root, c))
         total += c
 
-        x_left = 14.0
-        x_right = 86.0
+        x_left = 22.0
+        x_right = 78.0
         x_span = x_right - x_left
 
         node_pos: Dict[str, Tuple[float, float]] = {}
         node_depth: Dict[str, int] = {}
         max_depth = 0
+        top_y = 18.0
+        row_gap = 14.0
 
         def layout(n: Optional[VisTreeNode], depth: int, x0: float, x1: float, seen: set) -> None:
             nonlocal max_depth
@@ -829,18 +831,18 @@ class _TreePanel(_VisObject):
             max_depth = max(max_depth, depth)
             node_depth[n._id] = depth
             xm = (x0 + x1) / 2.0
-            node_pos[n._id] = (xm, 0.0)
+            node_pos[n._id] = (xm, top_y + (depth * row_gap))
             left_ok = isinstance(n.left, VisTreeNode)
             right_ok = isinstance(n.right, VisTreeNode)
-            gap = 1.4
+            gap = 0.9
             if left_ok and right_ok:
                 layout(n.left, depth + 1, x0, xm - gap, seen)
                 layout(n.right, depth + 1, xm + gap, x1, seen)
             elif left_ok:
                 # Avoid huge slants when only one child exists.
-                layout(n.left, depth + 1, x0 + 1.0, xm, seen)
+                layout(n.left, depth + 1, x0 + 0.8, xm, seen)
             elif right_ok:
-                layout(n.right, depth + 1, xm, x1 - 1.0, seen)
+                layout(n.right, depth + 1, xm, x1 - 0.8, seen)
 
         cursor = x_left
         for r, c in root_sizes:
@@ -853,10 +855,7 @@ class _TreePanel(_VisObject):
         for node in nodes:
             if node._id not in node_pos:
                 continue
-            x, _ = node_pos[node._id]
-            d = node_depth.get(node._id, 0)
-            # Keep top padding so nodes don't collide with the panel header.
-            y = 18.0 if max_depth == 0 else 18.0 + (40.0 * (d / max_depth))
+            x, y = node_pos[node._id]
             items.append(
                 {
                     "id": node._id,
@@ -878,8 +877,10 @@ class _TreePanel(_VisObject):
         # Sort items by y then x for stable render.
         items.sort(key=lambda it: (it["y"], it["x"]))
 
-        min_width = min(56.0, max(22.0, 18.0 + (c * 4.5)))
-        min_height = min(56.0, max(20.0, 18.0 + (max_depth * 7.5)))
+        node_diameter = 9.0
+        bottom_padding = 10.0
+        min_width = min(58.0, max(20.0, 16.0 + (c * 4.0)))
+        min_height = min(72.0, max(20.0, top_y + node_diameter + (max_depth * row_gap) + bottom_padding))
 
         return {
             "id": self.id,

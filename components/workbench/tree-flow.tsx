@@ -9,10 +9,8 @@ import {
   ReactFlow,
   ReactFlowInstance,
   type NodeTypes,
-  useEdgesState,
-  useNodesState,
 } from "@xyflow/react";
-import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TracePanel } from "./mock-trace";
 
 type TreeNodeData = {
@@ -24,20 +22,14 @@ type TreeNodeModel = Node<TreeNodeData, "treeNode">;
 
 type TreeFlowProps = {
   panel: Extract<TracePanel, { kind: "bst" }>;
-  positions: Record<string, { x: number; y: number; width?: number; height?: number; scale?: number }>;
-  setPositions: Dispatch<SetStateAction<Record<string, { x: number; y: number; width?: number; height?: number; scale?: number }>>>;
 };
 
 const nodeTypes: NodeTypes = {
   treeNode: TreeNode,
 };
 
-const TREE_LAYOUT_WIDTH = 360;
-const TREE_LAYOUT_HEIGHT = 220;
-
-function itemKey(panelId: string, itemId: string) {
-  return `${panelId}:${itemId}`;
-}
+const TREE_LAYOUT_WIDTH = 320;
+const TREE_LAYOUT_HEIGHT = 200;
 
 function TreeNode({ data }: NodeProps<TreeNodeModel>) {
   const active = data.tone === "active";
@@ -86,18 +78,17 @@ function useElementSize<T extends HTMLElement>() {
   return { ref, size };
 }
 
-export function TreeFlowViewport({ panel, positions, setPositions }: TreeFlowProps) {
+export function TreeFlowViewport({ panel }: TreeFlowProps) {
   const { ref, size } = useElementSize<HTMLDivElement>();
   const flowRef = useRef<Pick<ReactFlowInstance<any, any>, "fitView"> | null>(null);
-  const lastFitSignatureRef = useRef<string | null>(null);
 
   const initialNodes: TreeNodeModel[] = useMemo(() => {
     return panel.items.map((item) => ({
       id: item.id,
       type: "treeNode",
       position: {
-        x: ((positions[itemKey(panel.id, item.id)]?.x ?? item.x) / 100) * TREE_LAYOUT_WIDTH,
-        y: ((positions[itemKey(panel.id, item.id)]?.y ?? item.y) / 100) * TREE_LAYOUT_HEIGHT,
+        x: (item.x / 100) * TREE_LAYOUT_WIDTH,
+        y: (item.y / 100) * TREE_LAYOUT_HEIGHT,
       },
       data: {
         label: item.label,
@@ -106,7 +97,7 @@ export function TreeFlowViewport({ panel, positions, setPositions }: TreeFlowPro
       sourcePosition: Position.Bottom,
       targetPosition: Position.Top,
     }));
-  }, [panel.id, panel.items, positions]);
+  }, [panel.items]);
 
   const initialEdges = useMemo(
     () =>
@@ -119,9 +110,6 @@ export function TreeFlowViewport({ panel, positions, setPositions }: TreeFlowPro
     [panel.edges],
   );
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-
   const layoutSignature = useMemo(
     () =>
       JSON.stringify({
@@ -132,22 +120,15 @@ export function TreeFlowViewport({ panel, positions, setPositions }: TreeFlowPro
   );
 
   useEffect(() => {
-    setNodes(initialNodes);
-    setEdges(initialEdges);
-  }, [initialEdges, initialNodes, setEdges, setNodes]);
-
-  useEffect(() => {
     if (!flowRef.current || !size.width || !size.height || !panel.items.length) return;
-    if (lastFitSignatureRef.current === layoutSignature) return;
 
     const rafId = window.requestAnimationFrame(() => {
       flowRef.current?.fitView({
-        padding: 0.18,
+        padding: 0.12,
         duration: 180,
-        minZoom: 0.5,
-        maxZoom: 0.9,
+        minZoom: 0.55,
+        maxZoom: 0.85,
       });
-      lastFitSignatureRef.current = layoutSignature;
     });
 
     return () => window.cancelAnimationFrame(rafId);
@@ -160,21 +141,10 @@ export function TreeFlowViewport({ panel, positions, setPositions }: TreeFlowPro
           onInit={(instance) => {
             flowRef.current = instance;
           }}
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onNodeDragStop={(_event, node) => {
-            setPositions((current) => ({
-              ...current,
-              [itemKey(panel.id, node.id)]: {
-                x: (node.position.x / TREE_LAYOUT_WIDTH) * 100,
-                y: (node.position.y / TREE_LAYOUT_HEIGHT) * 100,
-              },
-            }));
-          }}
+          nodes={initialNodes}
+          edges={initialEdges}
           nodeTypes={nodeTypes}
-          nodesDraggable
+          nodesDraggable={false}
           nodesConnectable={false}
           elementsSelectable={false}
           panOnDrag
@@ -184,11 +154,11 @@ export function TreeFlowViewport({ panel, positions, setPositions }: TreeFlowPro
           zoomOnDoubleClick={false}
           preventScrolling
           proOptions={{ hideAttribution: true }}
-          minZoom={0.5}
-          maxZoom={1}
+          minZoom={0.55}
+          maxZoom={0.9}
           className="bg-[radial-gradient(circle_at_top,#fff7ed,transparent_35%),linear-gradient(#ffffff,#fcfcfd)]"
         >
-          <Background gap={18} size={1} color="rgba(229,231,235,0.45)" />
+          <Background gap={16} size={1} color="rgba(229,231,235,0.42)" />
         </ReactFlow>
       ) : null}
     </div>

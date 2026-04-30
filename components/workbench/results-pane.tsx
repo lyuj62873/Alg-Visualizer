@@ -301,8 +301,6 @@ function VisualizationPanel({
         {isTreeKind(panel) ? (
           <TreeFlowViewport
             panel={panel}
-            positions={positions}
-            setPositions={setPositions}
           />
         ) : (
           <ArrayPanelBody
@@ -365,12 +363,6 @@ export function ResultsPane({
           continue;
         }
 
-        for (const item of panel.items) {
-          nextPositions[itemKey(panel.id, item.id)] = current[itemKey(panel.id, item.id)] ?? {
-            x: item.x,
-            y: item.y,
-          };
-        }
       }
 
       return nextPositions;
