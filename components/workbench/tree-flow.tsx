@@ -8,6 +8,7 @@ import {
   Position,
   ReactFlow,
   ReactFlowInstance,
+  useReactFlow,
   type NodeTypes,
 } from "@xyflow/react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -22,6 +23,8 @@ type TreeNodeModel = Node<TreeNodeData, "treeNode">;
 
 type TreeFlowProps = {
   panel: Extract<TracePanel, { kind: "bst" }>;
+  scale: number;
+  onScaleChange: (nextScale: number) => void;
 };
 
 const nodeTypes: NodeTypes = {
@@ -78,10 +81,63 @@ function useElementSize<T extends HTMLElement>() {
   return { ref, size };
 }
 
-export function TreeFlowViewport({ panel }: TreeFlowProps) {
-  const { ref, size } = useElementSize<HTMLDivElement>();
-  const flowRef = useRef<Pick<ReactFlowInstance<any, any>, "fitView"> | null>(null);
+function TreeViewportSync({
+  scale,
+  layoutSignature,
+  nodeCount,
+  size,
+  onScaleChange,
+}: {
+  scale: number;
+  layoutSignature: string;
+  nodeCount: number;
+  size: { width: number; height: number };
+  onScaleChange: (nextScale: number) => void;
+}) {
+  const reactFlow = useReactFlow();
   const lastFitSignatureRef = useRef<string | null>(null);
+  const lastAppliedScaleRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!size.width || !size.height || !nodeCount) return;
+    if (lastFitSignatureRef.current === layoutSignature) return;
+
+    const rafId = window.requestAnimationFrame(async () => {
+      await reactFlow.fitView({
+        padding: 0.14,
+        duration: 180,
+        minZoom: 0.5,
+        maxZoom: 0.95,
+      });
+      const fittedZoom = reactFlow.getZoom();
+      lastFitSignatureRef.current = layoutSignature;
+      lastAppliedScaleRef.current = fittedZoom;
+      onScaleChange(fittedZoom);
+    });
+
+    return () => window.cancelAnimationFrame(rafId);
+  }, [layoutSignature, nodeCount, onScaleChange, reactFlow, size.height, size.width]);
+
+  useEffect(() => {
+    if (!size.width || !size.height || !nodeCount) return;
+    const currentZoom = reactFlow.getZoom();
+    if (Math.abs(currentZoom - scale) < 0.01) {
+      lastAppliedScaleRef.current = scale;
+      return;
+    }
+    if (lastAppliedScaleRef.current !== null && Math.abs(lastAppliedScaleRef.current - scale) < 0.01) {
+      return;
+    }
+
+    reactFlow.zoomTo(scale, { duration: 120 });
+    lastAppliedScaleRef.current = scale;
+  }, [nodeCount, reactFlow, scale, size.height, size.width]);
+
+  return null;
+}
+
+export function TreeFlowViewport({ panel, scale, onScaleChange }: TreeFlowProps) {
+  const { ref, size } = useElementSize<HTMLDivElement>();
   const layoutWidth = panel.layoutWidth ?? TREE_LAYOUT_WIDTH;
   const layoutHeight = panel.layoutHeight ?? TREE_LAYOUT_HEIGHT;
 
@@ -124,29 +180,17 @@ export function TreeFlowViewport({ panel }: TreeFlowProps) {
     [layoutHeight, layoutWidth, panel.edges, panel.items],
   );
 
-  useEffect(() => {
-    if (!flowRef.current || !size.width || !size.height || !panel.items.length) return;
-    if (lastFitSignatureRef.current === layoutSignature) return;
-
-    const rafId = window.requestAnimationFrame(() => {
-      flowRef.current?.fitView({
-        padding: 0.14,
-        duration: 180,
-        minZoom: 0.5,
-        maxZoom: 0.95,
-      });
-      lastFitSignatureRef.current = layoutSignature;
-    });
-
-    return () => window.cancelAnimationFrame(rafId);
-  }, [layoutSignature, panel.items.length, size.height, size.width]);
-
   return (
     <div ref={ref} className="h-full w-full">
       {size.width > 0 && size.height > 0 ? (
         <ReactFlow
-          onInit={(instance) => {
-            flowRef.current = instance;
+          onInit={(instance: ReactFlowInstance<any, any>) => {
+            onScaleChange(instance.getZoom());
+          }}
+          onMoveEnd={(event, viewport) => {
+            if (event?.type === "wheel") {
+              onScaleChange(viewport.zoom);
+            }
           }}
           nodes={initialNodes}
           edges={initialEdges}
@@ -162,9 +206,16 @@ export function TreeFlowViewport({ panel }: TreeFlowProps) {
           preventScrolling
           proOptions={{ hideAttribution: true }}
           minZoom={0.5}
-          maxZoom={1.5}
+          maxZoom={1.9}
           className="bg-[radial-gradient(circle_at_top,#fff7ed,transparent_35%),linear-gradient(#ffffff,#fcfcfd)]"
         >
+          <TreeViewportSync
+            scale={scale}
+            layoutSignature={layoutSignature}
+            nodeCount={panel.items.length}
+            size={size}
+            onScaleChange={onScaleChange}
+          />
           <Background gap={16} size={1} color="rgba(229,231,235,0.42)" />
         </ReactFlow>
       ) : null}

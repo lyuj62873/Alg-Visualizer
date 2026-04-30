@@ -47,6 +47,31 @@ function panelKey(panelId: string) {
   return `panel:${panelId}`;
 }
 
+function setPanelScale(
+  setPositions: Dispatch<SetStateAction<DragPositions>>,
+  panel: TracePanel,
+  nextScale: number,
+) {
+  setPositions((current) => {
+    const key = panelKey(panel.id);
+    const prior = current[key] ?? {
+      x: panel.x,
+      y: panel.y,
+      width: panel.width,
+      height: panel.height,
+      scale: panel.scale,
+    };
+
+    return {
+      ...current,
+      [key]: {
+        ...prior,
+        scale: clamp(nextScale, 0.75, 1.9),
+      },
+    };
+  });
+}
+
 function getEffectiveMinSize(panel: TracePanel) {
   return {
     width: panel.minWidth ?? panel.width,
@@ -238,25 +263,7 @@ function ArrayPanelBody({
     event.preventDefault();
     const delta = event.deltaY === 0 ? event.deltaX : event.deltaY;
     const zoomStep = delta > 0 ? -0.08 : 0.08;
-
-    setPositions((current) => {
-      const key = panelKey(panel.id);
-      const prior = current[key] ?? {
-        x: panel.x,
-        y: panel.y,
-        width: panel.width,
-        height: panel.height,
-        scale: panel.scale,
-      };
-
-      return {
-        ...current,
-        [key]: {
-          ...prior,
-          scale: clamp((prior.scale ?? panel.scale) + zoomStep, 0.75, 1.9),
-        },
-      };
-    });
+    setPanelScale(setPositions, panel, scale + zoomStep);
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
@@ -403,7 +410,6 @@ function VisualizationPanel({
             ...activeInteraction.panelStart,
             width: nextWidth,
             height: nextHeight,
-            scale: activeInteraction.panelStart.scale,
           };
           return next;
         }
@@ -415,7 +421,6 @@ function VisualizationPanel({
           ...activeInteraction.panelStart,
           width: nextWidth,
           height: nextHeight,
-          scale: clamp(activeInteraction.panelStart.scale * ratio, 0.7, 2.2),
         };
         return next;
       });
@@ -493,6 +498,8 @@ function VisualizationPanel({
         {isTreeKind(panel) ? (
           <TreeFlowViewport
             panel={panel}
+            scale={currentPanelPosition.scale}
+            onScaleChange={(nextScale) => setPanelScale(setPositions, panel, nextScale)}
           />
         ) : (
           <ArrayPanelBody
