@@ -132,6 +132,7 @@ Still out of scope for v1:
 ## Known v1 Gaps
 Known unresolved UI issues:
 1. Large arrays can compress until labels become unreadable. Panels need automatic width expansion plus user-controlled proportional scaling.
+   - Related bug: `VisArray.append(...)` can update the underlying structure without making the additional array cell visibly appear in the panel.
 2. Tree panels need better density control and viewport panning inside the panel when the tree grows.
 3. `VisArray` does not yet provide real nested-array rendering or inner-list mutation tracking. Multi-dimensional arrays currently degrade to stringified top-level cells unless values are written back through the outer `VisArray`.
 4. Dragging panels currently has rough edges:

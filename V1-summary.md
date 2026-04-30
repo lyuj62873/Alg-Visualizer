@@ -186,6 +186,10 @@ Required fix:
 - automatically expand panel width based on content count
 - preserve user-controlled proportional scale after expansion
 
+Related current bug:
+- when `VisArray.append(...)` grows the logical array, the visualization can fail to show an additional visible cell
+- the underlying array state still updates correctly, so this is currently a rendering/layout bug rather than a data bug
+
 2. Tree panels need better internal navigation.
 Required fix:
 - make nodes and overall tree presentation more compact

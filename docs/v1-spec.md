@@ -155,6 +155,7 @@ Current error payload includes:
 ## Known Limitations
 Current unresolved limitations:
 1. Arrays with many values can compress until text becomes unreadable.
+   - Related current bug: `VisArray.append(...)` can change the array state without visibly increasing the rendered cell count in the panel.
 2. Tree panels need better internal panning and more compact node sizing.
 3. `VisArray` does not yet support true nested-array rendering or reliable inner-list mutation tracking. Nested arrays currently render as stringified top-level cells unless the edited row is written back through the outer `VisArray`.
 4. Panel drag behavior needs refinement to remove jumpiness and accidental text selection.
