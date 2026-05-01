@@ -974,7 +974,6 @@ class _TreePanel(_VisObject):
         if not roots:
             roots = [all_nodes[0]]
 
-        # Pick a primary root: largest reachable component; tie-break by creation order.
         def reachable_ids(root: VisTreeNode) -> set:
             seen: set = set()
             stack = [root]
@@ -998,99 +997,142 @@ class _TreePanel(_VisObject):
             except Exception:
                 return 10**9
 
-        primary_root = roots[0]
-        primary_ids = reachable_ids(primary_root)
-        best_size = len(primary_ids)
-        best_order = node_order(primary_root)
-        for r in roots[1:]:
-            ids = reachable_ids(r)
-            size = len(ids)
-            order = node_order(r)
-            if size > best_size or (size == best_size and order < best_order):
-                primary_root = r
-                primary_ids = ids
-                best_size = size
-                best_order = order
+        def ordered_component(root: VisTreeNode) -> List[VisTreeNode]:
+            ids = reachable_ids(root)
+            return [nodes_by_id[nid] for nid in sorted(ids, key=lambda node_id: node_order(nodes_by_id[node_id])) if nid in nodes_by_id]
 
-        # Only lay out / render the primary tree so newly-created but unattached nodes
-        # don't cause the visible tree to jump around between frames.
-        nodes = [nodes_by_id[nid] for nid in primary_ids if nid in nodes_by_id]
-
-        x_left = 22.0
-        x_right = 78.0
-        x_span = x_right - x_left
-
-        node_pos: Dict[str, Tuple[float, float]] = {}
-        node_depth: Dict[str, int] = {}
-        node_slot: Dict[str, int] = {}
-        max_depth = 0
-        top_y = 18.0
-        row_gap = 36.0
-
-        def layout(n: Optional[VisTreeNode], depth: int, slot: int, seen: set) -> None:
-            nonlocal max_depth
-            if n is None or not isinstance(n, VisTreeNode) or n._id in seen:
-                return
-            seen.add(n._id)
-            max_depth = max(max_depth, depth)
-            node_depth[n._id] = depth
-            node_slot[n._id] = slot
-            left_ok = isinstance(n.left, VisTreeNode)
-            right_ok = isinstance(n.right, VisTreeNode)
-            if left_ok and right_ok:
-                layout(n.left, depth + 1, slot * 2, seen)
-                layout(n.right, depth + 1, slot * 2 + 1, seen)
-            elif left_ok:
-                layout(n.left, depth + 1, slot * 2, seen)
-            elif right_ok:
-                layout(n.right, depth + 1, slot * 2 + 1, seen)
-
-        layout(primary_root, 0, 0, set())
-
-        items = []
-        max_depth_slots = max(1, 2 ** max_depth)
-        for node in nodes:
-            if node._id not in node_slot:
+        component_roots: List[VisTreeNode] = []
+        covered_ids = set()
+        for root in sorted(roots, key=node_order):
+            ids = reachable_ids(root)
+            if not ids:
                 continue
-            depth = node_depth.get(node._id, 0)
-            slot = node_slot[node._id]
-            slot_fraction = (2 * slot + 1) / (2 ** (depth + 1))
-            x = x_left + (x_span * slot_fraction)
-            y = top_y + (depth * row_gap)
-            node_pos[node._id] = (x, y)
-            items.append(
-                {
-                    "id": node._id,
-                    "label": _safe_str(node.val),
-                    "x": x,
-                    "y": y,
-                    "shape": "circle",
-                    "tone": "active" if _TRACE.last_touched == node._id else "default",
-                }
+            component_roots.append(root)
+            covered_ids.update(ids)
+
+        for node in sorted(all_nodes, key=node_order):
+            if node._id in covered_ids:
+                continue
+            component_roots.append(node)
+            covered_ids.update(reachable_ids(node))
+
+        def build_component_layout(root: VisTreeNode) -> Dict[str, Any]:
+            nodes = ordered_component(root)
+            x_left = 22.0
+            x_right = 78.0
+            x_span = x_right - x_left
+            top_y = 18.0
+            row_gap = 36.0
+            node_diameter = 9.0
+            bottom_padding = 12.0
+
+            node_depth: Dict[str, int] = {}
+            node_slot: Dict[str, int] = {}
+            max_depth = 0
+
+            def layout(n: Optional[VisTreeNode], depth: int, slot: int, seen: set) -> None:
+                nonlocal max_depth
+                if n is None or not isinstance(n, VisTreeNode) or n._id in seen:
+                    return
+                seen.add(n._id)
+                max_depth = max(max_depth, depth)
+                node_depth[n._id] = depth
+                node_slot[n._id] = slot
+                left_ok = isinstance(n.left, VisTreeNode)
+                right_ok = isinstance(n.right, VisTreeNode)
+                if left_ok and right_ok:
+                    layout(n.left, depth + 1, slot * 2, seen)
+                    layout(n.right, depth + 1, slot * 2 + 1, seen)
+                elif left_ok:
+                    layout(n.left, depth + 1, slot * 2, seen)
+                elif right_ok:
+                    layout(n.right, depth + 1, slot * 2 + 1, seen)
+
+            layout(root, 0, 0, set())
+
+            max_depth_slots = max(1, 2 ** max_depth)
+            width_scale = max(1.0, max_depth_slots / 4.0)
+            component_width = 320.0 * width_scale
+            component_height = max(
+                240.0,
+                top_y + node_diameter + (max_depth * row_gap) + bottom_padding + 16.0,
             )
 
+            local_items = []
+            local_edges = []
+            for node in nodes:
+                if node._id not in node_slot:
+                    continue
+                depth = node_depth.get(node._id, 0)
+                slot = node_slot[node._id]
+                slot_fraction = (2 * slot + 1) / (2 ** (depth + 1))
+                x_pct = x_left + (x_span * slot_fraction)
+                y_pct = top_y + (depth * row_gap)
+                local_items.append(
+                    {
+                        "id": node._id,
+                        "label": _safe_str(node.val),
+                        "x": (x_pct / 100.0) * component_width,
+                        "y": (y_pct / 100.0) * component_height,
+                        "shape": "circle",
+                        "tone": "active" if _TRACE.last_touched == node._id else "default",
+                    }
+                )
+                if isinstance(node.left, VisTreeNode):
+                    local_edges.append({"from": node._id, "to": node.left._id})
+                if isinstance(node.right, VisTreeNode):
+                    local_edges.append({"from": node._id, "to": node.right._id})
+
+            depth_counts: Dict[int, int] = {}
+            for depth in node_depth.values():
+                depth_counts[depth] = depth_counts.get(depth, 0) + 1
+
+            return {
+                "items": local_items,
+                "edges": local_edges,
+                "width": component_width,
+                "height": component_height,
+                "maxLevelNodes": max(depth_counts.values()) if depth_counts else 1,
+                "maxDepth": max_depth,
+            }
+
+        components = [build_component_layout(root) for root in component_roots]
+
+        outer_padding_x = 24.0
+        outer_padding_y = 20.0
+        component_gap_y = 54.0
+        max_component_width = max((component["width"] for component in components), default=320.0)
+        layout_width = max(320.0, max_component_width + outer_padding_x * 2)
+
+        items = []
         edges = []
-        for node in nodes:
-            if isinstance(node.left, VisTreeNode):
-                edges.append({"from": node._id, "to": node.left._id})
-            if isinstance(node.right, VisTreeNode):
-                edges.append({"from": node._id, "to": node.right._id})
+        y_cursor = outer_padding_y
+        max_level_nodes = 1
+        max_depth_overall = 0
+        for component in components:
+            x_offset = outer_padding_x + max(0.0, (max_component_width - component["width"]) / 2.0)
+            for item in component["items"]:
+                items.append(
+                    {
+                        **item,
+                        "x": x_offset + item["x"],
+                        "y": y_cursor + item["y"],
+                    }
+                )
+            edges.extend(component["edges"])
+            y_cursor += component["height"] + component_gap_y
+            max_level_nodes = max(max_level_nodes, component["maxLevelNodes"])
+            max_depth_overall = max(max_depth_overall, component["maxDepth"])
 
-        # Sort items by y then x for stable render.
-        items.sort(key=lambda it: (it["y"], it["x"]))
-
-        depth_counts: Dict[int, int] = {}
-        for depth in node_depth.values():
-            depth_counts[depth] = depth_counts.get(depth, 0) + 1
-
-        max_level_nodes = max(depth_counts.values()) if depth_counts else 1
-        node_diameter = 9.0
-        bottom_padding = 12.0
-        width_scale = max(1.0, max_depth_slots / 4.0)
-        layout_width = 320.0 * width_scale
-        layout_height = max(240.0, top_y + node_diameter + (max_depth * row_gap) + bottom_padding + 16.0)
+        layout_height = max(240.0, y_cursor - component_gap_y + outer_padding_y if components else 240.0)
         min_width = min(72.0, max(20.0, 18.0 + (max_level_nodes * 4.5)))
-        min_height = min(72.0, max(20.0, top_y + node_diameter + (max_depth * row_gap) + bottom_padding))
+        min_height = min(82.0, max(20.0, 22.0 + (len(components) * 12.0) + (max_depth_overall * 4.0)))
+
+        for item in items:
+            item["x"] = (item["x"] / layout_width) * 100.0
+            item["y"] = (item["y"] / layout_height) * 100.0
+
+        items.sort(key=lambda it: (it["y"], it["x"]))
 
         return {
             "id": self.id,
