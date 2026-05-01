@@ -36,6 +36,11 @@ export function Workbench() {
       description: "inorder collect, quicksort, then rebuild a balanced tree",
       path: "/examples/balanced-rebuild-example.py",
     },
+    {
+      label: "Reverse Linked List",
+      description: "classic in-place pointer reversal with prev, curr, and next",
+      path: "/examples/reverse-linked-list-example.py",
+    },
   ];
 
   const guideItems = [
