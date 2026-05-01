@@ -1179,55 +1179,67 @@ class _ListPanel(_VisObject):
             except Exception:
                 return 10**9
 
-        primary_root = roots[0]
-        primary_ids = reachable_ids(primary_root)
-        best_size = len(primary_ids)
-        best_order = node_order(primary_root)
-        for r in roots[1:]:
-            ids = reachable_ids(r)
-            size = len(ids)
-            order = node_order(r)
-            if size > best_size or (size == best_size and order < best_order):
-                primary_root = r
-                primary_ids = ids
-                best_size = size
-                best_order = order
+        def ordered_chain(root: VisListNode) -> List[VisListNode]:
+            chain: List[VisListNode] = []
+            seen_ids = set()
+            cur: Optional[VisListNode] = root
+            while cur is not None and isinstance(cur, VisListNode) and cur._id not in seen_ids:
+                if cur._id not in nodes_by_id:
+                    break
+                chain.append(cur)
+                seen_ids.add(cur._id)
+                cur = cur.right if isinstance(cur.right, VisListNode) else None
+            return chain
 
-        ordered_nodes: List[VisListNode] = []
-        seen_ids = set()
-        cur: Optional[VisListNode] = primary_root
-        while cur is not None and isinstance(cur, VisListNode) and cur._id not in seen_ids:
-            if cur._id not in primary_ids or cur._id not in nodes_by_id:
-                break
-            ordered_nodes.append(cur)
-            seen_ids.add(cur._id)
-            cur = cur.right if isinstance(cur.right, VisListNode) else None
+        chains: List[List[VisListNode]] = []
+        covered_ids = set()
+
+        for root in sorted(roots, key=node_order):
+            chain = ordered_chain(root)
+            if not chain:
+                continue
+            chains.append(chain)
+            covered_ids.update(node._id for node in chain)
+
+        for node in sorted(all_nodes, key=node_order):
+            if node._id in covered_ids:
+                continue
+            chain = ordered_chain(node)
+            if not chain:
+                continue
+            chains.append(chain)
+            covered_ids.update(member._id for member in chain)
 
         items = []
         edges = []
         left_padding = 28.0
-        top_y = 54.0
+        top_y = 38.0
         node_gap = 118.0
-        bottom_padding = 28.0
-        for index, node in enumerate(ordered_nodes):
-            x = left_padding + (index * node_gap)
-            items.append(
-                {
-                    "id": node._id,
-                    "label": _safe_str(node.val),
-                    "x": x,
-                    "y": top_y,
-                    "shape": "pill",
-                    "tone": "active" if _TRACE.last_touched == node._id else "default",
-                }
-            )
-            if isinstance(node.right, VisListNode) and node.right._id in primary_ids:
-                edges.append({"from": node._id, "to": node.right._id})
+        row_gap = 82.0
+        bottom_padding = 34.0
+        max_chain_len = 1
+        for row_index, chain in enumerate(chains):
+            max_chain_len = max(max_chain_len, len(chain))
+            y = top_y + (row_index * row_gap)
+            for col_index, node in enumerate(chain):
+                x = left_padding + (col_index * node_gap)
+                items.append(
+                    {
+                        "id": node._id,
+                        "label": _safe_str(node.val),
+                        "x": x,
+                        "y": y,
+                        "shape": "pill",
+                        "tone": "active" if _TRACE.last_touched == node._id else "default",
+                    }
+                )
+                if isinstance(node.right, VisListNode) and col_index + 1 < len(chain) and chain[col_index + 1]._id == node.right._id:
+                    edges.append({"from": node._id, "to": node.right._id})
 
-        layout_width = max(320.0, left_padding * 2 + 72.0 + max(0, len(ordered_nodes) - 1) * node_gap)
-        layout_height = 120.0
-        min_width = min(72.0, max(28.0, 20.0 + (len(ordered_nodes) * 8.5)))
-        min_height = 20.0
+        layout_width = max(320.0, left_padding * 2 + 72.0 + max(0, max_chain_len - 1) * node_gap)
+        layout_height = max(120.0, top_y + max(0, len(chains) - 1) * row_gap + bottom_padding)
+        min_width = min(72.0, max(28.0, 20.0 + (max_chain_len * 8.5)))
+        min_height = min(72.0, max(20.0, 14.0 + len(chains) * 9.0))
 
         return {
             "id": self.id,
