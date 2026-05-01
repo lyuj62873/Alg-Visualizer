@@ -28,6 +28,7 @@ type TreeFlowProps = {
   scale: number;
   onScaleChange: (nextScale: number) => void;
   fitRequestToken: number;
+  trackingEnabled: boolean;
 };
 
 const nodeTypes: NodeTypes = {
@@ -93,16 +94,21 @@ function TreeViewportSync({
   nodeCount,
   size,
   onScaleChange,
+  trackingEnabled,
+  activeNodeFocus,
 }: {
   scale: number;
   fitRequestToken: number;
   nodeCount: number;
   size: { width: number; height: number };
   onScaleChange: (nextScale: number) => void;
+  trackingEnabled: boolean;
+  activeNodeFocus: { id: string; x: number; y: number } | null;
 }) {
   const reactFlow = useReactFlow();
   const lastFitRequestRef = useRef<number>(fitRequestToken);
   const lastAppliedScaleRef = useRef<number | null>(null);
+  const lastTrackedNodeRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!size.width || !size.height || !nodeCount) return;
@@ -139,10 +145,34 @@ function TreeViewportSync({
     lastAppliedScaleRef.current = scale;
   }, [nodeCount, reactFlow, scale, size.height, size.width]);
 
+  useEffect(() => {
+    if (!trackingEnabled || !activeNodeFocus || !size.width || !size.height || !nodeCount) return;
+    const signature = `${activeNodeFocus.id}:${Math.round(activeNodeFocus.x)}:${Math.round(activeNodeFocus.y)}`;
+    if (lastTrackedNodeRef.current === signature) {
+      return;
+    }
+
+    const rafId = window.requestAnimationFrame(() => {
+      reactFlow.setCenter(activeNodeFocus.x, activeNodeFocus.y, {
+        zoom: reactFlow.getZoom(),
+        duration: 180,
+      });
+      lastTrackedNodeRef.current = signature;
+    });
+
+    return () => window.cancelAnimationFrame(rafId);
+  }, [activeNodeFocus, nodeCount, reactFlow, size.height, size.width, trackingEnabled]);
+
   return null;
 }
 
-export function NodeFlowViewport({ panel, scale, onScaleChange, fitRequestToken }: TreeFlowProps) {
+export function NodeFlowViewport({
+  panel,
+  scale,
+  onScaleChange,
+  fitRequestToken,
+  trackingEnabled,
+}: TreeFlowProps) {
   const { ref, size } = useElementSize<HTMLDivElement>();
   const layoutWidth = panel.layoutWidth ?? TREE_LAYOUT_WIDTH;
   const layoutHeight = panel.layoutHeight ?? TREE_LAYOUT_HEIGHT;
@@ -164,6 +194,24 @@ export function NodeFlowViewport({ panel, scale, onScaleChange, fitRequestToken 
       sourcePosition: item.shape === "pill" ? Position.Right : Position.Bottom,
       targetPosition: item.shape === "pill" ? Position.Left : Position.Top,
     }));
+  }, [isListPanel, layoutHeight, layoutWidth, panel.items]);
+
+  const activeNodeFocus = useMemo(() => {
+    const activeItem = panel.items.find((item) => item.tone === "active");
+    if (!activeItem) {
+      return null;
+    }
+
+    const baseX = isListPanel ? activeItem.x : (activeItem.x / 100) * layoutWidth;
+    const baseY = isListPanel ? activeItem.y : (activeItem.y / 100) * layoutHeight;
+    const centerX = baseX + (activeItem.shape === "pill" ? 28 : 20);
+    const centerY = baseY + (activeItem.shape === "pill" ? 22 : 20);
+
+    return {
+      id: activeItem.id,
+      x: centerX,
+      y: centerY,
+    };
   }, [isListPanel, layoutHeight, layoutWidth, panel.items]);
 
   const initialEdges = useMemo(
@@ -230,6 +278,8 @@ export function NodeFlowViewport({ panel, scale, onScaleChange, fitRequestToken 
             nodeCount={panel.items.length}
             size={size}
             onScaleChange={onScaleChange}
+            trackingEnabled={trackingEnabled}
+            activeNodeFocus={activeNodeFocus}
           />
           <Background
             gap={isListPanel ? 20 : 16}

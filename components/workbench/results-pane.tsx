@@ -347,12 +347,16 @@ function VisualizationPanel({
   setPositions,
   fitRequestToken,
   requestFitView,
+  trackingEnabled,
+  toggleTracking,
 }: {
   panel: TracePanel;
   positions: DragPositions;
   setPositions: Dispatch<SetStateAction<DragPositions>>;
   fitRequestToken: number;
   requestFitView: (panelId: string) => void;
+  trackingEnabled: boolean;
+  toggleTracking: (panelId: string) => void;
 }) {
   const currentPanelPosition = getPanelPosition(panel, positions);
   const [interaction, setInteraction] = useState<InteractionState | null>(null);
@@ -494,21 +498,42 @@ function VisualizationPanel({
         </div>
         <div className="flex items-center gap-2">
           {isNodeFlowKind(panel) ? (
-            <button
-              type="button"
-              onPointerDown={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-              }}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                requestFitView(panel.id);
-              }}
-              className="rounded-md border border-[#e5e7eb] bg-white px-2 py-1 text-[10px] text-[#4b5563] hover:bg-[#f9fafb]"
-            >
-              Fit
-            </button>
+            <>
+              <button
+                type="button"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  toggleTracking(panel.id);
+                }}
+                className={`rounded-md border px-2 py-1 text-[10px] ${
+                  trackingEnabled
+                    ? "border-[#fdba74] bg-[#fff7ed] text-[#9a3412]"
+                    : "border-[#e5e7eb] bg-white text-[#4b5563] hover:bg-[#f9fafb]"
+                }`}
+              >
+                {trackingEnabled ? "Track On" : "Track Off"}
+              </button>
+              <button
+                type="button"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  requestFitView(panel.id);
+                }}
+                className="rounded-md border border-[#e5e7eb] bg-white px-2 py-1 text-[10px] text-[#4b5563] hover:bg-[#f9fafb]"
+              >
+                Fit
+              </button>
+            </>
           ) : null}
           <span className="text-[10px] text-[#6b7280]">drag</span>
         </div>
@@ -526,6 +551,7 @@ function VisualizationPanel({
             scale={currentPanelPosition.scale}
             onScaleChange={(nextScale) => setPanelScale(setPositions, panel, nextScale)}
             fitRequestToken={fitRequestToken}
+            trackingEnabled={trackingEnabled}
           />
         ) : (
           <ArrayPanelBody
@@ -562,6 +588,7 @@ export function ResultsPane({
 }) {
   const [positions, setPositions] = useState<DragPositions>({});
   const [fitRequests, setFitRequests] = useState<Record<string, number>>({});
+  const [trackingModes, setTrackingModes] = useState<Record<string, boolean>>({});
 
   function requestFitView(panelId: string) {
     setFitRequests((current) => ({
@@ -569,6 +596,28 @@ export function ResultsPane({
       [panelId]: (current[panelId] ?? 0) + 1,
     }));
   }
+
+  function toggleTracking(panelId: string) {
+    setTrackingModes((current) => ({
+      ...current,
+      [panelId]: !(current[panelId] ?? true),
+    }));
+  }
+
+  useEffect(() => {
+    setTrackingModes((current) => {
+      const next = { ...current };
+      let changed = false;
+      for (const panel of frame.panels) {
+        if (!isNodeFlowKind(panel) || panel.id in next) {
+          continue;
+        }
+        next[panel.id] = true;
+        changed = true;
+      }
+      return changed ? next : current;
+    });
+  }, [frame.panels]);
 
   useEffect(() => {
     setPositions((current) => {
@@ -597,7 +646,6 @@ export function ResultsPane({
         if (!isNodeFlowKind(panel)) {
           continue;
         }
-
       }
 
       return nextPositions;
@@ -696,6 +744,8 @@ export function ResultsPane({
               setPositions={setPositions}
               fitRequestToken={fitRequests[panel.id] ?? 0}
               requestFitView={requestFitView}
+              trackingEnabled={trackingModes[panel.id] ?? true}
+              toggleTracking={toggleTracking}
             />
           ))}
         </div>
