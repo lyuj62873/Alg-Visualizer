@@ -1052,13 +1052,8 @@ class _TreePanel(_VisObject):
 
             max_depth_slots = max(1, 2 ** max_depth)
             width_scale = max(1.0, max_depth_slots / 4.0)
-            component_width = 320.0 * width_scale
-            component_height = max(
-                240.0,
-                top_y + node_diameter + (max_depth * row_gap) + bottom_padding + 16.0,
-            )
 
-            local_items = []
+            raw_items = []
             local_edges = []
             for node in nodes:
                 if node._id not in node_slot:
@@ -1068,12 +1063,12 @@ class _TreePanel(_VisObject):
                 slot_fraction = (2 * slot + 1) / (2 ** (depth + 1))
                 x_pct = x_left + (x_span * slot_fraction)
                 y_pct = top_y + (depth * row_gap)
-                local_items.append(
+                raw_items.append(
                     {
                         "id": node._id,
                         "label": _safe_str(node.val),
-                        "x": (x_pct / 100.0) * component_width,
-                        "y": (y_pct / 100.0) * component_height,
+                        "xPct": x_pct,
+                        "yPct": y_pct,
                         "shape": "circle",
                         "tone": "active" if _TRACE.last_touched == node._id else "default",
                     }
@@ -1087,44 +1082,88 @@ class _TreePanel(_VisObject):
             for depth in node_depth.values():
                 depth_counts[depth] = depth_counts.get(depth, 0) + 1
 
+            max_level_nodes = max(depth_counts.values()) if depth_counts else 1
+            component_width = max(148.0, 92.0 + (max_level_nodes * 58.0 * width_scale))
+            component_height = max(
+                96.0,
+                40.0 + node_diameter + (max_depth * row_gap) + bottom_padding,
+            )
+
+            local_items = []
+            for item in raw_items:
+                local_items.append(
+                    {
+                        "id": item["id"],
+                        "label": item["label"],
+                        "x": (item["xPct"] / 100.0) * component_width,
+                        "y": (item["yPct"] / 100.0) * component_height,
+                        "shape": item["shape"],
+                        "tone": item["tone"],
+                    }
+                )
+
             return {
                 "items": local_items,
                 "edges": local_edges,
                 "width": component_width,
                 "height": component_height,
-                "maxLevelNodes": max(depth_counts.values()) if depth_counts else 1,
+                "maxLevelNodes": max_level_nodes,
                 "maxDepth": max_depth,
+                "nodeCount": len(local_items),
+                "rootOrder": node_order(root),
+                "containsActive": any(item["tone"] == "active" for item in local_items),
             }
 
         components = [build_component_layout(root) for root in component_roots]
+        components.sort(
+            key=lambda component: (
+                0 if component["containsActive"] else 1,
+                -component["nodeCount"],
+                component["rootOrder"],
+            )
+        )
 
         outer_padding_x = 24.0
         outer_padding_y = 20.0
-        component_gap_y = 54.0
+        component_gap_x = 44.0
+        component_gap_y = 42.0
         max_component_width = max((component["width"] for component in components), default=320.0)
-        layout_width = max(320.0, max_component_width + outer_padding_x * 2)
+        target_row_width = max(420.0, min(860.0, max_component_width + 220.0))
 
         items = []
         edges = []
+        x_cursor = outer_padding_x
         y_cursor = outer_padding_y
+        row_height = 0.0
         max_level_nodes = 1
         max_depth_overall = 0
+        used_width = 0.0
         for component in components:
-            x_offset = outer_padding_x + max(0.0, (max_component_width - component["width"]) / 2.0)
+            if x_cursor > outer_padding_x and x_cursor + component["width"] > target_row_width:
+                x_cursor = outer_padding_x
+                y_cursor += row_height + component_gap_y
+                row_height = 0.0
+
             for item in component["items"]:
                 items.append(
                     {
                         **item,
-                        "x": x_offset + item["x"],
+                        "x": x_cursor + item["x"],
                         "y": y_cursor + item["y"],
                     }
                 )
             edges.extend(component["edges"])
-            y_cursor += component["height"] + component_gap_y
+            used_width = max(used_width, x_cursor + component["width"] + outer_padding_x)
+            x_cursor += component["width"] + component_gap_x
+            row_height = max(row_height, component["height"])
             max_level_nodes = max(max_level_nodes, component["maxLevelNodes"])
             max_depth_overall = max(max_depth_overall, component["maxDepth"])
 
-        layout_height = max(240.0, y_cursor - component_gap_y + outer_padding_y if components else 240.0)
+        layout_width = max(320.0, used_width if components else 320.0)
+        layout_height = max(
+            240.0,
+            y_cursor + row_height + outer_padding_y if components else 240.0,
+        )
         min_width = min(72.0, max(20.0, 18.0 + (max_level_nodes * 4.5)))
         min_height = min(82.0, max(20.0, 22.0 + (len(components) * 12.0) + (max_depth_overall * 4.0)))
 

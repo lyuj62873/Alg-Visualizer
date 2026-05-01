@@ -27,6 +27,7 @@ type TreeFlowProps = {
   panel: Extract<TracePanel, { kind: "bst" | "list" }>;
   scale: number;
   onScaleChange: (nextScale: number) => void;
+  fitRequestToken: number;
 };
 
 const nodeTypes: NodeTypes = {
@@ -88,24 +89,24 @@ function useElementSize<T extends HTMLElement>() {
 
 function TreeViewportSync({
   scale,
-  layoutSignature,
+  fitRequestToken,
   nodeCount,
   size,
   onScaleChange,
 }: {
   scale: number;
-  layoutSignature: string;
+  fitRequestToken: number;
   nodeCount: number;
   size: { width: number; height: number };
   onScaleChange: (nextScale: number) => void;
 }) {
   const reactFlow = useReactFlow();
-  const lastFitSignatureRef = useRef<string | null>(null);
+  const lastFitRequestRef = useRef<number>(fitRequestToken);
   const lastAppliedScaleRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!size.width || !size.height || !nodeCount) return;
-    if (lastFitSignatureRef.current === layoutSignature) return;
+    if (fitRequestToken === lastFitRequestRef.current) return;
 
     const rafId = window.requestAnimationFrame(async () => {
       await reactFlow.fitView({
@@ -115,13 +116,13 @@ function TreeViewportSync({
         maxZoom: 0.95,
       });
       const fittedZoom = reactFlow.getZoom();
-      lastFitSignatureRef.current = layoutSignature;
+      lastFitRequestRef.current = fitRequestToken;
       lastAppliedScaleRef.current = fittedZoom;
       onScaleChange(fittedZoom);
     });
 
     return () => window.cancelAnimationFrame(rafId);
-  }, [layoutSignature, nodeCount, onScaleChange, reactFlow, size.height, size.width]);
+  }, [fitRequestToken, nodeCount, onScaleChange, reactFlow, size.height, size.width]);
 
   useEffect(() => {
     if (!size.width || !size.height || !nodeCount) return;
@@ -141,7 +142,7 @@ function TreeViewportSync({
   return null;
 }
 
-export function NodeFlowViewport({ panel, scale, onScaleChange }: TreeFlowProps) {
+export function NodeFlowViewport({ panel, scale, onScaleChange, fitRequestToken }: TreeFlowProps) {
   const { ref, size } = useElementSize<HTMLDivElement>();
   const layoutWidth = panel.layoutWidth ?? TREE_LAYOUT_WIDTH;
   const layoutHeight = panel.layoutHeight ?? TREE_LAYOUT_HEIGHT;
@@ -190,17 +191,6 @@ export function NodeFlowViewport({ panel, scale, onScaleChange }: TreeFlowProps)
     [isListPanel, panel.edges],
   );
 
-  const layoutSignature = useMemo(
-    () =>
-      JSON.stringify({
-        layoutWidth,
-        layoutHeight,
-        items: panel.items.map((item) => [item.id, item.x, item.y]),
-        edges: panel.edges,
-      }),
-    [layoutHeight, layoutWidth, panel.edges, panel.items],
-  );
-
   return (
     <div ref={ref} className="h-full w-full">
       {size.width > 0 && size.height > 0 ? (
@@ -236,7 +226,7 @@ export function NodeFlowViewport({ panel, scale, onScaleChange }: TreeFlowProps)
         >
           <TreeViewportSync
             scale={scale}
-            layoutSignature={layoutSignature}
+            fitRequestToken={fitRequestToken}
             nodeCount={panel.items.length}
             size={size}
             onScaleChange={onScaleChange}

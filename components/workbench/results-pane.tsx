@@ -345,10 +345,14 @@ function VisualizationPanel({
   panel,
   positions,
   setPositions,
+  fitRequestToken,
+  requestFitView,
 }: {
   panel: TracePanel;
   positions: DragPositions;
   setPositions: Dispatch<SetStateAction<DragPositions>>;
+  fitRequestToken: number;
+  requestFitView: (panelId: string) => void;
 }) {
   const currentPanelPosition = getPanelPosition(panel, positions);
   const [interaction, setInteraction] = useState<InteractionState | null>(null);
@@ -488,7 +492,26 @@ function VisualizationPanel({
             {panel.typeLabel}
           </span>
         </div>
-        <span className="text-[10px] text-[#6b7280]">drag</span>
+        <div className="flex items-center gap-2">
+          {isNodeFlowKind(panel) ? (
+            <button
+              type="button"
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                requestFitView(panel.id);
+              }}
+              className="rounded-md border border-[#e5e7eb] bg-white px-2 py-1 text-[10px] text-[#4b5563] hover:bg-[#f9fafb]"
+            >
+              Fit
+            </button>
+          ) : null}
+          <span className="text-[10px] text-[#6b7280]">drag</span>
+        </div>
       </div>
       <div
         className={`relative h-[calc(100%-37px)] overflow-hidden ${
@@ -502,6 +525,7 @@ function VisualizationPanel({
             panel={panel}
             scale={currentPanelPosition.scale}
             onScaleChange={(nextScale) => setPanelScale(setPositions, panel, nextScale)}
+            fitRequestToken={fitRequestToken}
           />
         ) : (
           <ArrayPanelBody
@@ -537,6 +561,14 @@ export function ResultsPane({
   onNext: () => void;
 }) {
   const [positions, setPositions] = useState<DragPositions>({});
+  const [fitRequests, setFitRequests] = useState<Record<string, number>>({});
+
+  function requestFitView(panelId: string) {
+    setFitRequests((current) => ({
+      ...current,
+      [panelId]: (current[panelId] ?? 0) + 1,
+    }));
+  }
 
   useEffect(() => {
     setPositions((current) => {
@@ -662,6 +694,8 @@ export function ResultsPane({
               panel={panel}
               positions={positions}
               setPositions={setPositions}
+              fitRequestToken={fitRequests[panel.id] ?? 0}
+              requestFitView={requestFitView}
             />
           ))}
         </div>
