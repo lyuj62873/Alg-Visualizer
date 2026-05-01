@@ -1083,10 +1083,10 @@ class _TreePanel(_VisObject):
                 depth_counts[depth] = depth_counts.get(depth, 0) + 1
 
             max_level_nodes = max(depth_counts.values()) if depth_counts else 1
-            component_width = max(148.0, 92.0 + (max_level_nodes * 58.0 * width_scale))
+            component_width = 320.0 * width_scale
             component_height = max(
-                96.0,
-                40.0 + node_diameter + (max_depth * row_gap) + bottom_padding,
+                240.0,
+                top_y + node_diameter + (max_depth * row_gap) + bottom_padding + 16.0,
             )
 
             local_items = []
