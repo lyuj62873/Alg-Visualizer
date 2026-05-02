@@ -196,6 +196,20 @@ export function NodeFlowViewport({
     }));
   }, [isListPanel, layoutHeight, layoutWidth, panel.items]);
 
+  const nodePositionById = useMemo(
+    () =>
+      new Map(
+        initialNodes.map((node) => [
+          node.id,
+          {
+            x: node.position.x,
+            y: node.position.y,
+          },
+        ]),
+      ),
+    [initialNodes],
+  );
+
   const activeNodeFocus = useMemo(() => {
     const activeItem = panel.items.find((item) => item.tone === "active");
     if (!activeItem) {
@@ -217,7 +231,21 @@ export function NodeFlowViewport({
   const initialEdges = useMemo(
     () =>
       panel.edges.map((edge) => ({
-        id: `${edge.from}-${edge.to}`,
+        id: (() => {
+          if (!isListPanel) {
+            return `${edge.from}-${edge.to}`;
+          }
+
+          const sourcePosition = nodePositionById.get(edge.from);
+          const targetPosition = nodePositionById.get(edge.to);
+          const sourceKey = sourcePosition
+            ? `${Math.round(sourcePosition.x)}-${Math.round(sourcePosition.y)}`
+            : "missing";
+          const targetKey = targetPosition
+            ? `${Math.round(targetPosition.x)}-${Math.round(targetPosition.y)}`
+            : "missing";
+          return `${edge.from}-${edge.to}-${sourceKey}-${targetKey}`;
+        })(),
         source: edge.from,
         target: edge.to,
         type: isListPanel ? ("straight" as const) : ("smoothstep" as const),
@@ -236,7 +264,7 @@ export function NodeFlowViewport({
             }
           : undefined,
       })),
-    [isListPanel, panel.edges],
+    [isListPanel, nodePositionById, panel.edges],
   );
 
   return (
