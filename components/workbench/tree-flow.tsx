@@ -96,6 +96,7 @@ function TreeViewportSync({
   onScaleChange,
   trackingEnabled,
   activeNodeFocus,
+  isListPanel,
 }: {
   scale: number;
   fitRequestToken: number;
@@ -104,6 +105,7 @@ function TreeViewportSync({
   onScaleChange: (nextScale: number) => void;
   trackingEnabled: boolean;
   activeNodeFocus: { id: string; x: number; y: number } | null;
+  isListPanel: boolean;
 }) {
   const reactFlow = useReactFlow();
   const lastFitRequestRef = useRef<number>(fitRequestToken);
@@ -153,15 +155,49 @@ function TreeViewportSync({
     }
 
     const rafId = window.requestAnimationFrame(() => {
-      reactFlow.setCenter(activeNodeFocus.x, activeNodeFocus.y, {
-        zoom: reactFlow.getZoom(),
-        duration: 180,
-      });
+      const viewport = reactFlow.getViewport();
+      const zoom = viewport.zoom;
+      const screenX = activeNodeFocus.x * zoom + viewport.x;
+      const screenY = activeNodeFocus.y * zoom + viewport.y;
+      const horizontalPadding = isListPanel
+        ? { left: 144, right: 120 }
+        : { left: 88, right: 88 };
+      const verticalPadding = isListPanel
+        ? { top: 44, bottom: 44 }
+        : { top: 72, bottom: 72 };
+      let nextViewportX = viewport.x;
+      let nextViewportY = viewport.y;
+
+      if (screenX < horizontalPadding.left) {
+        nextViewportX += horizontalPadding.left - screenX;
+      } else if (screenX > size.width - horizontalPadding.right) {
+        nextViewportX -= screenX - (size.width - horizontalPadding.right);
+      }
+
+      if (screenY < verticalPadding.top) {
+        nextViewportY += verticalPadding.top - screenY;
+      } else if (screenY > size.height - verticalPadding.bottom) {
+        nextViewportY -= screenY - (size.height - verticalPadding.bottom);
+      }
+
+      const moved =
+        Math.abs(nextViewportX - viewport.x) > 0.5 || Math.abs(nextViewportY - viewport.y) > 0.5;
+
+      if (moved) {
+        reactFlow.setViewport(
+          {
+            x: nextViewportX,
+            y: nextViewportY,
+            zoom,
+          },
+          { duration: 180 },
+        );
+      }
       lastTrackedNodeRef.current = signature;
     });
 
     return () => window.cancelAnimationFrame(rafId);
-  }, [activeNodeFocus, nodeCount, reactFlow, size.height, size.width, trackingEnabled]);
+  }, [activeNodeFocus, isListPanel, nodeCount, reactFlow, size.height, size.width, trackingEnabled]);
 
   return null;
 }
@@ -308,6 +344,7 @@ export function NodeFlowViewport({
             onScaleChange={onScaleChange}
             trackingEnabled={trackingEnabled}
             activeNodeFocus={activeNodeFocus}
+            isListPanel={isListPanel}
           />
           <Background
             gap={isListPanel ? 20 : 16}
