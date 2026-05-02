@@ -37,8 +37,8 @@ export function Workbench() {
       path: "/examples/balanced-rebuild-example.py",
     },
     {
-      label: "Reverse Linked List",
-      description: "classic in-place pointer reversal with prev, curr, and next",
+      label: "Delete Duplicates",
+      description: "remove adjacent duplicates from a sorted linked list in place",
       path: "/examples/reverse-linked-list-example.py",
     },
   ];

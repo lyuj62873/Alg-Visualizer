@@ -2,34 +2,40 @@ from dsviz import VisListNode, watch
 
 
 class Solution:
-    def reverse_list(self, head):
-        prev = None
-        curr = head
-        watch("prev", prev)
-        watch("curr", curr.val if curr else None)
+    def delete_duplicates(self, head):
+        cur = head
+        pre = None
+        watch("pre", pre)
+        watch("cur", cur.val if cur else None)
 
-        while curr is not None:
-            nxt = curr.right
-            watch("nxt", nxt.val if nxt else None)
+        while cur is not None:
+            next_node = cur.right
+            watch("next", next_node.val if next_node else None)
 
-            curr.right = prev
-            prev = curr
-            curr = nxt
+            if pre is not None and cur.val == pre.val:
+                pre.right = next_node
+            else:
+                pre = cur
 
-            watch("prev", prev.val if prev else None)
-            watch("curr", curr.val if curr else None)
+            cur = next_node
 
-        return prev
+            watch("pre", pre.val if pre else None)
+            watch("cur", cur.val if cur else None)
+
+        return head
 
 
 def run_case():
     head = VisListNode(1)
-    head.right = VisListNode(2)
-    head.right.right = VisListNode(3)
-    head.right.right.right = VisListNode(4)
-    head.right.right.right.right = VisListNode(5)
+    head.right = VisListNode(1)
+    head.right.right = VisListNode(2)
+    head.right.right.right = VisListNode(3)
+    head.right.right.right.right = VisListNode(3)
+    head.right.right.right.right.right = VisListNode(4)
+    head.right.right.right.right.right.right = VisListNode(4)
+    head.right.right.right.right.right.right.right = VisListNode(5)
 
     solver = Solution()
-    reversed_head = solver.reverse_list(head)
-    watch("reversed_head", reversed_head.val if reversed_head else None)
-    return reversed_head.val if reversed_head else None
+    deduped_head = solver.delete_duplicates(head)
+    watch("deduped_head", deduped_head.val if deduped_head else None)
+    return deduped_head.val if deduped_head else None
