@@ -1238,58 +1238,49 @@ class _ListPanel(_VisObject):
                 "edges": [],
             }
 
-        child_ids = set()
-        for n in all_nodes:
-            if isinstance(n.right, VisListNode):
-                child_ids.add(n.right._id)
-        roots = [n for n in all_nodes if n._id not in child_ids]
-        if not roots:
-            roots = [all_nodes[0]]
-
-        def reachable_ids(root: VisListNode) -> set:
-            seen: set = set()
-            cur: Optional[VisListNode] = root
-            while cur is not None and isinstance(cur, VisListNode) and cur._id not in seen:
-                seen.add(cur._id)
-                cur = cur.right if isinstance(cur.right, VisListNode) else None
-            return seen
-
         def node_order(n: VisListNode) -> int:
             try:
                 return int(str(n._id).split("_", 1)[1])
             except Exception:
                 return 10**9
 
-        def ordered_chain(root: VisListNode) -> List[VisListNode]:
-            chain: List[VisListNode] = []
-            seen_ids = set()
-            cur: Optional[VisListNode] = root
-            while cur is not None and isinstance(cur, VisListNode) and cur._id not in seen_ids:
-                if cur._id not in nodes_by_id:
-                    break
-                chain.append(cur)
-                seen_ids.add(cur._id)
-                cur = cur.right if isinstance(cur.right, VisListNode) else None
-            return chain
+        parent_ids: Dict[str, List[str]] = {}
+        neighbors: Dict[str, List[str]] = {node._id: [] for node in all_nodes}
 
-        chains: List[List[VisListNode]] = []
-        covered_ids = set()
+        for node in all_nodes:
+            if isinstance(node.right, VisListNode) and node.right._id in nodes_by_id:
+                child_id = node.right._id
+                parent_ids.setdefault(child_id, []).append(node._id)
+                neighbors[node._id].append(child_id)
+                neighbors[child_id].append(node._id)
 
-        for root in sorted(roots, key=node_order):
-            chain = ordered_chain(root)
-            if not chain:
-                continue
-            chains.append(chain)
-            covered_ids.update(node._id for node in chain)
+        sorted_nodes = sorted(all_nodes, key=node_order)
+        components: List[List[VisListNode]] = []
+        seen_component_ids = set()
 
-        for node in sorted(all_nodes, key=node_order):
-            if node._id in covered_ids:
+        for start in sorted_nodes:
+            if start._id in seen_component_ids:
                 continue
-            chain = ordered_chain(node)
-            if not chain:
-                continue
-            chains.append(chain)
-            covered_ids.update(member._id for member in chain)
+            stack = [start._id]
+            component_ids: List[str] = []
+            while stack:
+                current_id = stack.pop()
+                if current_id in seen_component_ids:
+                    continue
+                seen_component_ids.add(current_id)
+                component_ids.append(current_id)
+                for neighbor_id in neighbors.get(current_id, []):
+                    if neighbor_id not in seen_component_ids:
+                        stack.append(neighbor_id)
+            components.append(
+                [
+                    nodes_by_id[node_id]
+                    for node_id in sorted(
+                        component_ids,
+                        key=lambda item_id: node_order(nodes_by_id[item_id]),
+                    )
+                ]
+            )
 
         items = []
         edges = []
@@ -1297,13 +1288,98 @@ class _ListPanel(_VisObject):
         top_y = 38.0
         node_gap = 118.0
         row_gap = 82.0
+        component_gap_y = 56.0
         bottom_padding = 34.0
-        max_chain_len = 1
-        for row_index, chain in enumerate(chains):
-            max_chain_len = max(max_chain_len, len(chain))
-            y = top_y + (row_index * row_gap)
-            for col_index, node in enumerate(chain):
-                x = left_padding + (col_index * node_gap)
+        component_offset_y = 0.0
+        max_depth_seen = 0
+        max_component_rows = 1
+
+        for component in components:
+            component_ids = {node._id for node in component}
+            in_degree = {
+                node._id: len(
+                    [
+                        parent_id
+                        for parent_id in parent_ids.get(node._id, [])
+                        if parent_id in component_ids
+                    ]
+                )
+                for node in component
+            }
+            roots = [node for node in component if in_degree[node._id] == 0]
+            if not roots:
+                roots = [component[0]]
+
+            depth_by_id: Dict[str, int] = {}
+            queue: List[VisListNode] = list(sorted(roots, key=node_order))
+            for root in queue:
+                depth_by_id[root._id] = 0
+
+            queue_index = 0
+            while queue_index < len(queue):
+                node = queue[queue_index]
+                queue_index += 1
+                child = (
+                    node.right
+                    if isinstance(node.right, VisListNode)
+                    and node.right._id in component_ids
+                    else None
+                )
+                if child is None:
+                    continue
+                next_depth = depth_by_id[node._id] + 1
+                if child._id not in depth_by_id or next_depth < depth_by_id[child._id]:
+                    depth_by_id[child._id] = next_depth
+                    queue.append(child)
+
+            fallback_depth = max(depth_by_id.values(), default=0)
+            for node in component:
+                if node._id not in depth_by_id:
+                    fallback_depth += 1
+                    depth_by_id[node._id] = fallback_depth
+
+            local_y_by_id: Dict[str, float] = {}
+            for root_index, root in enumerate(sorted(roots, key=node_order)):
+                local_y_by_id[root._id] = float(root_index * row_gap)
+
+            max_depth = max(depth_by_id.values(), default=0)
+            for depth in range(1, max_depth + 1):
+                depth_nodes = [node for node in component if depth_by_id[node._id] == depth]
+                if not depth_nodes:
+                    continue
+
+                def desired_y(node: VisListNode) -> float:
+                    parent_values = [
+                        local_y_by_id[parent_id]
+                        for parent_id in parent_ids.get(node._id, [])
+                        if parent_id in local_y_by_id
+                    ]
+                    if parent_values:
+                        return sum(parent_values) / len(parent_values)
+                    return 0.0
+
+                placed_y_values: List[float] = []
+                for node in sorted(
+                    depth_nodes,
+                    key=lambda current: (desired_y(current), node_order(current)),
+                ):
+                    next_y = desired_y(node)
+                    if placed_y_values and next_y < placed_y_values[-1] + row_gap:
+                        next_y = placed_y_values[-1] + row_gap
+                    local_y_by_id[node._id] = next_y
+                    placed_y_values.append(next_y)
+
+            component_max_local_y = max(local_y_by_id.values(), default=0.0)
+            component_base_y = top_y + component_offset_y
+            max_component_rows = max(
+                max_component_rows,
+                max(1, int(round(component_max_local_y / row_gap)) + 1),
+            )
+            max_depth_seen = max(max_depth_seen, max_depth)
+
+            for node in component:
+                x = left_padding + (depth_by_id[node._id] * node_gap)
+                y = component_base_y + local_y_by_id[node._id]
                 items.append(
                     {
                         "id": node._id,
@@ -1314,13 +1390,18 @@ class _ListPanel(_VisObject):
                         "tone": "active" if _TRACE.last_touched == node._id else "default",
                     }
                 )
-                if isinstance(node.right, VisListNode) and col_index + 1 < len(chain) and chain[col_index + 1]._id == node.right._id:
+                if isinstance(node.right, VisListNode) and node.right._id in component_ids:
                     edges.append({"from": node._id, "to": node.right._id})
 
-        layout_width = max(320.0, left_padding * 2 + 72.0 + max(0, max_chain_len - 1) * node_gap)
-        layout_height = max(120.0, top_y + max(0, len(chains) - 1) * row_gap + bottom_padding)
-        min_width = min(72.0, max(28.0, 20.0 + (max_chain_len * 8.5)))
-        min_height = min(72.0, max(20.0, 14.0 + len(chains) * 9.0))
+            component_offset_y += component_max_local_y + row_gap + component_gap_y
+
+        layout_width = max(320.0, left_padding * 2 + 72.0 + max_depth_seen * node_gap)
+        layout_height = max(
+            120.0,
+            top_y + max(0.0, component_offset_y - component_gap_y) + bottom_padding,
+        )
+        min_width = min(72.0, max(28.0, 20.0 + ((max_depth_seen + 1) * 8.5)))
+        min_height = min(72.0, max(20.0, 14.0 + max_component_rows * 9.0))
 
         return {
             "id": self.id,
