@@ -1,4 +1,4 @@
-from dsviz import VisListNode
+from dsviz import VisListNode, delVis
 
 
 class Solution:
@@ -22,6 +22,9 @@ class Solution:
 
         # Detach the old tail and replace it.
         inserted.right.right = VisListNode(9)
+
+        # Remove a node from the visualization.
+        delVis(inserted)
 
         return head.right.right.val
 

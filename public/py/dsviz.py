@@ -41,10 +41,18 @@ class _TraceState:
         self._objects.clear()
         self._frames.clear()
         self._frame_counter = 0
+        self._last_touched = None
         self._current_line = None
 
     def register_object(self, obj: "_VisObject") -> None:
-        self._objects.append(obj)
+        if obj not in self._objects:
+            self._objects.append(obj)
+
+    def unregister_object(self, obj: "_VisObject") -> bool:
+        if obj not in self._objects:
+            return False
+        self._objects.remove(obj)
+        return True
 
     def watch(self, name: str, value: Any) -> None:
         # Keep insertion order stable and emit a frame when the value changes.
@@ -176,6 +184,39 @@ def export_trace() -> Dict[str, Any]:
     return {"frames": _TRACE.export_frames()}
 
 
+def delVis(value: Any) -> bool:
+    if isinstance(value, _NestedArray):
+        value = value._root
+
+    if isinstance(value, _VisObject):
+        removed = value._detach_visualization()
+        if removed:
+            _TRACE.emit(label=f"delVis({value.title})")
+        return removed
+
+    if isinstance(value, VisTreeNode):
+        panel = _TREE_PANEL
+        if panel is None:
+            return False
+        removed = panel._unregister(value)
+        if removed:
+            object.__setattr__(value, "_is_visualized", False)
+            _TRACE.emit(label=f"delVis({value._id})")
+        return removed
+
+    if isinstance(value, VisListNode):
+        panel = _LIST_PANEL
+        if panel is None:
+            return False
+        removed = panel._unregister(value)
+        if removed:
+            object.__setattr__(value, "_is_visualized", False)
+            _TRACE.emit(label=f"delVis({value._id})")
+        return removed
+
+    return False
+
+
 def _call_uses_constructor(node: ast.AST, constructor_name: str) -> bool:
     if not isinstance(node, ast.Call):
         return False
@@ -264,7 +305,14 @@ class _VisObject:
         self.title = title
         self.type_label = type_label
         self.layout = layout
+        self._is_visualized = True
         _TRACE.register_object(self)
+
+    def _detach_visualization(self) -> bool:
+        if not self._is_visualized:
+            return False
+        self._is_visualized = False
+        return _TRACE.unregister_object(self)
 
     def _render_panel(self) -> Dict[str, Any]:
         raise NotImplementedError
@@ -562,6 +610,9 @@ class VisArray(_VisObject):
         return value
 
     def _emit_array_change(self, label: str, active_path: Optional[Tuple[int, ...]] = None) -> None:
+        if not self._is_visualized:
+            self._active_path = active_path
+            return
         self._active_path = active_path
         _TRACE.emit(label=label)
 
@@ -776,7 +827,8 @@ class VisBST(_VisObject):
     def insert(self, value: Any) -> None:
         if self._root is None:
             self._root = _BSTNode(value)
-            _TRACE.emit(label=f"insert({_safe_str(value)})")
+            if self._is_visualized:
+                _TRACE.emit(label=f"insert({_safe_str(value)})")
             return
 
         cur = self._root
@@ -791,7 +843,8 @@ class VisBST(_VisObject):
                     cur.right = _BSTNode(value)
                     break
                 cur = cur.right
-        _TRACE.emit(label=f"insert({_safe_str(value)})")
+        if self._is_visualized:
+            _TRACE.emit(label=f"insert({_safe_str(value)})")
 
     def _render_panel(self) -> Dict[str, Any]:
         if self._root is None:
@@ -884,6 +937,7 @@ class VisTreeNode:
     def __init__(self, val: Any, left: Optional["VisTreeNode"] = None, right: Optional["VisTreeNode"] = None) -> None:
         VisTreeNode._node_counter += 1
         object.__setattr__(self, "_id", f"tn_{VisTreeNode._node_counter}")
+        object.__setattr__(self, "_is_visualized", True)
         object.__setattr__(self, "val", val)
         object.__setattr__(self, "left", left)
         object.__setattr__(self, "right", right)
@@ -893,6 +947,8 @@ class VisTreeNode:
     def __setattr__(self, name: str, value: Any) -> None:
         if name in ("val", "left", "right"):
             object.__setattr__(self, name, value)
+            if not getattr(self, "_is_visualized", True):
+                return
             _TRACE.touch(self._id)
             _TRACE.emit(label=f"{self._id}.{name} = {_safe_str(value if name == 'val' else getattr(value, '_id', value))}")
             return
@@ -905,6 +961,7 @@ class VisListNode:
     def __init__(self, val: Any, right: Optional["VisListNode"] = None) -> None:
         VisListNode._node_counter += 1
         object.__setattr__(self, "_id", f"ln_{VisListNode._node_counter}")
+        object.__setattr__(self, "_is_visualized", True)
         object.__setattr__(self, "val", val)
         object.__setattr__(self, "right", right)
         _ensure_list_panel()._register(self)
@@ -913,6 +970,8 @@ class VisListNode:
     def __setattr__(self, name: str, value: Any) -> None:
         if name in ("val", "right"):
             object.__setattr__(self, name, value)
+            if not getattr(self, "_is_visualized", True):
+                return
             _TRACE.touch(self._id)
             rendered = value if name == "val" else getattr(value, "_id", value)
             _TRACE.emit(label=f"{self._id}.{name} = {_safe_str(rendered)}")
@@ -943,6 +1002,14 @@ class _TreePanel(_VisObject):
     def _register(self, node: VisTreeNode) -> None:
         self._nodes[node._id] = node
 
+    def _unregister(self, node: VisTreeNode) -> bool:
+        removed = self._nodes.pop(node._id, None) is not None
+        if removed and not self._nodes:
+            self._detach_visualization()
+            global _TREE_PANEL
+            _TREE_PANEL = None
+        return removed
+
     def _render_panel(self) -> Dict[str, Any]:
         all_nodes = list(self._nodes.values())
         nodes_by_id: Dict[str, VisTreeNode] = {n._id: n for n in all_nodes}
@@ -966,9 +1033,9 @@ class _TreePanel(_VisObject):
         # Determine roots (nodes not referenced as a child).
         child_ids = set()
         for n in all_nodes:
-            if isinstance(n.left, VisTreeNode):
+            if isinstance(n.left, VisTreeNode) and n.left._id in nodes_by_id:
                 child_ids.add(n.left._id)
-            if isinstance(n.right, VisTreeNode):
+            if isinstance(n.right, VisTreeNode) and n.right._id in nodes_by_id:
                 child_ids.add(n.right._id)
         roots = [n for n in all_nodes if n._id not in child_ids]
         if not roots:
@@ -984,9 +1051,9 @@ class _TreePanel(_VisObject):
                 if cur._id in seen:
                     continue
                 seen.add(cur._id)
-                if isinstance(cur.left, VisTreeNode):
+                if isinstance(cur.left, VisTreeNode) and cur.left._id in nodes_by_id:
                     stack.append(cur.left)
-                if isinstance(cur.right, VisTreeNode):
+                if isinstance(cur.right, VisTreeNode) and cur.right._id in nodes_by_id:
                     stack.append(cur.right)
             return seen
 
@@ -1038,8 +1105,8 @@ class _TreePanel(_VisObject):
                 max_depth = max(max_depth, depth)
                 node_depth[n._id] = depth
                 node_slot[n._id] = slot
-                left_ok = isinstance(n.left, VisTreeNode)
-                right_ok = isinstance(n.right, VisTreeNode)
+                left_ok = isinstance(n.left, VisTreeNode) and n.left._id in nodes_by_id
+                right_ok = isinstance(n.right, VisTreeNode) and n.right._id in nodes_by_id
                 if left_ok and right_ok:
                     layout(n.left, depth + 1, slot * 2, seen)
                     layout(n.right, depth + 1, slot * 2 + 1, seen)
@@ -1073,9 +1140,9 @@ class _TreePanel(_VisObject):
                         "tone": "active" if _TRACE.last_touched == node._id else "default",
                     }
                 )
-                if isinstance(node.left, VisTreeNode):
+                if isinstance(node.left, VisTreeNode) and node.left._id in nodes_by_id:
                     local_edges.append({"from": node._id, "to": node.left._id})
-                if isinstance(node.right, VisTreeNode):
+                if isinstance(node.right, VisTreeNode) and node.right._id in nodes_by_id:
                     local_edges.append({"from": node._id, "to": node.right._id})
 
             depth_counts: Dict[int, int] = {}
@@ -1217,6 +1284,14 @@ class _ListPanel(_VisObject):
 
     def _register(self, node: VisListNode) -> None:
         self._nodes[node._id] = node
+
+    def _unregister(self, node: VisListNode) -> bool:
+        removed = self._nodes.pop(node._id, None) is not None
+        if removed and not self._nodes:
+            self._detach_visualization()
+            global _LIST_PANEL
+            _LIST_PANEL = None
+        return removed
 
     def _render_panel(self) -> Dict[str, Any]:
         all_nodes = list(self._nodes.values())
@@ -1440,6 +1515,7 @@ def _ensure_list_panel() -> _ListPanel:
 
 
 __all__ = [
+    "delVis",
     "VisArray",
     "VisBST",
     "VisListNode",
