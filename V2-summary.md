@@ -1,17 +1,17 @@
-# AlgoLens V1 Summary
+# AlgoLens V2 Summary
 
 ## Purpose
-This document is the fastest way for a new agent to understand the current state of the repo after the v1 implementation pass.
+This document is the fastest way for a new agent to understand the current state of the repo after the v2 implementation pass.
 
 Use this together with:
 - `AGENT.md`
-- `docs/v1-spec.md`
+- `docs/v2-spec.md`
 - `PROJECT_PROPOSAL.md`
 
 Those files describe the intended product direction. This file describes what was actually built, what changed during implementation, and what is still unresolved.
 
 ## Current Product State
-AlgoLens v1 is a working browser-based Python visualization workbench.
+AlgoLens v2 is a working browser-based Python visualization workbench.
 
 Implemented end-to-end flow:
 1. The user writes Python code in Monaco.
@@ -20,7 +20,20 @@ Implemented end-to-end flow:
 4. `dsviz` emits a full trace of render-ready frames.
 5. The frontend replays those frames with `Prev` and `Next`.
 6. The editor highlights the currently executing line for the active frame.
-7. Visualized arrays, trees, watched scalars, and runtime errors all update with frame changes.
+7. Visualized arrays, linked lists, trees, watched scalars, and runtime errors all update with frame changes.
+
+## This Week's Summary
+This week focused on stabilizing the visual interaction model and expanding the supported data structures.
+
+Main outcomes:
+- `VisArray` was upgraded from simple 1D rendering to full multidimensional list visualization.
+- `VisTreeNode` interaction and layout were tightened until the default tree view became compact, navigable, and readable.
+- `VisListNode` was added as a first-class visualization primitive with arrow-based linked-list rendering.
+- detached list and tree components remain visible during rewiring and rebuild algorithms instead of disappearing until they reconnect.
+- node panels now use manual `Fit` plus default-on `Track` instead of unconditional auto-recenter.
+- `delVis(...)` was added so user code can explicitly remove an existing visualization.
+
+The branch is now at the point where array, tree, and list visualizations all exist and share a mostly unified panel model.
 
 ## Important Product Decisions
 Several planning assumptions changed during implementation.
@@ -82,7 +95,9 @@ Relevant files:
 ### Visualization primitives
 Implemented:
 - `VisArray`
+- `VisListNode`
 - `VisTreeNode`
+- `delVis(value)`
 - explicit scalar tracking with `watch(name, value)`
 
 `VisArray` now supports list-like operations including:
@@ -104,11 +119,28 @@ Implemented:
 - `right`
 - change tracking through `__setattr__`
 
+`VisListNode` supports:
+- `val`
+- `right`
+- change tracking through `__setattr__`
+- list-style node/arrow rendering rather than tree layout
+
+`delVis(value)` currently supports:
+- `VisArray`
+- `VisTreeNode`
+- `VisListNode`
+
+Current `delVis` semantics:
+- deleting a `VisArray` removes the whole array panel
+- deleting a `VisTreeNode` / `VisListNode` removes that node from visualization
+- if that node was the final node in its panel, the whole panel disappears
+- deleted objects stop emitting future visualization updates
+
 Relevant file:
 - `public/py/dsviz.py`
 
 ### Unified panel interaction model
-The visualization system now follows one shared interaction model across arrays and trees.
+The visualization system now follows one shared interaction model across arrays and node-based structures.
 
 Shared behavior:
 - every structure appears in a floating panel on the visualization canvas
@@ -150,7 +182,27 @@ Current behavior:
 - tree panel resize stays proportional
 - vertical level spacing is fixed and readable
 - horizontal layout uses full-level binary tree slots to avoid overlap in deeper levels
-- the tree auto-fits when the traced structure changes, but normal panel resize should not reset manual viewport exploration
+- disconnected tree components remain visible during rebuild / detach operations
+- `Fit` is manual
+- `Track` is default-on and follows the active node without forcibly recentering every frame
+
+Relevant files:
+- `public/py/dsviz.py`
+- `components/workbench/tree-flow.tsx`
+- `components/workbench/results-pane.tsx`
+
+### `VisListNode` rendering direction
+`VisListNode` reuses the node viewport stack, but renders as a linked list instead of a tree.
+
+Current behavior:
+- nodes are rendered as pills with explicit arrows
+- nodes are non-draggable
+- background drag pans the internal viewport
+- wheel zoom changes internal scale
+- `Fit` is manual
+- `Track` is default-on and follows the active node with bounded viewport shifts
+- disconnected list segments remain visible during rewiring
+- shared-tail list states are rendered without duplicating the same suffix chain twice
 
 Relevant files:
 - `public/py/dsviz.py`
@@ -170,8 +222,11 @@ Relevant file:
 ### Examples and guides
 Implemented:
 - `Guides -> VisArray`
+- `Guides -> VisArray 2D/3D`
+- `Guides -> VisListNode`
 - `Guides -> VisTreeNode`
 - `Examples -> Balanced Rebuild`
+- `Examples -> Delete Duplicates`
 
 The `Balanced Rebuild` example demonstrates:
 1. build a tree with at least 9 nodes
@@ -181,8 +236,11 @@ The `Balanced Rebuild` example demonstrates:
 
 Relevant files:
 - `public/examples/vis-array-example.py`
+- `public/examples/vis-array-multidim-example.py`
+- `public/examples/vis-list-node-example.py`
 - `public/examples/vis-tree-node-example.py`
 - `public/examples/balanced-rebuild-example.py`
+- `public/examples/reverse-linked-list-example.py`
 
 ## Editor Highlighting
 Implemented:
@@ -222,11 +280,14 @@ Relevant files:
 The following were explicitly checked during implementation:
 - `VisArray` operations run successfully in Python
 - `VisTreeNode` example runs
+- `VisListNode` example runs
 - `Balanced Rebuild` runs and emits a large trace
+- `Delete Duplicates` runs and emits a linked-list trace
 - TypeScript type check passes
 - `next build` passes locally after the `next` upgrade
 - built-in examples load from the navbar menus
 - active-line highlighting changes when stepping frames
+- list rewiring was manually inspected in browser screenshots after the shared-tail layout fix
 
 ## Current Visualization Standard
 The repo now has a usable default standard for visual structures:
@@ -237,21 +298,34 @@ The repo now has a usable default standard for visual structures:
 5. the user may pan inside the panel when the structure overflows its viewport
 6. single visual elements are not draggable
 
-This standard is now implemented for `VisArray` and `VisTreeNode` and should be reused for future structures.
+This standard is now implemented for `VisArray`, `VisTreeNode`, and `VisListNode` and should be reused for future structures.
 
 ## Remaining Follow-Up
-The next meaningful work is no longer the old interaction fixes. Those are now in place.
+The old drag / resize blockers are no longer the main TODOs. Remaining work is now narrower and more product-shaping.
 
-More relevant follow-up areas are:
-1. add more `dsviz` structures while preserving the same interaction standard
-2. further tune compact defaults for atypical large values or unusual trace density
-3. revisit an editor-assisted `watch(...)` insertion workflow
+Current unfinished TODOs:
+1. support multiple independent tree panels and multiple independent list panels instead of the current one-panel-per-kind aggregation model
+2. decide the final product semantics for deleted / detached but still in-memory nodes beyond the current explicit `delVis(...)` behavior
+3. fix the `Delete Duplicates` example so `delVis(...)` removes the intended linked-list node cleanly in the demo path
+4. improve example comments and refine the showcased `delVis(...)` usage so the guides teach the intended pattern more clearly
+5. extend the unified interaction standard to future structures beyond arrays, lists, and trees
+6. further tune compact layout defaults for extreme traces, long labels, and unusual density
+7. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
+
+These TODOs are the right next-agent starting point before any new broad feature branch.
+
+## Local Repo State Notes
+At the end of this week:
+- the active feature branch is `feature/vis-list-node`
+- the remote branch already contains the latest functional changes through `28e6212`
+- the local working tree may still contain only Python cache folders such as `public/py/__pycache__/` or `public/examples/__pycache__/`
+- bug-investigation screenshots were intentionally deleted and should not be considered part of project state
 
 ## Fast Start For A New Agent
 If a new agent needs to continue this repo, the most useful reading order is:
-1. `V1-summary.md`
+1. `V2-summary.md`
 2. `AGENT.md`
-3. `docs/v1-spec.md`
+3. `docs/v2-spec.md`
 4. `components/workbench/workbench.tsx`
 5. `components/workbench/pyodide-runner.ts`
 6. `public/py/dsviz.py`

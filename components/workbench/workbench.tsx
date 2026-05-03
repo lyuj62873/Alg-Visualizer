@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { EditorPane } from "./editor-pane";
-import { codeSample, traceFrames } from "./mock-trace";
+import { codeSample, TraceFrame } from "./mock-trace";
 import { runMockTrace } from "./mock-runner";
 import {
   PyodideUnavailableError,
@@ -17,12 +17,22 @@ type RunErrorDetail = {
   line: number | null;
 };
 
+const emptyTraceFrame: TraceFrame = {
+  index: 0,
+  label: "idle",
+  line: null,
+  panels: [],
+  variables: [],
+  status: "Select an example or click Run Trace.",
+  stdout: "",
+};
+
 export function Workbench() {
   const runIdRef = useRef(0);
-  const [phase, setPhase] = useState<"idle" | "running" | "ready" | "error">("ready");
-  const [activeFrameIndex, setActiveFrameIndex] = useState(3);
+  const [phase, setPhase] = useState<"idle" | "running" | "ready" | "error">("idle");
+  const [activeFrameIndex, setActiveFrameIndex] = useState(0);
   const [code, setCode] = useState(codeSample);
-  const [frames, setFrames] = useState(traceFrames);
+  const [frames, setFrames] = useState<TraceFrame[]>([emptyTraceFrame]);
   const [leftPaneWidth, setLeftPaneWidth] = useState(33.333);
   const [isResizing, setIsResizing] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
@@ -35,6 +45,11 @@ export function Workbench() {
       label: "Balanced Rebuild",
       description: "inorder collect, quicksort, then rebuild a balanced tree",
       path: "/examples/balanced-rebuild-example.py",
+    },
+    {
+      label: "Delete Duplicates",
+      description: "remove adjacent duplicates from a sorted linked list in place",
+      path: "/examples/reverse-linked-list-example.py",
     },
   ];
 
@@ -54,6 +69,11 @@ export function Workbench() {
       description: "node init, set/get, attach/detach children",
       path: "/examples/vis-tree-node-example.py",
     },
+    {
+      label: "VisListNode",
+      description: "linked-list init, insert, rewire next pointers, replace tail",
+      path: "/examples/vis-list-node-example.py",
+    },
   ];
 
   async function loadExample(path: string) {
@@ -63,9 +83,9 @@ export function Workbench() {
     }
     const nextCode = await response.text();
     setCode(nextCode);
-    setFrames(traceFrames);
+    setFrames([emptyTraceFrame]);
     setActiveFrameIndex(0);
-    setPhase("ready");
+    setPhase("idle");
     setRunError(null);
     setExamplesOpen(false);
     setGuidesOpen(false);

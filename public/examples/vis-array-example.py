@@ -1,4 +1,4 @@
-from dsviz import VisArray
+from dsviz import VisArray, delVis
 
 
 class Solution:
@@ -39,6 +39,9 @@ class Solution:
 
         # Python list clear: arr.clear()
         arr.clear()
+
+        # Remove the array visualization panel.
+        delVis(arr)
 
         return x + last + front
 

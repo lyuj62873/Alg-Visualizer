@@ -1,4 +1,4 @@
-from dsviz import VisArray, watch
+from dsviz import VisArray, delVis, watch
 
 
 class Solution:
@@ -32,6 +32,9 @@ class Solution:
 
         # Replace a full 2D slice inside the 3D structure.
         cube[0] = [[9, 10], [11, 12]]
+
+        # Remove one visualization when you no longer want to show it.
+        delVis(cube)
 
         return matrix[2][2] + cube[1][0][1]
 

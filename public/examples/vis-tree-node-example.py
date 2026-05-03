@@ -1,4 +1,4 @@
-from dsviz import VisTreeNode
+from dsviz import VisTreeNode, delVis
 
 
 class Solution:
@@ -24,6 +24,9 @@ class Solution:
 
         # Python object detach: root.right = None
         root.right = None
+
+        # Remove a single node from the visualization.
+        delVis(root.left)
 
         return left_val
 
