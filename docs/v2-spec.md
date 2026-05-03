@@ -1,7 +1,7 @@
-# AlgoLens v1 Spec
+# AlgoLens v2 Spec
 
 ## Goal
-AlgoLens v1 is a browser-based Python execution workbench for debugging algorithm code through explicit visualization hooks.
+AlgoLens v2 is a browser-based Python execution workbench for debugging algorithm code through explicit visualization hooks.
 
 The current successful demo path is:
 - the user writes Python in the editor
@@ -32,7 +32,7 @@ Rules:
 - ordinary Python values that are not wrapped remain non-visual
 
 ## Input Model
-There is no separate input config UI in the current v1 implementation.
+There is no separate input config UI in the current v2 implementation.
 
 Users define their test input directly inside `run_case()`.
 
@@ -47,18 +47,20 @@ def run_case():
 ```
 
 ## Instrumentation Model
-AlgoLens v1 visualizes only explicitly tracked values.
+AlgoLens v2 visualizes only explicitly tracked values.
 
 Current supported primitives:
 - `VisArray`
 - `VisListNode`
 - `VisTreeNode`
+- `delVis(value)`
 - `watch(name, value)`
 
 Notes:
 - `VisTreeNode` is the primary tree abstraction for LeetCode-style usage
 - `VisBST` still exists in `dsviz.py`, but it is not the main user-facing path
 - normal Python containers are not visualized unless the user converts them
+- `delVis(value)` is an explicit user call that removes an existing visualization
 
 ## Scalar Tracking
 Scalar tracking uses:
@@ -118,13 +120,15 @@ Frame rules:
 Current visual panel kinds:
 - `array`
 - `bst`
+- `list`
 
 Notes:
 - `bst` is the frontend panel kind used for tree rendering, including `VisTreeNode`
+- `list` is the frontend panel kind used for `VisListNode`
 - the frontend uses one large visualization canvas that contains multiple draggable panels
 
 ## Unified Visualization Scheme
-Array and tree panels now follow one shared interaction model with structure-specific rendering rules.
+Array, tree, and list panels now follow one shared interaction model with structure-specific rendering rules.
 
 Shared panel rules:
 - each visualized structure renders inside a floating panel on the main canvas
@@ -171,12 +175,28 @@ Current tree behavior:
 - the user can pan the tree viewport by dragging empty space inside the panel
 - the user can zoom the tree with the mouse wheel
 - tree panel resize remains proportional so the viewport grows and shrinks as one surface
+- disconnected tree components remain visible when algorithms temporarily split the structure
+- `Fit` is manual
+- `Track` is default-on and follows the active node without hard recenters on every frame
 
 Current tree layout rules:
 - vertical level spacing is fixed and readable
 - horizontal placement is computed from full binary-tree level slots rather than local subtree compression
 - larger trees expand their internal layout space instead of overlapping lower levels
-- the visible tree is auto-fit when the traced layout changes, but routine panel resizing should not reset the user's manual viewport exploration
+- routine panel resizing should not reset the user's manual viewport exploration
+
+### List Rendering Rules
+`VisListNode` panels also use `React Flow`, but list rendering differs from tree rendering.
+
+Current list behavior:
+- nodes render as pills with explicit arrow edges
+- nodes are non-draggable
+- the user can pan the viewport by dragging empty space
+- the user can zoom with the mouse wheel
+- `Fit` is manual
+- `Track` is default-on and follows the active node using bounded viewport movement
+- disconnected list segments remain visible during rewiring
+- shared-tail list states render as one shared suffix rather than duplicated chains
 
 ## UI Model
 The current single-page workbench contains:
@@ -188,9 +208,11 @@ The current single-page workbench contains:
 
 Current built-in `Examples`:
 - `Balanced Rebuild`
+- `Delete Duplicates`
 
 Current built-in `Guides`:
 - `VisArray`
+- `VisArray 2D/3D`
 - `VisListNode`
 - `VisTreeNode`
 
@@ -211,8 +233,10 @@ Current error payload includes:
 
 ## Known Limitations
 Current unresolved limitations:
-1. The current visual system is tuned only for arrays and trees.
+1. Tree and list panels are still singleton aggregators rather than supporting multiple independent panels of the same kind.
 2. Compact defaults have been tuned manually and may need further calibration for very large traces or unusual value lengths.
-3. Array and tree interaction rules are now stable, but future structures should reuse the same separation between panel resize, content zoom, and internal panning where appropriate.
+3. Array, tree, and list interaction rules are now stable, but future structures should reuse the same separation between panel resize, content zoom, and internal panning where appropriate.
+4. Automatic garbage-collection-like hiding of detached nodes is not implemented; explicit `delVis(...)` is the current supported removal path.
+5. Example quality is still in flux; the `Delete Duplicates` example and the guide comments around `delVis(...)` still need cleanup.
 
-These are post-v1 polish items, not blockers for the current prototype.
+These are post-v2 polish items, not blockers for the current prototype.

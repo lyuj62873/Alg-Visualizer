@@ -1,10 +1,10 @@
 # AGENT.md
 
 ## Project
-**AlgoLens** is a browser-based visual debugger for Python algorithm code. The current v1 state is a working single-page prototype: the user writes Python in the browser, runs `run_case()`, generates a full snapshot trace in Pyodide, and steps through visual state changes in the frontend.
+**AlgoLens** is a browser-based visual debugger for Python algorithm code. The current v2 state is a working single-page prototype: the user writes Python in the browser, runs `run_case()`, generates a full snapshot trace in Pyodide, and steps through visual state changes in the frontend.
 
-## Current v1 Demo Flow
-The shipped v1 flow is:
+## Current v2 Demo Flow
+The shipped v2 flow is:
 1. The user pastes or writes Python code in the Monaco editor.
 2. The user defines test input directly inside `run_case()`.
 3. The user wraps only the data structures they want to inspect with `dsviz` objects.
@@ -54,11 +54,13 @@ Current supported instrumentation:
 - `VisArray`
 - `VisListNode`
 - `VisTreeNode`
+- `delVis(value)`
 - `watch("name", value)`
 
 Notes:
 - `VisTreeNode` is the main tree abstraction now. Earlier references to `VisBST` are outdated for the primary user workflow.
 - `watch()` is still explicit. There is no automatic general-purpose local-variable tracing.
+- `delVis(value)` is explicit user-controlled removal of an existing visualization and is now part of the public instrumentation surface.
 
 ## Current Frontend Structure
 The workbench is a single-page split layout with:
@@ -83,9 +85,12 @@ Current built-in examples:
   - collect values with inorder traversal into a `VisArray`
   - quicksort the array with explicit swaps
   - rebuild a balanced tree with divide and conquer
+- `Delete Duplicates`
+  - remove adjacent duplicates from a sorted linked list in place
 
 Current built-in guides:
 - `VisArray`
+- `VisArray 2D/3D`
 - `VisListNode`
 - `VisTreeNode`
 
@@ -103,7 +108,7 @@ Rendering split:
 - custom overlay panels handle variables and runtime output
 
 ## Current Visualization Standard
-`VisArray` and `VisTreeNode` now follow one shared interaction standard.
+`VisArray`, `VisTreeNode`, and `VisListNode` now follow one shared interaction standard.
 
 Shared rules:
 - every structure renders in a floating panel on the canvas
@@ -125,6 +130,14 @@ Tree-specific rules:
 - the tree zooms with the mouse wheel
 - tree panel resize remains proportional
 - tree layout should prefer readable fixed level spacing and avoid subtree overlap
+- detached tree components should remain visible while the algorithm is rebuilding or reconnecting them
+
+List-specific rules:
+- list nodes are non-draggable
+- lists render as pill nodes with obvious arrow edges
+- the list viewport uses the same wheel zoom / background pan / manual fit model as trees
+- detached list segments should remain visible during rewiring
+- shared-tail list states must not duplicate the same suffix visually
 
 ## Trace Model
 The frontend is a replay client.
@@ -147,7 +160,7 @@ Each frame currently contains:
 The `line` field is used to highlight the active source line in Monaco.
 
 ## Current Non-Goals
-Still out of scope for v1:
+Still out of scope for v2:
 - auth
 - save/share
 - backend execution
@@ -155,14 +168,18 @@ Still out of scope for v1:
 - automatic debugger-style introspection for arbitrary Python state
 - production-grade layout polish for every visualization edge case
 
-## Known v1 Gaps
+## Known v2 Gaps
 Known remaining gaps are narrower now:
-1. The unified interaction standard exists only for arrays and trees so far.
+1. Tree and list panels are still singleton aggregators, so one run cannot yet cleanly create multiple independent tree panels or multiple independent list panels.
 2. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
 3. Future structures should preserve the current separation between panel resize, internal panning, and wheel zoom instead of inventing per-structure interaction models.
+4. The final semantics of what should happen to in-memory but no-longer-interesting detached nodes are still intentionally conservative; only explicit `delVis(...)` is supported today.
+5. The current `Delete Duplicates` example still needs a clean `delVis(...)` demonstration path.
+6. Example comments and `delVis(...)` usage examples still need another editing pass for clarity.
 
 ## Collaboration Rules
 - Repo-facing docs should stay in English.
 - Prefer explicit runtime behavior over hidden magic.
 - Preserve ordinary Python shape whenever possible.
 - When updating docs, keep them aligned with the actual shipped UI and code, not earlier planning language.
+- When handing off to another agent, mention the current active branch and whether remaining local changes are only cache artifacts.
