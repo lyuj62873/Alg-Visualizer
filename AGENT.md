@@ -176,7 +176,7 @@ Known remaining gaps are narrower now:
 4. The final semantics of what should happen to in-memory but no-longer-interesting detached nodes are still intentionally conservative; only explicit `delVis(...)` is supported today.
 5. The current `Delete Duplicates` example still needs a clean `delVis(...)` demonstration path.
 6. Example comments and `delVis(...)` usage examples still need another editing pass for clarity.
-7. The worker timeout is fixed and conservative; there is no user-facing timeout control yet.
+7. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
 
 ## Collaboration Rules
 - Repo-facing docs should stay in English.

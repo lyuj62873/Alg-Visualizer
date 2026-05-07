@@ -82,7 +82,7 @@ Relevant files:
 ### Python execution and tracing
 Implemented:
 - Pyodide loader and runtime bridge
-- worker-backed execution isolation with run timeout termination
+- worker-backed execution isolation with a 1000-frame visualization cap and a 30-second timeout fallback
 - injection of `dsviz.py` into the Pyodide environment
 - fixed `run_case()` entry point
 - full trace export to the frontend
@@ -312,7 +312,7 @@ Current unfinished TODOs:
 5. extend the unified interaction standard to future structures beyond arrays, lists, and trees
 6. further tune compact layout defaults for extreme traces, long labels, and unusual density
 7. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
-8. consider whether the current fixed worker timeout should become configurable per run or per environment
+8. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
 
 These TODOs are the right next-agent starting point before any new broad feature branch.
 

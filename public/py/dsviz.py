@@ -7,6 +7,12 @@ import inspect
 import linecache
 from typing import Any, Dict, List, Optional, Tuple
 
+MAX_TRACE_FRAMES = 1000
+
+
+class VisualizationFrameLimitExceededError(Exception):
+    pass
+
 
 def _safe_str(value: Any) -> str:
     try:
@@ -63,6 +69,11 @@ class _TraceState:
             self.emit(label=f"watch({name})")
 
     def emit(self, label: str, status: str = "", stdout: str = "") -> None:
+        if self._frame_counter >= MAX_TRACE_FRAMES:
+            raise VisualizationFrameLimitExceededError(
+                f"Visualization frame limit exceeded ({MAX_TRACE_FRAMES}). "
+                "Please reduce unnecessary visualization or use a smaller debug case."
+            )
         panels = [obj._render_panel() for obj in self._objects]
         variables = [{"name": k, "value": v} for k, v in self._variables.items()]
         frame = {

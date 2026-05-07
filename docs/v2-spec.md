@@ -14,7 +14,9 @@ The current successful demo path is:
 
 Execution safety rules in the current implementation:
 - user code runs inside a dedicated worker-backed Pyodide runtime
-- a run timeout terminates the worker if user code does not finish
+- trace generation stops once the run reaches 1000 visualization frames
+- worker execution stops once a run reaches 30 seconds
+- frame-cap failures should surface as runtime execution errors instead of freezing the page
 - timeout failures should surface as runtime execution errors instead of freezing the page
 
 ## User Code Model
@@ -237,7 +239,8 @@ Current error payload includes:
 - line number when available
 
 Additional failure mode:
-- worker timeout termination when user code does not finish within the execution limit
+- frame-cap termination when user code generates more than 1000 visualization frames
+- worker timeout termination when user code does not finish within 30 seconds
 
 ## Known Limitations
 Current unresolved limitations:
@@ -246,6 +249,6 @@ Current unresolved limitations:
 3. Array, tree, and list interaction rules are now stable, but future structures should reuse the same separation between panel resize, content zoom, and internal panning where appropriate.
 4. Automatic garbage-collection-like hiding of detached nodes is not implemented; explicit `delVis(...)` is the current supported removal path.
 5. Example quality is still in flux; the `Delete Duplicates` example and the guide comments around `delVis(...)` still need cleanup.
-6. The worker timeout is fixed in code and not yet configurable from the UI.
+6. The visualization frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit is configurable from the UI.
 
 These are post-v2 polish items, not blockers for the current prototype.

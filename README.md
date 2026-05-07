@@ -27,7 +27,8 @@ Current end-to-end behavior:
 - the frontend replays that trace with `Prev` and `Next`
 - the active source line is highlighted in Monaco
 - runtime errors are shown with message, traceback, and line number when available
-- infinite loops are terminated by a run timeout instead of freezing the page
+- trace generation stops once the visualization reaches 1000 frames
+- long-running runs are terminated after 30 seconds instead of blocking the page indefinitely
 
 ## Supported Visualization Primitives
 

@@ -61,7 +61,7 @@ let workerInstance: Worker | null = null;
 let activeRun: ActiveRun | null = null;
 let runCounter = 0;
 
-const DEFAULT_RUN_TIMEOUT_MS = 15000;
+const DEFAULT_RUN_TIMEOUT_MS = 30000;
 
 function ensureWorker() {
   if (!workerInstance) {
@@ -99,15 +99,11 @@ export function cancelPyodideTrace(reason = "Run cancelled.") {
   pendingRun.reject(new PyodideRunCancelledError(reason));
 }
 
-export async function runPyodideTrace(
-  code: string,
-  options?: { timeoutMs?: number },
-): Promise<PyodideRunOutput | PyodideRunError> {
+export async function runPyodideTrace(code: string): Promise<PyodideRunOutput | PyodideRunError> {
   cancelPyodideTrace("A newer run started.");
 
   const worker = ensureWorker();
   const runId = ++runCounter;
-  const timeoutMs = options?.timeoutMs ?? DEFAULT_RUN_TIMEOUT_MS;
 
   return await new Promise<PyodideRunOutput | PyodideRunError>((resolve, reject) => {
     const handleMessage = (event: MessageEvent<WorkerResponse>) => {
@@ -137,10 +133,10 @@ export async function runPyodideTrace(
       teardownWorker();
       reject(
         new PyodideRunTimeoutError(
-          `Execution timed out after ${Math.round(timeoutMs / 1000)} seconds.`,
+          `Execution timed out after ${Math.round(DEFAULT_RUN_TIMEOUT_MS / 1000)} seconds.`,
         ),
       );
-    }, timeoutMs);
+    }, DEFAULT_RUN_TIMEOUT_MS);
 
     const cleanup = () => {
       worker.removeEventListener("message", handleMessage);

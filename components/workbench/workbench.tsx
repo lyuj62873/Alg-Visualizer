@@ -160,12 +160,12 @@ export function Workbench() {
 
       const isTimeout = error instanceof PyodideRunTimeoutError;
       const message = isTimeout
-        ? "Execution was terminated to keep the page responsive."
+        ? "Please check your code for an infinite loop, or try reducing unnecessary visualization."
         : error instanceof Error
           ? error.message
           : String(error);
       const traceback = isTimeout
-        ? "User code exceeded the execution time limit and the Pyodide worker was terminated."
+        ? "User code exceeded the 30-second execution limit and the Pyodide worker was terminated."
         : message;
       const errorType = isTimeout
         ? "ExecutionTimeout"
