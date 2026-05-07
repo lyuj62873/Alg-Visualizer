@@ -1,14 +1,14 @@
 # AGENT.md
 
 ## Project
-**AlgoLens** is a browser-based visual debugger for Python algorithm code. The current v2 state is a working single-page prototype: the user writes Python in the browser, runs `run_case()`, generates a full snapshot trace in Pyodide, and steps through visual state changes in the frontend.
+**AlgoLens** is a browser-based visual debugger for Python algorithm code. The current v2 state is a working single-page prototype: the user writes Python in the browser, runs `run_case()`, generates a full snapshot trace in worker-isolated Pyodide, and steps through visual state changes in the frontend.
 
 ## Current v2 Demo Flow
 The shipped v2 flow is:
 1. The user pastes or writes Python code in the Monaco editor.
 2. The user defines test input directly inside `run_case()`.
 3. The user wraps only the data structures they want to inspect with `dsviz` objects.
-4. The platform runs the code in-browser through Pyodide.
+4. The platform runs the code in-browser through Pyodide inside a dedicated worker.
 5. The run produces a full trace of render-ready frames.
 6. The user steps through those frames with `Prev` and `Next`.
 7. The editor highlights the currently executing source line for the active frame.
@@ -143,7 +143,7 @@ List-specific rules:
 The frontend is a replay client.
 
 Runtime behavior:
-1. Execute the user code in Pyodide.
+1. Execute the user code in worker-isolated Pyodide.
 2. Generate the full trace first.
 3. Return render-ready frames to the UI.
 4. Step through frames locally in React.
@@ -176,6 +176,7 @@ Known remaining gaps are narrower now:
 4. The final semantics of what should happen to in-memory but no-longer-interesting detached nodes are still intentionally conservative; only explicit `delVis(...)` is supported today.
 5. The current `Delete Duplicates` example still needs a clean `delVis(...)` demonstration path.
 6. Example comments and `delVis(...)` usage examples still need another editing pass for clarity.
+7. The worker timeout is fixed and conservative; there is no user-facing timeout control yet.
 
 ## Collaboration Rules
 - Repo-facing docs should stay in English.

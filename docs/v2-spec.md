@@ -12,6 +12,11 @@ The current successful demo path is:
 - the editor highlights the active line for the current frame
 - tree and array visualizations update frame by frame
 
+Execution safety rules in the current implementation:
+- user code runs inside a dedicated worker-backed Pyodide runtime
+- a run timeout terminates the worker if user code does not finish
+- timeout failures should surface as runtime execution errors instead of freezing the page
+
 ## User Code Model
 The editor is a single Python file.
 
@@ -80,7 +85,7 @@ The active Monaco editor line is synchronized with the current trace frame.
 
 Current behavior:
 - runtime frames include a `line` field
-- Pyodide uses `sys.settrace` for user-code line events
+- Pyodide uses `sys.settrace` for user-code line events inside the worker runtime
 - Monaco applies a whole-line decoration for the active frame
 
 This is for orientation only. It does not make AlgoLens a full debugger.
@@ -231,6 +236,9 @@ Current error payload includes:
 - traceback
 - line number when available
 
+Additional failure mode:
+- worker timeout termination when user code does not finish within the execution limit
+
 ## Known Limitations
 Current unresolved limitations:
 1. Tree and list panels are still singleton aggregators rather than supporting multiple independent panels of the same kind.
@@ -238,5 +246,6 @@ Current unresolved limitations:
 3. Array, tree, and list interaction rules are now stable, but future structures should reuse the same separation between panel resize, content zoom, and internal panning where appropriate.
 4. Automatic garbage-collection-like hiding of detached nodes is not implemented; explicit `delVis(...)` is the current supported removal path.
 5. Example quality is still in flux; the `Delete Duplicates` example and the guide comments around `delVis(...)` still need cleanup.
+6. The worker timeout is fixed in code and not yet configurable from the UI.
 
 These are post-v2 polish items, not blockers for the current prototype.

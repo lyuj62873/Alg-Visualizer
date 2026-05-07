@@ -5,6 +5,9 @@ import { EditorPane } from "./editor-pane";
 import { codeSample, TraceFrame } from "./mock-trace";
 import { runMockTrace } from "./mock-runner";
 import {
+  cancelPyodideTrace,
+  PyodideRunCancelledError,
+  PyodideRunTimeoutError,
   PyodideUnavailableError,
   runPyodideTrace,
 } from "./pyodide-runner";
@@ -39,6 +42,12 @@ export function Workbench() {
   const [guidesOpen, setGuidesOpen] = useState(false);
   const [runError, setRunError] = useState<RunErrorDetail | null>(null);
   const activeFrame = frames[activeFrameIndex] ?? frames[0];
+
+  function cancelActiveRun(nextPhase: "idle" | "error" = "idle") {
+    runIdRef.current += 1;
+    cancelPyodideTrace();
+    setPhase(nextPhase);
+  }
 
   const exampleItems = [
     {
@@ -77,6 +86,7 @@ export function Workbench() {
   ];
 
   async function loadExample(path: string) {
+    cancelActiveRun("idle");
     const response = await fetch(path);
     if (!response.ok) {
       throw new Error(`Failed to load example: ${path}`);
@@ -143,11 +153,30 @@ export function Workbench() {
     } catch (error) {
       if (runId !== runIdRef.current) return;
 
-      const message = error instanceof Error ? error.message : String(error);
+      if (error instanceof PyodideRunCancelledError) {
+        setPhase("idle");
+        return;
+      }
+
+      const isTimeout = error instanceof PyodideRunTimeoutError;
+      const message = isTimeout
+        ? "Execution was terminated to keep the page responsive."
+        : error instanceof Error
+          ? error.message
+          : String(error);
+      const traceback = isTimeout
+        ? "User code exceeded the execution time limit and the Pyodide worker was terminated."
+        : message;
+      const errorType = isTimeout
+        ? "ExecutionTimeout"
+        : error instanceof Error
+          ? error.name
+          : "Error";
+
       setRunError({
-        errorType: error instanceof Error ? error.name : "Error",
+        errorType,
         message,
-        traceback: message,
+        traceback,
         line: null,
       });
       setFrames([
@@ -158,13 +187,19 @@ export function Workbench() {
           panels: [],
           variables: [],
           status: `Error: ${message}`,
-          stdout: `stderr: ${message}`,
+          stdout: isTimeout ? traceback : `stderr: ${message}`,
         },
       ]);
       setActiveFrameIndex(0);
       setPhase("error");
     }
   }
+
+  useEffect(() => {
+    return () => {
+      cancelPyodideTrace();
+    };
+  }, []);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -291,7 +326,10 @@ export function Workbench() {
           <EditorPane
             code={code}
             onCodeChange={setCode}
-            onResetCode={() => setCode(codeSample)}
+            onResetCode={() => {
+              cancelActiveRun("idle");
+              setCode(codeSample);
+            }}
             activeLine={activeFrame.line}
           />
         </div>
@@ -321,7 +359,10 @@ export function Workbench() {
         <EditorPane
           code={code}
           onCodeChange={setCode}
-          onResetCode={() => setCode(codeSample)}
+          onResetCode={() => {
+            cancelActiveRun("idle");
+            setCode(codeSample);
+          }}
           activeLine={activeFrame.line}
         />
       </div>

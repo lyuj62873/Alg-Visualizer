@@ -16,7 +16,7 @@ AlgoLens v2 is a working browser-based Python visualization workbench.
 Implemented end-to-end flow:
 1. The user writes Python code in Monaco.
 2. The user defines input directly inside `run_case()`.
-3. The code runs in Pyodide in the browser.
+3. The code runs in worker-isolated Pyodide in the browser.
 4. `dsviz` emits a full trace of render-ready frames.
 5. The frontend replays those frames with `Prev` and `Next`.
 6. The editor highlights the currently executing line for the active frame.
@@ -82,6 +82,7 @@ Relevant files:
 ### Python execution and tracing
 Implemented:
 - Pyodide loader and runtime bridge
+- worker-backed execution isolation with run timeout termination
 - injection of `dsviz.py` into the Pyodide environment
 - fixed `run_case()` entry point
 - full trace export to the frontend
@@ -311,6 +312,7 @@ Current unfinished TODOs:
 5. extend the unified interaction standard to future structures beyond arrays, lists, and trees
 6. further tune compact layout defaults for extreme traces, long labels, and unusual density
 7. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
+8. consider whether the current fixed worker timeout should become configurable per run or per environment
 
 These TODOs are the right next-agent starting point before any new broad feature branch.
 

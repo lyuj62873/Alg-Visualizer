@@ -6,7 +6,7 @@ The intended workflow is:
 - write or paste Python into the editor
 - define test input directly inside `run_case()`
 - wrap only the data structures you want to inspect with `dsviz`
-- run the code in the browser through Pyodide
+- run the code in the browser through Pyodide inside a worker
 - step through the generated trace frame by frame
 
 The goal is to stay close to normal LeetCode-style Python instead of forcing users into a custom DSL.
@@ -21,12 +21,13 @@ This repo is currently a working single-page prototype built with:
 - React Flow
 
 Current end-to-end behavior:
-- Python code runs in the browser
+- Python code runs in the browser inside a dedicated worker
 - `run_case()` is the fixed entry point
 - the runtime generates a full replay trace first
 - the frontend replays that trace with `Prev` and `Next`
 - the active source line is highlighted in Monaco
 - runtime errors are shown with message, traceback, and line number when available
+- infinite loops are terminated by a run timeout instead of freezing the page
 
 ## Supported Visualization Primitives
 
