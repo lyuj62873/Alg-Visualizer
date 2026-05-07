@@ -698,10 +698,10 @@ export function ResultsPane({
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#dc2626]">
                 Runtime error
               </div>
-              <div className="mt-2 text-sm font-semibold text-[#991b1b]">
+              <div className="mt-2 break-words text-sm font-semibold text-[#991b1b] [overflow-wrap:anywhere]">
                 {errorInfo.errorType}
               </div>
-              <div className="mt-1 text-sm text-[#7f1d1d]">
+              <div className="mt-1 break-words text-sm text-[#7f1d1d] [overflow-wrap:anywhere]">
                 {errorInfo.message}
               </div>
               {errorInfo.line ? (
@@ -713,7 +713,7 @@ export function ResultsPane({
                 <summary className="cursor-pointer select-none font-medium text-[#b91c1c]">
                   Traceback
                 </summary>
-                <pre className="mt-2 overflow-auto whitespace-pre-wrap font-mono text-[11px] leading-5 text-[#7f1d1d]">
+                <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-5 text-[#7f1d1d] [overflow-wrap:anywhere]">
                   {errorInfo.traceback}
                 </pre>
               </details>
