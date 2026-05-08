@@ -216,6 +216,7 @@ The current single-page workbench contains:
 Current built-in `Examples`:
 - `Balanced Rebuild`
 - `Delete Duplicates`
+- `Multi Panel`
 
 Current built-in `Guides`:
 - `VisArray`
@@ -244,11 +245,10 @@ Additional failure mode:
 
 ## Known Limitations
 Current unresolved limitations:
-1. Tree and list panels are still singleton aggregators rather than supporting multiple independent panels of the same kind.
-2. Compact defaults have been tuned manually and may need further calibration for very large traces or unusual value lengths.
-3. Array, tree, and list interaction rules are now stable, but future structures should reuse the same separation between panel resize, content zoom, and internal panning where appropriate.
-4. Automatic garbage-collection-like hiding of detached nodes is not implemented; explicit `delVis(...)` is the current supported removal path.
-5. Example quality is still in flux; the `Delete Duplicates` example and the guide comments around `delVis(...)` still need cleanup.
-6. The visualization frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit is configurable from the UI.
+1. Compact defaults have been tuned manually and may need further calibration for very large traces or unusual value lengths.
+2. Array, tree, and list interaction rules are now stable, but future structures should reuse the same separation between panel resize, content zoom, and internal panning where appropriate.
+3. Automatic garbage-collection-like hiding of detached nodes is not implemented; explicit `delVis(...)` is the current supported removal path.
+4. Example quality is still in flux; the `Delete Duplicates` example and the guide comments around `delVis(...)` still need cleanup.
+5. The visualization frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit is configurable from the UI.
 
 These are post-v2 polish items, not blockers for the current prototype.

@@ -65,6 +65,7 @@ Currently supports:
 - `val`
 - `left`
 - `right`
+- multiple independent tree panels in one run
 - node updates through normal attribute assignment
 - temporary disconnected tree components staying visible during rebuild workflows
 
@@ -73,6 +74,7 @@ Currently supports:
 Currently supports:
 - `val`
 - `right`
+- multiple independent list panels in one run
 - linked-list rewiring through normal attribute assignment
 - disconnected list segments staying visible during rewiring
 - shared-tail rendering without duplicating the same suffix chain
@@ -117,6 +119,7 @@ Tree/List-specific behavior:
 Current `Examples`:
 - `Balanced Rebuild`
 - `Delete Duplicates`
+- `Multi Panel`
 
 Current `Guides`:
 - `VisArray`
@@ -165,7 +168,6 @@ If you are continuing development, start with `V2-summary.md` first.
 ## Planned Follow-Up
 
 The current prototype is already usable, but several follow-up areas remain:
-- support multiple independent tree panels and multiple independent list panels
 - improve `delVis(...)` behavior in example flows such as `Delete Duplicates`
 - refine example comments and `delVis(...)` teaching patterns
 - keep tuning compact layout defaults for large or unusual traces

@@ -228,6 +228,7 @@ Implemented:
 - `Guides -> VisTreeNode`
 - `Examples -> Balanced Rebuild`
 - `Examples -> Delete Duplicates`
+- `Examples -> Multi Panel`
 
 The `Balanced Rebuild` example demonstrates:
 1. build a tree with at least 9 nodes
@@ -305,14 +306,13 @@ This standard is now implemented for `VisArray`, `VisTreeNode`, and `VisListNode
 The old drag / resize blockers are no longer the main TODOs. Remaining work is now narrower and more product-shaping.
 
 Current unfinished TODOs:
-1. support multiple independent tree panels and multiple independent list panels instead of the current one-panel-per-kind aggregation model
-2. decide the final product semantics for deleted / detached but still in-memory nodes beyond the current explicit `delVis(...)` behavior
-3. fix the `Delete Duplicates` example so `delVis(...)` removes the intended linked-list node cleanly in the demo path
-4. improve example comments and refine the showcased `delVis(...)` usage so the guides teach the intended pattern more clearly
-5. extend the unified interaction standard to future structures beyond arrays, lists, and trees
-6. further tune compact layout defaults for extreme traces, long labels, and unusual density
-7. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
-8. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
+1. decide the final product semantics for deleted / detached but still in-memory nodes beyond the current explicit `delVis(...)` behavior
+2. fix the `Delete Duplicates` example so `delVis(...)` removes the intended linked-list node cleanly in the demo path
+3. improve example comments and refine the showcased `delVis(...)` usage so the guides teach the intended pattern more clearly
+4. extend the unified interaction standard to future structures beyond arrays, lists, and trees
+5. further tune compact layout defaults for extreme traces, long labels, and unusual density
+6. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
+7. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
 
 These TODOs are the right next-agent starting point before any new broad feature branch.
 

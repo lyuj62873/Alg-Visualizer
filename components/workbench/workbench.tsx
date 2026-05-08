@@ -60,6 +60,11 @@ export function Workbench() {
       description: "remove adjacent duplicates from a sorted linked list in place",
       path: "/examples/reverse-linked-list-example.py",
     },
+    {
+      label: "Multi Panel",
+      description: "independent trees and lists render in separate visualization panels",
+      path: "/examples/multi-panel-example.py",
+    },
   ];
 
   const guideItems = [
