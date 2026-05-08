@@ -28,6 +28,8 @@ type PanelPosition = {
   scale: number;
 };
 
+type PanelVisibilityMode = "open" | "minimized" | "closed";
+
 type InteractionState = {
   mode: "drag" | "resize";
   panelId: string;
@@ -111,6 +113,66 @@ function getPanelPosition(panel: TracePanel, positions: DragPositions): PanelPos
 
 function formatDimensions(dimensions?: number[]) {
   return dimensions && dimensions.length ? dimensions.join(" x ") : null;
+}
+
+function bringPanelToFront(order: string[], panelId: string) {
+  return [...order.filter((id) => id !== panelId), panelId];
+}
+
+function syncPanelOrder(order: string[], panels: TracePanel[]) {
+  const panelIds = panels.map((panel) => panel.id);
+  const panelIdSet = new Set(panelIds);
+  const retained = order.filter((panelId) => panelIdSet.has(panelId));
+  const additions = panelIds.filter((panelId) => !retained.includes(panelId));
+  return [...retained, ...additions];
+}
+
+function summarizeArrayCell(cell: TraceArrayCell): unknown {
+  if (cell.kind === "value") {
+    return {
+      kind: cell.kind,
+      id: cell.id,
+      label: cell.label,
+      tone: cell.tone ?? "default",
+      containsActive: !!cell.containsActive,
+    };
+  }
+
+  return {
+    kind: cell.kind,
+    id: cell.id,
+    layout: cell.layout ?? "row",
+    dimensions: cell.dimensions ?? [],
+    tone: cell.tone ?? "default",
+    containsActive: !!cell.containsActive,
+    cells: cell.cells.map((child) => summarizeArrayCell(child)),
+  };
+}
+
+function getPanelSignature(panel: TracePanel) {
+  if (panel.kind === "array") {
+    return JSON.stringify({
+      kind: panel.kind,
+      title: panel.title,
+      layout: panel.layout ?? "row",
+      dimensions: panel.dimensions ?? [],
+      cells: panel.cells.map((cell) => summarizeArrayCell(cell)),
+    });
+  }
+
+  return JSON.stringify({
+    kind: panel.kind,
+    title: panel.title,
+    items: panel.items.map((item) => ({
+      id: item.id,
+      label: item.label,
+      x: item.x,
+      y: item.y,
+      tone: item.tone ?? "default",
+      shape: item.shape ?? "circle",
+    })),
+    edges: panel.edges,
+  });
 }
 
 function ArrayValueCell({ cell }: { cell: Extract<TraceArrayCell, { kind: "value" }> }) {
@@ -349,6 +411,10 @@ function VisualizationPanel({
   requestFitView,
   trackingEnabled,
   toggleTracking,
+  zIndex,
+  onFocusPanel,
+  onMinimizePanel,
+  onClosePanel,
 }: {
   panel: TracePanel;
   positions: DragPositions;
@@ -357,6 +423,10 @@ function VisualizationPanel({
   requestFitView: (panelId: string) => void;
   trackingEnabled: boolean;
   toggleTracking: (panelId: string) => void;
+  zIndex: number;
+  onFocusPanel: (panelId: string) => void;
+  onMinimizePanel: (panelId: string) => void;
+  onClosePanel: (panelId: string) => void;
 }) {
   const currentPanelPosition = getPanelPosition(panel, positions);
   const [interaction, setInteraction] = useState<InteractionState | null>(null);
@@ -459,6 +529,7 @@ function VisualizationPanel({
 
     event.preventDefault();
     event.stopPropagation();
+    onFocusPanel(panel.id);
 
     const minSize = getEffectiveMinSize(panel);
     const maxSize = getEffectiveMaxSize(panel);
@@ -478,12 +549,14 @@ function VisualizationPanel({
 
   return (
     <article
+      onPointerDown={() => onFocusPanel(panel.id)}
       className="absolute overflow-hidden rounded-xl border border-[#d6d9df] bg-white shadow-sm"
       style={{
         left: `${currentPanelPosition.x}%`,
         top: `${currentPanelPosition.y}%`,
         width: `${currentPanelPosition.width}%`,
         height: `${currentPanelPosition.height}%`,
+        zIndex,
       }}
     >
       <div
@@ -535,6 +608,36 @@ function VisualizationPanel({
               </button>
             </>
           ) : null}
+          <button
+            type="button"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onMinimizePanel(panel.id);
+            }}
+            className="rounded-md border border-[#e5e7eb] bg-white px-2 py-1 text-[10px] text-[#4b5563] hover:bg-[#f9fafb]"
+          >
+            Minimize
+          </button>
+          <button
+            type="button"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onClosePanel(panel.id);
+            }}
+            className="rounded-md border border-[#fecaca] bg-[#fff1f2] px-2 py-1 text-[10px] text-[#b91c1c] hover:bg-[#ffe4e6]"
+          >
+            Close
+          </button>
           <span className="text-[10px] text-[#6b7280]">drag</span>
         </div>
       </div>
@@ -589,6 +692,11 @@ export function ResultsPane({
   const [positions, setPositions] = useState<DragPositions>({});
   const [fitRequests, setFitRequests] = useState<Record<string, number>>({});
   const [trackingModes, setTrackingModes] = useState<Record<string, boolean>>({});
+  const [panelOrder, setPanelOrder] = useState<string[]>([]);
+  const [panelVisibilityModes, setPanelVisibilityModes] = useState<
+    Record<string, PanelVisibilityMode>
+  >({});
+  const panelSignatureRef = useRef<Record<string, string>>({});
 
   function requestFitView(panelId: string) {
     setFitRequests((current) => ({
@@ -597,11 +705,37 @@ export function ResultsPane({
     }));
   }
 
+  function focusPanel(panelId: string) {
+    setPanelOrder((current) => bringPanelToFront(current, panelId));
+  }
+
   function toggleTracking(panelId: string) {
     setTrackingModes((current) => ({
       ...current,
       [panelId]: !(current[panelId] ?? true),
     }));
+  }
+
+  function minimizePanel(panelId: string) {
+    setPanelVisibilityModes((current) => ({
+      ...current,
+      [panelId]: "minimized",
+    }));
+  }
+
+  function closePanel(panelId: string) {
+    setPanelVisibilityModes((current) => ({
+      ...current,
+      [panelId]: "closed",
+    }));
+  }
+
+  function openPanel(panelId: string) {
+    setPanelVisibilityModes((current) => ({
+      ...current,
+      [panelId]: "open",
+    }));
+    focusPanel(panelId);
   }
 
   useEffect(() => {
@@ -617,6 +751,52 @@ export function ResultsPane({
       }
       return changed ? next : current;
     });
+  }, [frame.panels]);
+
+  useEffect(() => {
+    setPanelOrder((current) => syncPanelOrder(current, frame.panels));
+  }, [frame.panels]);
+
+  useEffect(() => {
+    const restoredPanelIds: string[] = [];
+
+    setPanelVisibilityModes((current) => {
+      const next = { ...current };
+      let changed = false;
+
+      for (const panel of frame.panels) {
+        const signature = getPanelSignature(panel);
+        const previousSignature = panelSignatureRef.current[panel.id];
+        const mode = next[panel.id];
+
+        if (!mode) {
+          next[panel.id] = "open";
+          changed = true;
+        } else if (
+          previousSignature !== undefined &&
+          previousSignature !== signature &&
+          mode !== "open"
+        ) {
+          next[panel.id] = "open";
+          restoredPanelIds.push(panel.id);
+          changed = true;
+        }
+
+        panelSignatureRef.current[panel.id] = signature;
+      }
+
+      return changed ? next : current;
+    });
+
+    if (restoredPanelIds.length) {
+      setPanelOrder((current) => {
+        let next = current;
+        for (const panelId of restoredPanelIds) {
+          next = bringPanelToFront(next, panelId);
+        }
+        return next;
+      });
+    }
   }, [frame.panels]);
 
   useEffect(() => {
@@ -652,33 +832,106 @@ export function ResultsPane({
     });
   }, [frame]);
 
+  const panelById = new Map(frame.panels.map((panel) => [panel.id, panel]));
+  const orderedPanels = panelOrder
+    .map((panelId) => panelById.get(panelId))
+    .filter((panel): panel is TracePanel => !!panel);
+  const activePanelId = [...orderedPanels]
+    .reverse()
+    .find((panel) => panelVisibilityModes[panel.id] === "open")?.id;
+  const visiblePanels = orderedPanels.filter(
+    (panel) => panelVisibilityModes[panel.id] !== "minimized" && panelVisibilityModes[panel.id] !== "closed",
+  );
+  const tabPanels = orderedPanels.filter((panel) => panelVisibilityModes[panel.id] !== "closed");
+
   return (
     <section className="relative flex min-h-[720px] min-w-0 flex-1 overflow-hidden rounded-xl border border-[#d1d5db] bg-[#fafafa] shadow-sm">
-      <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white/95 p-2 shadow-sm backdrop-blur">
-        <button
-          onClick={onPrev}
-          disabled={phase === "running" || frame.index === 0}
-          className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Prev
-        </button>
-        <button
-          onClick={onNext}
-          disabled={phase === "running" || frame.index === totalFrames - 1}
-          className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Next
-        </button>
-        <div className="rounded-md bg-[#f3f4f6] px-3 py-2 text-sm text-[#4b5563]">
-          {frame.index + 1} / {totalFrames}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-center gap-4 border-b border-[#e5e7eb] bg-white/95 px-4 py-3">
+          <div className="min-w-0 flex-1 overflow-x-auto">
+            <div className="flex min-h-11 min-w-max items-center gap-2 pr-2">
+              {tabPanels.length ? (
+                tabPanels.map((panel) => {
+                  const mode = panelVisibilityModes[panel.id] ?? "open";
+                  const isActive = activePanelId === panel.id;
+                  return (
+                    <button
+                      key={panel.id}
+                      type="button"
+                      onClick={() => openPanel(panel.id)}
+                      className={`flex items-center gap-2 rounded-t-xl border px-3 py-2 text-left text-xs transition ${
+                        mode === "minimized"
+                          ? "border-[#d1d5db] bg-[#f8fafc] text-[#64748b]"
+                          : isActive
+                            ? "border-[#fdba74] bg-[#fff7ed] text-[#9a3412]"
+                            : "border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f9fafb]"
+                      }`}
+                    >
+                      <span className="max-w-[160px] truncate font-medium">{panel.title}</span>
+                      <span className="rounded-md bg-black/5 px-1.5 py-0.5 text-[10px]">
+                        {mode === "minimized" ? "Hidden" : panel.typeLabel}
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="rounded-xl border border-dashed border-[#d1d5db] px-3 py-2 text-xs text-[#94a3b8]">
+                  No active panels
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white p-2 shadow-sm">
+            <button
+              onClick={onPrev}
+              disabled={phase === "running" || frame.index === 0}
+              className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Prev
+            </button>
+            <button
+              onClick={onNext}
+              disabled={phase === "running" || frame.index === totalFrames - 1}
+              className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next
+            </button>
+            <div className="rounded-md bg-[#f3f4f6] px-3 py-2 text-sm text-[#4b5563]">
+              {frame.index + 1} / {totalFrames}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto bg-[linear-gradient(#fcfcfd,#f8fafc)]">
+          <div
+            data-canvas-root="true"
+            className="relative min-h-[1100px] min-w-[1480px] w-full bg-[radial-gradient(circle_at_top_left,#ffffff,#f8fafc_45%,#eef2ff_100%)]"
+          >
+            {visiblePanels.map((panel, index) => (
+              <VisualizationPanel
+                key={panel.id}
+                panel={panel}
+                positions={positions}
+                setPositions={setPositions}
+                fitRequestToken={fitRequests[panel.id] ?? 0}
+                requestFitView={requestFitView}
+                trackingEnabled={trackingModes[panel.id] ?? true}
+                toggleTracking={toggleTracking}
+                zIndex={20 + index}
+                onFocusPanel={focusPanel}
+                onMinimizePanel={minimizePanel}
+                onClosePanel={closePanel}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
-      <aside className="absolute right-4 top-20 z-20 w-[240px] rounded-xl border border-[#e5e7eb] bg-white/96 shadow-sm backdrop-blur">
+      <aside className="flex w-[240px] shrink-0 flex-col border-l border-[#e5e7eb] bg-white/96">
         <div className="border-b border-[#f3f4f6] px-4 py-3 text-sm font-medium text-[#111827]">
           Variables
         </div>
-        <div className="space-y-2 p-4">
+        <div className="space-y-2 overflow-auto p-4">
           {frame.variables.map((item) => (
             <div
               key={item.name}
@@ -692,7 +945,7 @@ export function ResultsPane({
         <div className="border-t border-[#f3f4f6] px-4 py-3 text-sm font-medium text-[#111827]">
           Output
         </div>
-        <div className="space-y-3 p-4 text-sm text-[#4b5563]">
+        <div className="space-y-3 overflow-auto p-4 text-sm text-[#4b5563]">
           {phase === "error" && errorInfo ? (
             <div className="rounded-xl border border-[#fecaca] bg-[#fef2f2] p-3 text-[#7f1d1d]">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#dc2626]">
@@ -730,26 +983,6 @@ export function ResultsPane({
           )}
         </div>
       </aside>
-
-      <div className="flex-1 overflow-hidden p-0">
-        <div
-          data-canvas-root="true"
-          className="relative h-full min-h-[720px] w-full bg-[linear-gradient(#fcfcfd,#f8fafc)]"
-        >
-          {frame.panels.map((panel) => (
-            <VisualizationPanel
-              key={panel.id}
-              panel={panel}
-              positions={positions}
-              setPositions={setPositions}
-              fitRequestToken={fitRequests[panel.id] ?? 0}
-              requestFitView={requestFitView}
-              trackingEnabled={trackingModes[panel.id] ?? true}
-              toggleTracking={toggleTracking}
-            />
-          ))}
-        </div>
-      </div>
     </section>
   );
 }
