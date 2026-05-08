@@ -52,7 +52,7 @@ export function Workbench() {
   const exampleItems = [
     {
       label: "Balanced Rebuild",
-      description: "inorder collect, quicksort, then rebuild a balanced tree",
+      description: "inorder collect from an unbalanced BST, then build a second balanced BST",
       path: "/examples/balanced-rebuild-example.py",
     },
     {

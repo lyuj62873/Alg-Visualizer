@@ -81,10 +81,10 @@ Top navigation currently contains:
 ## Current Example Inventory
 Current built-in examples:
 - `Balanced Rebuild`
-  - build a tree with at least 9 nodes
+  - build an unbalanced BST
   - collect values with inorder traversal into a `VisArray`
-  - quicksort the array with explicit swaps
-  - rebuild a balanced tree with divide and conquer
+  - build a second balanced BST with divide and conquer
+  - keep the original unbalanced BST visible while the balanced BST appears in a separate panel
 - `Delete Duplicates`
   - remove adjacent duplicates from a sorted linked list in place
 - `Multi Panel`
@@ -173,12 +173,15 @@ Still out of scope for v2:
 
 ## Known v2 Gaps
 Known remaining gaps are narrower now:
-1. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
-2. Future structures should preserve the current separation between panel resize, internal panning, and wheel zoom instead of inventing per-structure interaction models.
-3. The final semantics of what should happen to in-memory but no-longer-interesting detached nodes are still intentionally conservative; only explicit `delVis(...)` is supported today.
-4. The current `Delete Duplicates` example still needs a clean `delVis(...)` demonstration path.
-5. Example comments and `delVis(...)` usage examples still need another editing pass for clarity.
-6. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
+1. The main visualization canvas still needs its own scrolling model when many panels extend beyond the initial viewport.
+2. Panels still need click-to-front behavior so overlapping structures remain accessible.
+3. The canvas still needs browser-like panel tabs plus per-panel minimize / close controls, with hidden panels auto-restoring when their structures change again.
+4. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
+5. Future structures should preserve the current separation between panel resize, internal panning, and wheel zoom instead of inventing per-structure interaction models.
+6. The final semantics of what should happen to in-memory but no-longer-interesting detached nodes are still intentionally conservative; only explicit `delVis(...)` is supported today.
+7. The current `Delete Duplicates` example still needs a clean `delVis(...)` demonstration path.
+8. Example comments and `delVis(...)` usage examples still need another editing pass for clarity.
+9. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
 
 ## Collaboration Rules
 - Repo-facing docs should stay in English.

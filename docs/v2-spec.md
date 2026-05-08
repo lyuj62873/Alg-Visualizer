@@ -245,10 +245,13 @@ Additional failure mode:
 
 ## Known Limitations
 Current unresolved limitations:
-1. Compact defaults have been tuned manually and may need further calibration for very large traces or unusual value lengths.
-2. Array, tree, and list interaction rules are now stable, but future structures should reuse the same separation between panel resize, content zoom, and internal panning where appropriate.
-3. Automatic garbage-collection-like hiding of detached nodes is not implemented; explicit `delVis(...)` is the current supported removal path.
-4. Example quality is still in flux; the `Delete Duplicates` example and the guide comments around `delVis(...)` still need cleanup.
-5. The visualization frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit is configurable from the UI.
+1. The main visualization canvas still needs a scroll model for cases where many panels extend beyond the initial viewport.
+2. Panels still need click-to-front behavior so overlapping structures remain accessible.
+3. The canvas still needs browser-like panel tabs plus per-panel minimize / close controls, with hidden panels auto-restoring when their structures change again.
+4. Compact defaults have been tuned manually and may need further calibration for very large traces or unusual value lengths.
+5. Array, tree, and list interaction rules are now stable, but future structures should reuse the same separation between panel resize, content zoom, and internal panning where appropriate.
+6. Automatic garbage-collection-like hiding of detached nodes is not implemented; explicit `delVis(...)` is the current supported removal path.
+7. Example quality is still in flux; the `Delete Duplicates` example and the guide comments around `delVis(...)` still need cleanup.
+8. The visualization frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit is configurable from the UI.
 
 These are post-v2 polish items, not blockers for the current prototype.

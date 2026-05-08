@@ -168,6 +168,9 @@ If you are continuing development, start with `V2-summary.md` first.
 ## Planned Follow-Up
 
 The current prototype is already usable, but several follow-up areas remain:
+- make the main visualization canvas scrollable when many panels extend beyond the initial viewport
+- allow clicking a panel to bring it to the front so overlapping panels remain usable
+- add canvas-level panel tabs plus per-panel minimize / close controls with auto-restore when hidden structures change again
 - improve `delVis(...)` behavior in example flows such as `Delete Duplicates`
 - refine example comments and `delVis(...)` teaching patterns
 - keep tuning compact layout defaults for large or unusual traces

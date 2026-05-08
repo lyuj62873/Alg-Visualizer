@@ -231,10 +231,10 @@ Implemented:
 - `Examples -> Multi Panel`
 
 The `Balanced Rebuild` example demonstrates:
-1. build a tree with at least 9 nodes
+1. build an unbalanced BST
 2. collect values by inorder traversal into `VisArray`
-3. quicksort the array with explicit visible swaps
-4. rebuild a balanced tree by divide and conquer
+3. build a second balanced BST by divide and conquer
+4. keep both trees visible in separate panels during replay
 
 Relevant files:
 - `public/examples/vis-array-example.py`
@@ -306,13 +306,16 @@ This standard is now implemented for `VisArray`, `VisTreeNode`, and `VisListNode
 The old drag / resize blockers are no longer the main TODOs. Remaining work is now narrower and more product-shaping.
 
 Current unfinished TODOs:
-1. decide the final product semantics for deleted / detached but still in-memory nodes beyond the current explicit `delVis(...)` behavior
-2. fix the `Delete Duplicates` example so `delVis(...)` removes the intended linked-list node cleanly in the demo path
-3. improve example comments and refine the showcased `delVis(...)` usage so the guides teach the intended pattern more clearly
-4. extend the unified interaction standard to future structures beyond arrays, lists, and trees
-5. further tune compact layout defaults for extreme traces, long labels, and unusual density
-6. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
-7. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
+1. add a scroll model for the main visualization canvas when many panels extend beyond the initial viewport
+2. add click-to-front behavior so overlapping panels can be brought to the top
+3. add browser-like panel tabs plus per-panel minimize / close controls, with hidden panels auto-restoring when their structures change again
+4. decide the final product semantics for deleted / detached but still in-memory nodes beyond the current explicit `delVis(...)` behavior
+5. fix the `Delete Duplicates` example so `delVis(...)` removes the intended linked-list node cleanly in the demo path
+6. improve example comments and refine the showcased `delVis(...)` usage so the guides teach the intended pattern more clearly
+7. extend the unified interaction standard to future structures beyond arrays, lists, and trees
+8. further tune compact layout defaults for extreme traces, long labels, and unusual density
+9. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
+10. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
 
 These TODOs are the right next-agent starting point before any new broad feature branch.
 
