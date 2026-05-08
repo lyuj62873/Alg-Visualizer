@@ -236,7 +236,6 @@ export function Workbench() {
               AlgoLens
             </div>
             <nav className="hidden items-center gap-5 text-sm text-[#6b7280] md:flex">
-              <span className="font-medium text-[#111827]">Workbench</span>
               <div
                 className="relative"
                 onMouseEnter={() => setExamplesOpen(true)}
@@ -312,9 +311,6 @@ export function Workbench() {
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            <div className="rounded-full border border-[#e5e7eb] bg-[#fafafa] px-3 py-1.5 text-xs text-[#6b7280]">
-              Python / Pyodide
-            </div>
             <button
               onClick={handleRunTrace}
               disabled={phase === "running"}

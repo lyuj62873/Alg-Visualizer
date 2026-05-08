@@ -638,7 +638,6 @@ function VisualizationPanel({
           >
             Close
           </button>
-          <span className="text-[10px] text-[#6b7280]">drag</span>
         </div>
       </div>
       <div

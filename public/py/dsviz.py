@@ -836,8 +836,8 @@ class VisBST(_VisObject):
         panel_id: Optional[str] = None,
         x: float = 18,
         y: float = 36,
-        width: float = 52,
-        height: float = 50,
+        width: float = 28,
+        height: float = 26,
         scale: float = 1.0,
     ) -> None:
         super().__init__(
@@ -1034,8 +1034,8 @@ class _TreePanel(_VisObject):
         panel_id: str = "tree",
         x: float = 18,
         y: float = 36,
-        width: float = 52,
-        height: float = 50,
+        width: float = 28,
+        height: float = 26,
         scale: float = 1.0,
     ) -> None:
         super().__init__(
@@ -1347,8 +1347,8 @@ class _TreePanel(_VisObject):
         panel_states = self._match_component_states(
             components,
             fallback_prefix="tree",
-            default_width=52.0,
-            default_height=50.0,
+            default_width=28.0,
+            default_height=26.0,
             scale=self.layout.scale,
         )
 
@@ -1399,8 +1399,8 @@ class _ListPanel(_VisObject):
         panel_id: str = "list",
         x: float = 14,
         y: float = 56,
-        width: float = 54,
-        height: float = 22,
+        width: float = 30,
+        height: float = 20,
         scale: float = 1.0,
     ) -> None:
         super().__init__(
@@ -1721,8 +1721,8 @@ class _ListPanel(_VisObject):
         panel_states = self._match_component_states(
             component_layouts,
             fallback_prefix="list",
-            default_width=54.0,
-            default_height=22.0,
+            default_width=30.0,
+            default_height=20.0,
             scale=self.layout.scale,
         )
 
