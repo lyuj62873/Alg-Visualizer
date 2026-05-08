@@ -175,6 +175,10 @@ function getPanelSignature(panel: TracePanel) {
   });
 }
 
+function clampCanvasZoom(value: number) {
+  return clamp(value, 0.7, 1.6);
+}
+
 function ArrayValueCell({ cell }: { cell: Extract<TraceArrayCell, { kind: "value" }> }) {
   const isActive = cell.tone === "active";
   const containsActive = !!cell.containsActive;
@@ -415,6 +419,7 @@ function VisualizationPanel({
   onFocusPanel,
   onMinimizePanel,
   onClosePanel,
+  panelRef,
 }: {
   panel: TracePanel;
   positions: DragPositions;
@@ -427,6 +432,7 @@ function VisualizationPanel({
   onFocusPanel: (panelId: string) => void;
   onMinimizePanel: (panelId: string) => void;
   onClosePanel: (panelId: string) => void;
+  panelRef: (node: HTMLElement | null) => void;
 }) {
   const currentPanelPosition = getPanelPosition(panel, positions);
   const [interaction, setInteraction] = useState<InteractionState | null>(null);
@@ -549,6 +555,7 @@ function VisualizationPanel({
 
   return (
     <article
+      ref={panelRef}
       onPointerDown={() => onFocusPanel(panel.id)}
       className="absolute overflow-hidden rounded-xl border border-[#d6d9df] bg-white shadow-sm"
       style={{
@@ -695,7 +702,11 @@ export function ResultsPane({
   const [panelVisibilityModes, setPanelVisibilityModes] = useState<
     Record<string, PanelVisibilityMode>
   >({});
+  const [canvasZoom, setCanvasZoom] = useState(1);
+  const [scrollTargetPanelId, setScrollTargetPanelId] = useState<string | null>(null);
+  const canvasViewportRef = useRef<HTMLDivElement | null>(null);
   const panelSignatureRef = useRef<Record<string, string>>({});
+  const panelElementRefs = useRef<Record<string, HTMLElement | null>>({});
 
   function requestFitView(panelId: string) {
     setFitRequests((current) => ({
@@ -706,6 +717,11 @@ export function ResultsPane({
 
   function focusPanel(panelId: string) {
     setPanelOrder((current) => bringPanelToFront(current, panelId));
+  }
+
+  function focusAndTrackPanel(panelId: string) {
+    focusPanel(panelId);
+    setScrollTargetPanelId(panelId);
   }
 
   function toggleTracking(panelId: string) {
@@ -734,7 +750,37 @@ export function ResultsPane({
       ...current,
       [panelId]: "open",
     }));
-    focusPanel(panelId);
+    focusAndTrackPanel(panelId);
+  }
+
+  function registerPanelElement(panelId: string, node: HTMLElement | null) {
+    panelElementRefs.current[panelId] = node;
+  }
+
+  function scrollPanelIntoView(panelId: string) {
+    const viewport = canvasViewportRef.current;
+    const panelElement = panelElementRefs.current[panelId];
+    if (!viewport || !panelElement) {
+      return;
+    }
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const panelRect = panelElement.getBoundingClientRect();
+
+    const nextScrollLeft =
+      viewport.scrollLeft +
+      (panelRect.left - viewportRect.left) -
+      Math.max(0, (viewport.clientWidth - panelRect.width) / 2);
+    const nextScrollTop =
+      viewport.scrollTop +
+      (panelRect.top - viewportRect.top) -
+      Math.max(0, (viewport.clientHeight - panelRect.height) / 2);
+
+    viewport.scrollTo({
+      left: Math.max(0, nextScrollLeft),
+      top: Math.max(0, nextScrollTop),
+      behavior: "smooth",
+    });
   }
 
   useEffect(() => {
@@ -757,7 +803,7 @@ export function ResultsPane({
   }, [frame.panels]);
 
   useEffect(() => {
-    const restoredPanelIds: string[] = [];
+    const changedPanelIds: string[] = [];
 
     setPanelVisibilityModes((current) => {
       const next = { ...current };
@@ -773,12 +819,13 @@ export function ResultsPane({
           changed = true;
         } else if (
           previousSignature !== undefined &&
-          previousSignature !== signature &&
-          mode !== "open"
+          previousSignature !== signature
         ) {
-          next[panel.id] = "open";
-          restoredPanelIds.push(panel.id);
-          changed = true;
+          changedPanelIds.push(panel.id);
+          if (mode !== "open") {
+            next[panel.id] = "open";
+            changed = true;
+          }
         }
 
         panelSignatureRef.current[panel.id] = signature;
@@ -787,16 +834,32 @@ export function ResultsPane({
       return changed ? next : current;
     });
 
-    if (restoredPanelIds.length) {
+    if (changedPanelIds.length) {
       setPanelOrder((current) => {
         let next = current;
-        for (const panelId of restoredPanelIds) {
+        for (const panelId of changedPanelIds) {
           next = bringPanelToFront(next, panelId);
         }
         return next;
       });
+      setScrollTargetPanelId(changedPanelIds[changedPanelIds.length - 1] ?? null);
     }
   }, [frame.panels]);
+
+  useEffect(() => {
+    if (!scrollTargetPanelId) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      scrollPanelIntoView(scrollTargetPanelId);
+      setScrollTargetPanelId((current) => (current === scrollTargetPanelId ? null : current));
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [canvasZoom, scrollTargetPanelId, frame.panels, positions]);
 
   useEffect(() => {
     setPositions((current) => {
@@ -881,6 +944,29 @@ export function ResultsPane({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white p-2 shadow-sm">
+            <div className="flex items-center gap-1 rounded-md border border-[#e5e7eb] bg-[#fafafa] px-1.5 py-1">
+              <button
+                type="button"
+                onClick={() => setCanvasZoom((current) => clampCanvasZoom(current - 0.1))}
+                className="rounded-md border border-[#e5e7eb] bg-white px-2 py-1 text-xs text-[#4b5563] hover:bg-[#f9fafb]"
+              >
+                -
+              </button>
+              <button
+                type="button"
+                onClick={() => setCanvasZoom(1)}
+                className="rounded-md px-2 py-1 text-xs font-medium text-[#4b5563] hover:bg-white"
+              >
+                {Math.round(canvasZoom * 100)}%
+              </button>
+              <button
+                type="button"
+                onClick={() => setCanvasZoom((current) => clampCanvasZoom(current + 0.1))}
+                className="rounded-md border border-[#e5e7eb] bg-white px-2 py-1 text-xs text-[#4b5563] hover:bg-[#f9fafb]"
+              >
+                +
+              </button>
+            </div>
             <button
               onClick={onPrev}
               disabled={phase === "running" || frame.index === 0}
@@ -901,10 +987,14 @@ export function ResultsPane({
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto bg-[linear-gradient(#fcfcfd,#f8fafc)]">
+        <div
+          ref={canvasViewportRef}
+          className="flex-1 overflow-auto bg-[linear-gradient(#fcfcfd,#f8fafc)]"
+        >
           <div
             data-canvas-root="true"
             className="relative min-h-[1100px] min-w-[1480px] w-full bg-[radial-gradient(circle_at_top_left,#ffffff,#f8fafc_45%,#eef2ff_100%)]"
+            style={{ zoom: canvasZoom }}
           >
             {visiblePanels.map((panel, index) => (
               <VisualizationPanel
@@ -920,6 +1010,7 @@ export function ResultsPane({
                 onFocusPanel={focusPanel}
                 onMinimizePanel={minimizePanel}
                 onClosePanel={closePanel}
+                panelRef={(node) => registerPanelElement(panel.id, node)}
               />
             ))}
           </div>

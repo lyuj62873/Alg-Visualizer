@@ -1083,10 +1083,10 @@ class _TreePanel(_VisObject):
         base_y = self.layout.y
         candidates = [
             (base_x, base_y),
-            (base_x + 28.0, base_y),
             (base_x, base_y + 24.0),
-            (base_x + 28.0, base_y + 24.0),
             (base_x, base_y + 48.0),
+            (base_x + 28.0, base_y),
+            (base_x + 28.0, base_y + 24.0),
             (base_x + 28.0, base_y + 48.0),
         ]
 
@@ -1448,10 +1448,10 @@ class _ListPanel(_VisObject):
         base_y = self.layout.y
         candidates = [
             (base_x, base_y),
-            (base_x + 28.0, base_y),
             (base_x, base_y + 24.0),
-            (base_x + 28.0, base_y + 24.0),
             (base_x, base_y + 48.0),
+            (base_x + 28.0, base_y),
+            (base_x + 28.0, base_y + 24.0),
             (base_x + 28.0, base_y + 48.0),
         ]
 
