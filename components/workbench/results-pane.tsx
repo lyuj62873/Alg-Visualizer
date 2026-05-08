@@ -176,7 +176,7 @@ function getPanelSignature(panel: TracePanel) {
 }
 
 function clampCanvasZoom(value: number) {
-  return clamp(value, 0.7, 1.6);
+  return clamp(value, 0.3, 1.6);
 }
 
 function ArrayValueCell({ cell }: { cell: Extract<TraceArrayCell, { kind: "value" }> }) {
@@ -761,7 +761,7 @@ export function ResultsPane({
     const viewport = canvasViewportRef.current;
     const panelElement = panelElementRefs.current[panelId];
     if (!viewport || !panelElement) {
-      return;
+      return false;
     }
 
     const viewportRect = viewport.getBoundingClientRect();
@@ -781,6 +781,8 @@ export function ResultsPane({
       top: Math.max(0, nextScrollTop),
       behavior: "smooth",
     });
+
+    return true;
   }
 
   useEffect(() => {
@@ -852,14 +854,16 @@ export function ResultsPane({
     }
 
     const frameId = window.requestAnimationFrame(() => {
-      scrollPanelIntoView(scrollTargetPanelId);
-      setScrollTargetPanelId((current) => (current === scrollTargetPanelId ? null : current));
+      const didScroll = scrollPanelIntoView(scrollTargetPanelId);
+      if (didScroll) {
+        setScrollTargetPanelId((current) => (current === scrollTargetPanelId ? null : current));
+      }
     });
 
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [canvasZoom, scrollTargetPanelId, frame.panels, positions]);
+  }, [canvasZoom, scrollTargetPanelId, frame.panels, positions, panelVisibilityModes]);
 
   useEffect(() => {
     setPositions((current) => {
