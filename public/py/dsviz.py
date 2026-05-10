@@ -118,14 +118,8 @@ class _TraceState:
         scale: float,
         padding: float = 3.0,
     ) -> _PanelLayout:
-        candidates = [
-            (preferred_x, preferred_y),
-            (preferred_x, preferred_y + 20.0),
-            (preferred_x, preferred_y + 40.0),
-            (preferred_x, preferred_y + 60.0),
-            (preferred_x + 8.0, preferred_y + 20.0),
-            (preferred_x + 8.0, preferred_y + 40.0),
-        ]
+        base_x = 4.0
+        base_y = 6.0
 
         def overlaps(x: float, y: float) -> bool:
             left = x - padding
@@ -141,13 +135,18 @@ class _TraceState:
                 return True
             return False
 
-        for x, y in candidates:
-            if not overlaps(x, y):
-                return _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
+        for x_offset in range(0, 88, 18):
+            for y_offset in range(0, 88, 18):
+                x = base_x + x_offset
+                y = base_y + y_offset
+                if x + width > 98 or y + height > 96:
+                    continue
+                if not overlaps(x, y):
+                    return _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
 
         return _PanelLayout(
-            x=preferred_x,
-            y=preferred_y + (len(self._objects) * 18.0),
+            x=base_x,
+            y=base_y + (len(self._objects) * 18.0),
             width=width,
             height=height,
             scale=scale,
@@ -834,8 +833,8 @@ class VisBST(_VisObject):
         name: str = "bst",
         *,
         panel_id: Optional[str] = None,
-        x: float = 18,
-        y: float = 36,
+        x: float = 4,
+        y: float = 6,
         width: float = 28,
         height: float = 26,
         scale: float = 1.0,
@@ -1032,8 +1031,8 @@ class _TreePanel(_VisObject):
         title: str = "root",
         *,
         panel_id: str = "tree",
-        x: float = 18,
-        y: float = 36,
+        x: float = 4,
+        y: float = 6,
         width: float = 28,
         height: float = 26,
         scale: float = 1.0,
@@ -1081,14 +1080,6 @@ class _TreePanel(_VisObject):
     ) -> _PanelLayout:
         base_x = self.layout.x
         base_y = self.layout.y
-        candidates = [
-            (base_x, base_y),
-            (base_x, base_y + 24.0),
-            (base_x, base_y + 48.0),
-            (base_x + 28.0, base_y),
-            (base_x + 28.0, base_y + 24.0),
-            (base_x + 28.0, base_y + 48.0),
-        ]
 
         other_layouts = [obj.layout for obj in _TRACE._objects if obj is not self]
 
@@ -1103,12 +1094,17 @@ class _TreePanel(_VisObject):
                 return False
             return True
 
-        for x, y in candidates:
-            if any(overlaps(layout, x, y) for layout in occupied_layouts):
-                continue
-            if any(overlaps(layout, x, y) for layout in other_layouts):
-                continue
-            return _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
+        for x_offset in range(0, 88, 18):
+            for y_offset in range(0, 88, 18):
+                x = base_x + x_offset
+                y = base_y + y_offset
+                if x + width > 98 or y + height > 96:
+                    continue
+                if any(overlaps(layout, x, y) for layout in occupied_layouts):
+                    continue
+                if any(overlaps(layout, x, y) for layout in other_layouts):
+                    continue
+                return _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
 
         return _PanelLayout(
             x=base_x,
@@ -1397,8 +1393,8 @@ class _ListPanel(_VisObject):
         title: str = "head",
         *,
         panel_id: str = "list",
-        x: float = 14,
-        y: float = 56,
+        x: float = 4,
+        y: float = 6,
         width: float = 30,
         height: float = 20,
         scale: float = 1.0,
@@ -1446,14 +1442,6 @@ class _ListPanel(_VisObject):
     ) -> _PanelLayout:
         base_x = self.layout.x
         base_y = self.layout.y
-        candidates = [
-            (base_x, base_y),
-            (base_x, base_y + 24.0),
-            (base_x, base_y + 48.0),
-            (base_x + 28.0, base_y),
-            (base_x + 28.0, base_y + 24.0),
-            (base_x + 28.0, base_y + 48.0),
-        ]
 
         other_layouts = [obj.layout for obj in _TRACE._objects if obj is not self]
 
@@ -1468,12 +1456,17 @@ class _ListPanel(_VisObject):
                 return False
             return True
 
-        for x, y in candidates:
-            if any(overlaps(layout, x, y) for layout in occupied_layouts):
-                continue
-            if any(overlaps(layout, x, y) for layout in other_layouts):
-                continue
-            return _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
+        for x_offset in range(0, 88, 18):
+            for y_offset in range(0, 88, 18):
+                x = base_x + x_offset
+                y = base_y + y_offset
+                if x + width > 98 or y + height > 96:
+                    continue
+                if any(overlaps(layout, x, y) for layout in occupied_layouts):
+                    continue
+                if any(overlaps(layout, x, y) for layout in other_layouts):
+                    continue
+                return _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
 
         return _PanelLayout(
             x=base_x,

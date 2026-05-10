@@ -33,7 +33,6 @@ type PanelVisibilityMode = "open" | "minimized" | "closed";
 type InteractionState = {
   mode: "drag" | "resize";
   panelId: string;
-  panelKind: TracePanel["kind"];
   startClientX: number;
   startClientY: number;
   panelStart: PanelPosition;
@@ -41,6 +40,12 @@ type InteractionState = {
   minHeight: number;
   maxWidth: number;
   maxHeight: number;
+  resizeFrom?: {
+    left: boolean;
+    right: boolean;
+    top: boolean;
+    bottom: boolean;
+  };
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -78,8 +83,8 @@ function setPanelScale(
 
 function getEffectiveMinSize(panel: TracePanel) {
   return {
-    width: panel.minWidth ?? panel.width,
-    height: panel.minHeight ?? panel.height,
+    width: 2,
+    height: 2,
   };
 }
 
@@ -177,6 +182,23 @@ function getPanelSignature(panel: TracePanel) {
 
 function clampCanvasZoom(value: number) {
   return clamp(value, 0.3, 1.6);
+}
+
+function getResizeCursor(resizeFrom: NonNullable<InteractionState["resizeFrom"]>) {
+  const { left, right, top, bottom } = resizeFrom;
+  if ((left && top) || (right && bottom)) {
+    return "nwse-resize";
+  }
+  if ((right && top) || (left && bottom)) {
+    return "nesw-resize";
+  }
+  if (left || right) {
+    return "ew-resize";
+  }
+  if (top || bottom) {
+    return "ns-resize";
+  }
+  return "default";
 }
 
 function ArrayValueCell({ cell }: { cell: Extract<TraceArrayCell, { kind: "value" }> }) {
@@ -444,7 +466,17 @@ function VisualizationPanel({
     const previousUserSelect = document.body.style.userSelect;
     const previousCursor = document.body.style.cursor;
     document.body.style.userSelect = "none";
-    document.body.style.cursor = activeInteraction.mode === "drag" ? "grabbing" : "se-resize";
+    document.body.style.cursor =
+      activeInteraction.mode === "drag"
+        ? "grabbing"
+        : getResizeCursor(
+            activeInteraction.resizeFrom ?? {
+              left: false,
+              right: true,
+              top: false,
+              bottom: true,
+            },
+          );
 
     function onPointerMove(event: PointerEvent) {
       const host = document.querySelector<HTMLElement>('[data-canvas-root="true"]');
@@ -470,41 +502,76 @@ function VisualizationPanel({
           return next;
         }
 
-        const startWidth = activeInteraction.panelStart.width;
-        const startHeight = activeInteraction.panelStart.height;
-        const nextWidth = clamp(
-          startWidth + dxPct,
-          activeInteraction.minWidth,
-          Math.max(
+        const resizeFrom = activeInteraction.resizeFrom ?? {
+          left: false,
+          right: true,
+          top: false,
+          bottom: true,
+        };
+        const rightEdge = activeInteraction.panelStart.x + activeInteraction.panelStart.width;
+        const bottomEdge = activeInteraction.panelStart.y + activeInteraction.panelStart.height;
+        const maxRight = Math.min(
+          activeInteraction.maxWidth + activeInteraction.panelStart.x,
+          98,
+        );
+        const maxBottom = Math.min(
+          activeInteraction.maxHeight + activeInteraction.panelStart.y,
+          96,
+        );
+
+        let nextX = activeInteraction.panelStart.x;
+        let nextY = activeInteraction.panelStart.y;
+        let nextWidth = activeInteraction.panelStart.width;
+        let nextHeight = activeInteraction.panelStart.height;
+
+        if (resizeFrom.right) {
+          nextWidth = clamp(
+            activeInteraction.panelStart.width + dxPct,
             activeInteraction.minWidth,
-            Math.min(activeInteraction.maxWidth, 96 - activeInteraction.panelStart.x),
-          ),
-        );
-        const maxHeight = Math.max(
-          activeInteraction.minHeight,
-          Math.min(activeInteraction.maxHeight, 96 - activeInteraction.panelStart.y),
-        );
-
-        if (activeInteraction.panelKind === "array") {
-          const nextHeight = clamp(
-            startHeight + dyPct,
-            activeInteraction.minHeight,
-            maxHeight,
+            Math.max(activeInteraction.minWidth, maxRight - activeInteraction.panelStart.x),
           );
-
-          next[panelKey(activeInteraction.panelId)] = {
-            ...activeInteraction.panelStart,
-            width: nextWidth,
-            height: nextHeight,
-          };
-          return next;
         }
 
-        const ratio = startWidth > 0 ? nextWidth / startWidth : 1;
-        const nextHeight = clamp(startHeight * ratio, activeInteraction.minHeight, maxHeight);
+        if (resizeFrom.bottom) {
+          nextHeight = clamp(
+            activeInteraction.panelStart.height + dyPct,
+            activeInteraction.minHeight,
+            Math.max(activeInteraction.minHeight, maxBottom - activeInteraction.panelStart.y),
+          );
+        }
+
+        if (resizeFrom.left) {
+          const rawNextX = clamp(
+            activeInteraction.panelStart.x + dxPct,
+            2,
+            rightEdge - activeInteraction.minWidth,
+          );
+          nextWidth = clamp(
+            rightEdge - rawNextX,
+            activeInteraction.minWidth,
+            activeInteraction.maxWidth,
+          );
+          nextX = rightEdge - nextWidth;
+        }
+
+        if (resizeFrom.top) {
+          const rawNextY = clamp(
+            activeInteraction.panelStart.y + dyPct,
+            4,
+            bottomEdge - activeInteraction.minHeight,
+          );
+          nextHeight = clamp(
+            bottomEdge - rawNextY,
+            activeInteraction.minHeight,
+            activeInteraction.maxHeight,
+          );
+          nextY = bottomEdge - nextHeight;
+        }
 
         next[panelKey(activeInteraction.panelId)] = {
           ...activeInteraction.panelStart,
+          x: nextX,
+          y: nextY,
           width: nextWidth,
           height: nextHeight,
         };
@@ -530,6 +597,7 @@ function VisualizationPanel({
   function startInteraction(
     event: ReactPointerEvent<HTMLElement>,
     mode: InteractionState["mode"],
+    resizeFrom?: NonNullable<InteractionState["resizeFrom"]>,
   ) {
     if (event.button !== 0) return;
 
@@ -542,7 +610,6 @@ function VisualizationPanel({
     setInteraction({
       mode,
       panelId: panel.id,
-      panelKind: panel.kind,
       startClientX: event.clientX,
       startClientY: event.clientY,
       panelStart: currentPanelPosition,
@@ -550,8 +617,52 @@ function VisualizationPanel({
       minHeight: minSize.height,
       maxWidth: maxSize.width,
       maxHeight: maxSize.height,
+      resizeFrom,
     });
   }
+
+  const resizeHandles = [
+    {
+      key: "top",
+      className: "absolute left-2 right-2 top-0 z-20 h-2 cursor-ns-resize",
+      resizeFrom: { left: false, right: false, top: true, bottom: false },
+    },
+    {
+      key: "bottom",
+      className: "absolute bottom-0 left-2 right-2 z-20 h-2 cursor-ns-resize",
+      resizeFrom: { left: false, right: false, top: false, bottom: true },
+    },
+    {
+      key: "left",
+      className: "absolute bottom-2 left-0 top-2 z-20 w-2 cursor-ew-resize",
+      resizeFrom: { left: true, right: false, top: false, bottom: false },
+    },
+    {
+      key: "right",
+      className: "absolute bottom-2 right-0 top-2 z-20 w-2 cursor-ew-resize",
+      resizeFrom: { left: false, right: true, top: false, bottom: false },
+    },
+    {
+      key: "top-left",
+      className: "absolute left-0 top-0 z-30 h-3 w-3 cursor-nwse-resize",
+      resizeFrom: { left: true, right: false, top: true, bottom: false },
+    },
+    {
+      key: "top-right",
+      className: "absolute right-0 top-0 z-30 h-3 w-3 cursor-nesw-resize",
+      resizeFrom: { left: false, right: true, top: true, bottom: false },
+    },
+    {
+      key: "bottom-left",
+      className: "absolute bottom-0 left-0 z-30 h-3 w-3 cursor-nesw-resize",
+      resizeFrom: { left: true, right: false, top: false, bottom: true },
+    },
+    {
+      key: "bottom-right",
+      className: "absolute bottom-0 right-0 z-30 h-3 w-3 cursor-nwse-resize",
+      resizeFrom: { left: false, right: true, top: false, bottom: true },
+    },
+  ] as const;
 
   return (
     <article
@@ -669,12 +780,13 @@ function VisualizationPanel({
             setPositions={setPositions}
           />
         )}
-        <button
-          type="button"
-          onPointerDown={(event) => startInteraction(event, "resize")}
-          className="absolute bottom-1.5 right-1.5 z-10 h-3.5 w-3.5 cursor-se-resize rounded-sm border border-[#d1d5db] bg-white"
-          aria-label={`Resize ${panel.title}`}
-        />
+        {resizeHandles.map((handle) => (
+          <div
+            key={handle.key}
+            onPointerDown={(event) => startInteraction(event, "resize", handle.resizeFrom)}
+            className={handle.className}
+          />
+        ))}
       </div>
     </article>
   );
