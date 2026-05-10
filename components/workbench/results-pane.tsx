@@ -184,6 +184,25 @@ function clampCanvasZoom(value: number) {
   return clamp(value, 0.3, 1.6);
 }
 
+function panelHasActiveFocus(panel: TracePanel) {
+  if (panel.kind === "array") {
+    const hasActiveCell = (cell: TraceArrayCell): boolean => {
+      if (cell.kind === "value") {
+        return cell.tone === "active" || !!cell.containsActive;
+      }
+      return (
+        cell.tone === "active" ||
+        !!cell.containsActive ||
+        cell.cells.some((child) => hasActiveCell(child))
+      );
+    };
+
+    return panel.cells.some((cell) => hasActiveCell(cell));
+  }
+
+  return panel.items.some((item) => item.tone === "active");
+}
+
 function getResizeCursor(resizeFrom: NonNullable<InteractionState["resizeFrom"]>) {
   const { left, right, top, bottom } = resizeFrom;
   if ((left && top) || (right && bottom)) {
@@ -918,6 +937,7 @@ export function ResultsPane({
 
   useEffect(() => {
     const changedPanelIds: string[] = [];
+    const activeChangedPanelIds: string[] = [];
 
     setPanelVisibilityModes((current) => {
       const next = { ...current };
@@ -931,11 +951,18 @@ export function ResultsPane({
         if (!mode) {
           next[panel.id] = "open";
           changed = true;
+          changedPanelIds.push(panel.id);
+          if (panelHasActiveFocus(panel)) {
+            activeChangedPanelIds.push(panel.id);
+          }
         } else if (
           previousSignature !== undefined &&
           previousSignature !== signature
         ) {
           changedPanelIds.push(panel.id);
+          if (panelHasActiveFocus(panel)) {
+            activeChangedPanelIds.push(panel.id);
+          }
           if (mode !== "open") {
             next[panel.id] = "open";
             changed = true;
@@ -949,14 +976,15 @@ export function ResultsPane({
     });
 
     if (changedPanelIds.length) {
-      setPanelOrder((current) => {
-        let next = current;
-        for (const panelId of changedPanelIds) {
-          next = bringPanelToFront(next, panelId);
-        }
-        return next;
-      });
-      setScrollTargetPanelId(changedPanelIds[changedPanelIds.length - 1] ?? null);
+      const focusTargetPanelId =
+        activeChangedPanelIds[activeChangedPanelIds.length - 1] ??
+        changedPanelIds[changedPanelIds.length - 1] ??
+        null;
+
+      if (focusTargetPanelId) {
+        setPanelOrder((current) => bringPanelToFront(current, focusTargetPanelId));
+        setScrollTargetPanelId(focusTargetPanelId);
+      }
     }
   }, [frame.panels]);
 
