@@ -91,6 +91,7 @@ Current behavior:
 - `delVis(VisArray)` removes the array panel
 - `delVis(VisTreeNode)` removes that node from visualization
 - `delVis(VisListNode)` removes that node from visualization
+- rewiring a node out of a tree or list does not automatically hide it; use `delVis(...)` when the detached object should disappear from the canvas
 
 ## Current Interaction Model
 
@@ -168,14 +169,11 @@ If you are continuing development, start with `V2-summary.md` first.
 ## Planned Follow-Up
 
 The current prototype is already usable, but several follow-up areas remain:
-- make the main visualization canvas scrollable when many panels extend beyond the initial viewport
-- allow clicking a panel to bring it to the front so overlapping panels remain usable
-- add canvas-level panel tabs plus per-panel minimize / close controls with auto-restore when hidden structures change again
-- improve `delVis(...)` behavior in example flows such as `Delete Duplicates`
-- refine example comments and `delVis(...)` teaching patterns
+- decide whether detached but still in-memory nodes should always remain visible until `delVis(...)`, or whether some future automatic hiding rule is worth adding
 - keep tuning compact layout defaults for large or unusual traces
 - extend the same interaction model to future structures
 - consider editor-assisted help for inserting `watch(...)`
+- consider whether the fixed 1000-frame cap and 30-second timeout should become configurable
 
 ## Non-Goals For Now
 

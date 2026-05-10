@@ -57,8 +57,8 @@ export function Workbench() {
     },
     {
       label: "Delete Duplicates",
-      description: "remove adjacent duplicates from a sorted linked list in place",
-      path: "/examples/reverse-linked-list-example.py",
+      description: "rewire a sorted linked list and delVis(...) each detached duplicate node",
+      path: "/examples/delete-duplicates-example.py",
     },
     {
       label: "Multi Panel",
