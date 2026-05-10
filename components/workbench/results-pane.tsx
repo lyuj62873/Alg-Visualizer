@@ -30,6 +30,11 @@ type PanelPosition = {
 
 type PanelVisibilityMode = "open" | "minimized" | "closed";
 
+type PanelFocusRequest = {
+  panelId: string;
+  token: number;
+};
+
 type InteractionState = {
   mode: "drag" | "resize";
   panelId: string;
@@ -834,10 +839,11 @@ export function ResultsPane({
     Record<string, PanelVisibilityMode>
   >({});
   const [canvasZoom, setCanvasZoom] = useState(1);
-  const [scrollTargetPanelId, setScrollTargetPanelId] = useState<string | null>(null);
+  const [focusRequest, setFocusRequest] = useState<PanelFocusRequest | null>(null);
   const canvasViewportRef = useRef<HTMLDivElement | null>(null);
   const panelSignatureRef = useRef<Record<string, string>>({});
   const panelElementRefs = useRef<Record<string, HTMLElement | null>>({});
+  const focusRequestCounterRef = useRef(0);
 
   function requestFitView(panelId: string) {
     setFitRequests((current) => ({
@@ -852,7 +858,11 @@ export function ResultsPane({
 
   function focusAndTrackPanel(panelId: string) {
     focusPanel(panelId);
-    setScrollTargetPanelId(panelId);
+    focusRequestCounterRef.current += 1;
+    setFocusRequest({
+      panelId,
+      token: focusRequestCounterRef.current,
+    });
   }
 
   function toggleTracking(panelId: string) {
@@ -889,28 +899,14 @@ export function ResultsPane({
   }
 
   function scrollPanelIntoView(panelId: string) {
-    const viewport = canvasViewportRef.current;
     const panelElement = panelElementRefs.current[panelId];
-    if (!viewport || !panelElement) {
+    if (!panelElement) {
       return false;
     }
-
-    const viewportRect = viewport.getBoundingClientRect();
-    const panelRect = panelElement.getBoundingClientRect();
-
-    const nextScrollLeft =
-      viewport.scrollLeft +
-      (panelRect.left - viewportRect.left) -
-      Math.max(0, (viewport.clientWidth - panelRect.width) / 2);
-    const nextScrollTop =
-      viewport.scrollTop +
-      (panelRect.top - viewportRect.top) -
-      Math.max(0, (viewport.clientHeight - panelRect.height) / 2);
-
-    viewport.scrollTo({
-      left: Math.max(0, nextScrollLeft),
-      top: Math.max(0, nextScrollTop),
+    panelElement.scrollIntoView({
       behavior: "smooth",
+      block: "center",
+      inline: "center",
     });
 
     return true;
@@ -982,28 +978,29 @@ export function ResultsPane({
         null;
 
       if (focusTargetPanelId) {
-        setPanelOrder((current) => bringPanelToFront(current, focusTargetPanelId));
-        setScrollTargetPanelId(focusTargetPanelId);
+        focusAndTrackPanel(focusTargetPanelId);
       }
     }
   }, [frame.panels]);
 
   useEffect(() => {
-    if (!scrollTargetPanelId) {
+    if (!focusRequest) {
       return;
     }
 
     const frameId = window.requestAnimationFrame(() => {
-      const didScroll = scrollPanelIntoView(scrollTargetPanelId);
+      const didScroll = scrollPanelIntoView(focusRequest.panelId);
       if (didScroll) {
-        setScrollTargetPanelId((current) => (current === scrollTargetPanelId ? null : current));
+        setFocusRequest((current) =>
+          current?.token === focusRequest.token ? null : current,
+        );
       }
     });
 
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [canvasZoom, scrollTargetPanelId, frame.panels, positions, panelVisibilityModes]);
+  }, [canvasZoom, focusRequest, frame.panels, positions, panelVisibilityModes]);
 
   useEffect(() => {
     setPositions((current) => {
