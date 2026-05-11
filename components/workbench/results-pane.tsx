@@ -1155,7 +1155,7 @@ export function ResultsPane({
         >
           <div
             data-canvas-root="true"
-            className="relative min-h-[1100px] min-w-[1480px] w-full bg-[radial-gradient(circle_at_top_left,#ffffff,#f8fafc_45%,#eef2ff_100%)]"
+            className="relative min-h-[1560px] min-w-[1180px] w-full bg-[radial-gradient(circle_at_top_left,#ffffff,#f8fafc_45%,#eef2ff_100%)]"
             style={{ zoom: canvasZoom }}
           >
             {visiblePanels.map((panel, index) => (
