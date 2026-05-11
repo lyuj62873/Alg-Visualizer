@@ -934,71 +934,92 @@ export function ResultsPane({
   useEffect(() => {
     const changedPanelIds: string[] = [];
     const activeChangedPanelIds: string[] = [];
+    const newOrRestoredPanelIds: string[] = [];
+    const nextVisibilityModes = { ...panelVisibilityModes };
+    let visibilityChanged = false;
 
-    setPanelVisibilityModes((current) => {
-      const next = { ...current };
-      let changed = false;
+    for (const panel of frame.panels) {
+      const signature = getPanelSignature(panel);
+      const previousSignature = panelSignatureRef.current[panel.id];
+      const mode = nextVisibilityModes[panel.id];
 
-      for (const panel of frame.panels) {
-        const signature = getPanelSignature(panel);
-        const previousSignature = panelSignatureRef.current[panel.id];
-        const mode = next[panel.id];
-
-        if (!mode) {
-          next[panel.id] = "open";
-          changed = true;
-          changedPanelIds.push(panel.id);
-          if (panelHasActiveFocus(panel)) {
-            activeChangedPanelIds.push(panel.id);
-          }
-        } else if (
-          previousSignature !== undefined &&
-          previousSignature !== signature
-        ) {
-          changedPanelIds.push(panel.id);
-          if (panelHasActiveFocus(panel)) {
-            activeChangedPanelIds.push(panel.id);
-          }
-          if (mode !== "open") {
-            next[panel.id] = "open";
-            changed = true;
-          }
+      if (!mode) {
+        nextVisibilityModes[panel.id] = "open";
+        visibilityChanged = true;
+        changedPanelIds.push(panel.id);
+        newOrRestoredPanelIds.push(panel.id);
+        if (panelHasActiveFocus(panel)) {
+          activeChangedPanelIds.push(panel.id);
         }
-
-        panelSignatureRef.current[panel.id] = signature;
+      } else if (previousSignature !== undefined && previousSignature !== signature) {
+        changedPanelIds.push(panel.id);
+        if (panelHasActiveFocus(panel)) {
+          activeChangedPanelIds.push(panel.id);
+        }
+        if (mode !== "open") {
+          nextVisibilityModes[panel.id] = "open";
+          visibilityChanged = true;
+          newOrRestoredPanelIds.push(panel.id);
+        }
       }
 
-      return changed ? next : current;
-    });
+      panelSignatureRef.current[panel.id] = signature;
+    }
+
+    if (visibilityChanged) {
+      setPanelVisibilityModes(nextVisibilityModes);
+    }
 
     if (changedPanelIds.length) {
       const focusTargetPanelId =
+        newOrRestoredPanelIds[newOrRestoredPanelIds.length - 1] ??
         activeChangedPanelIds[activeChangedPanelIds.length - 1] ??
         changedPanelIds[changedPanelIds.length - 1] ??
         null;
 
       if (focusTargetPanelId) {
-        focusAndTrackPanel(focusTargetPanelId);
+        setPanelOrder((current) => bringPanelToFront(current, focusTargetPanelId));
+        focusRequestCounterRef.current += 1;
+        setFocusRequest({
+          panelId: focusTargetPanelId,
+          token: focusRequestCounterRef.current,
+        });
       }
     }
-  }, [frame.panels]);
+  }, [frame.panels, panelVisibilityModes]);
 
   useEffect(() => {
     if (!focusRequest) {
       return;
     }
 
-    const frameId = window.requestAnimationFrame(() => {
-      const didScroll = scrollPanelIntoView(focusRequest.panelId);
-      if (didScroll) {
-        setFocusRequest((current) =>
-          current?.token === focusRequest.token ? null : current,
-        );
+    let timeoutId = 0;
+    let attemptCount = 0;
+    let cancelled = false;
+
+    const tryScroll = () => {
+      if (cancelled) {
+        return;
       }
-    });
+
+      scrollPanelIntoView(focusRequest.panelId);
+      attemptCount += 1;
+
+      if (attemptCount < 8) {
+        timeoutId = window.setTimeout(tryScroll, 90);
+        return;
+      }
+
+      setFocusRequest((current) =>
+        current?.token === focusRequest.token ? null : current,
+      );
+    };
+
+    timeoutId = window.setTimeout(tryScroll, 0);
 
     return () => {
-      window.cancelAnimationFrame(frameId);
+      cancelled = true;
+      window.clearTimeout(timeoutId);
     };
   }, [canvasZoom, focusRequest, frame.panels, positions, panelVisibilityModes]);
 
