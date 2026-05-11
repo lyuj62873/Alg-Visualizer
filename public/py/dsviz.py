@@ -33,6 +33,14 @@ class _PanelLayout:
     scale: float
 
 
+@dataclass
+class _DynamicPanelState:
+    panel_id: str
+    title: str
+    layout: _PanelLayout
+    node_ids: set
+
+
 class _TraceState:
     def __init__(self) -> None:
         self._variables: "OrderedDict[str, str]" = OrderedDict()
@@ -74,7 +82,13 @@ class _TraceState:
                 f"Visualization frame limit exceeded ({MAX_TRACE_FRAMES}). "
                 "Please reduce unnecessary visualization or use a smaller debug case."
             )
-        panels = [obj._render_panel() for obj in self._objects]
+        panels: List[Dict[str, Any]] = []
+        for obj in self._objects:
+            rendered = obj._render_panel()
+            if isinstance(rendered, list):
+                panels.extend(rendered)
+            else:
+                panels.append(rendered)
         variables = [{"name": k, "value": v} for k, v in self._variables.items()]
         frame = {
             "index": self._frame_counter,
@@ -104,14 +118,8 @@ class _TraceState:
         scale: float,
         padding: float = 3.0,
     ) -> _PanelLayout:
-        candidates = [
-            (preferred_x, preferred_y),
-            (preferred_x, preferred_y + 20.0),
-            (preferred_x, preferred_y + 40.0),
-            (preferred_x, preferred_y + 60.0),
-            (preferred_x + 8.0, preferred_y + 20.0),
-            (preferred_x + 8.0, preferred_y + 40.0),
-        ]
+        base_x = 4.0
+        base_y = 6.0
 
         def overlaps(x: float, y: float) -> bool:
             left = x - padding
@@ -127,13 +135,18 @@ class _TraceState:
                 return True
             return False
 
-        for x, y in candidates:
-            if not overlaps(x, y):
-                return _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
+        for x_offset in range(0, 88, 18):
+            for y_offset in range(0, 88, 18):
+                x = base_x + x_offset
+                y = base_y + y_offset
+                if x + width > 98 or y + height > 96:
+                    continue
+                if not overlaps(x, y):
+                    return _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
 
         return _PanelLayout(
-            x=preferred_x,
-            y=preferred_y + (len(self._objects) * 18.0),
+            x=base_x,
+            y=base_y + (len(self._objects) * 18.0),
             width=width,
             height=height,
             scale=scale,
@@ -325,7 +338,7 @@ class _VisObject:
         self._is_visualized = False
         return _TRACE.unregister_object(self)
 
-    def _render_panel(self) -> Dict[str, Any]:
+    def _render_panel(self) -> Any:
         raise NotImplementedError
 
 
@@ -820,10 +833,10 @@ class VisBST(_VisObject):
         name: str = "bst",
         *,
         panel_id: Optional[str] = None,
-        x: float = 18,
-        y: float = 36,
-        width: float = 52,
-        height: float = 50,
+        x: float = 4,
+        y: float = 6,
+        width: float = 28,
+        height: float = 26,
         scale: float = 1.0,
     ) -> None:
         super().__init__(
@@ -947,8 +960,19 @@ class VisTreeNode:
 
     def __init__(self, val: Any, left: Optional["VisTreeNode"] = None, right: Optional["VisTreeNode"] = None) -> None:
         VisTreeNode._node_counter += 1
+        frame = inspect.currentframe()
+        try:
+            caller = frame.f_back if frame is not None else None
+            display_name = (
+                _infer_constructor_target_name(caller, "VisTreeNode")
+                if caller is not None
+                else None
+            )
+        finally:
+            del frame
         object.__setattr__(self, "_id", f"tn_{VisTreeNode._node_counter}")
         object.__setattr__(self, "_is_visualized", True)
+        object.__setattr__(self, "_display_name", display_name)
         object.__setattr__(self, "val", val)
         object.__setattr__(self, "left", left)
         object.__setattr__(self, "right", right)
@@ -971,8 +995,19 @@ class VisListNode:
 
     def __init__(self, val: Any, right: Optional["VisListNode"] = None) -> None:
         VisListNode._node_counter += 1
+        frame = inspect.currentframe()
+        try:
+            caller = frame.f_back if frame is not None else None
+            display_name = (
+                _infer_constructor_target_name(caller, "VisListNode")
+                if caller is not None
+                else None
+            )
+        finally:
+            del frame
         object.__setattr__(self, "_id", f"ln_{VisListNode._node_counter}")
         object.__setattr__(self, "_is_visualized", True)
+        object.__setattr__(self, "_display_name", display_name)
         object.__setattr__(self, "val", val)
         object.__setattr__(self, "right", right)
         _ensure_list_panel()._register(self)
@@ -996,10 +1031,10 @@ class _TreePanel(_VisObject):
         title: str = "root",
         *,
         panel_id: str = "tree",
-        x: float = 18,
-        y: float = 36,
-        width: float = 52,
-        height: float = 50,
+        x: float = 4,
+        y: float = 6,
+        width: float = 28,
+        height: float = 26,
         scale: float = 1.0,
     ) -> None:
         super().__init__(
@@ -1009,6 +1044,8 @@ class _TreePanel(_VisObject):
             layout=_PanelLayout(x=x, y=y, width=width, height=height, scale=scale),
         )
         self._nodes: Dict[str, VisTreeNode] = {}
+        self._component_states: List[_DynamicPanelState] = []
+        self._panel_counter = 0
 
     def _register(self, node: VisTreeNode) -> None:
         self._nodes[node._id] = node
@@ -1021,25 +1058,126 @@ class _TreePanel(_VisObject):
             _TREE_PANEL = None
         return removed
 
-    def _render_panel(self) -> Dict[str, Any]:
+    def _next_panel_id(self) -> str:
+        self._panel_counter += 1
+        return f"tree_panel_{self._panel_counter}"
+
+    def _derive_component_title(self, nodes: List[VisTreeNode], fallback_prefix: str) -> str:
+        for node in nodes:
+            display_name = getattr(node, "_display_name", None)
+            if display_name:
+                return display_name
+        self._panel_counter += 1
+        return f"{fallback_prefix} {self._panel_counter}"
+
+    def _suggest_component_layout(
+        self,
+        *,
+        width: float,
+        height: float,
+        scale: float,
+        occupied_layouts: List[_PanelLayout],
+    ) -> _PanelLayout:
+        base_x = self.layout.x
+        base_y = self.layout.y
+
+        other_layouts = [obj.layout for obj in _TRACE._objects if obj is not self]
+
+        def overlaps(layout: _PanelLayout, x: float, y: float) -> bool:
+            left = x
+            top = y
+            right = x + width
+            bottom = y + height
+            if right <= layout.x or left >= layout.x + layout.width:
+                return False
+            if bottom <= layout.y or top >= layout.y + layout.height:
+                return False
+            return True
+
+        for x_offset in range(0, 88, 18):
+            for y_offset in range(0, 88, 18):
+                x = base_x + x_offset
+                y = base_y + y_offset
+                if x + width > 98 or y + height > 96:
+                    continue
+                if any(overlaps(layout, x, y) for layout in occupied_layouts):
+                    continue
+                if any(overlaps(layout, x, y) for layout in other_layouts):
+                    continue
+                return _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
+
+        return _PanelLayout(
+            x=base_x,
+            y=base_y + (len(occupied_layouts) * 20.0),
+            width=width,
+            height=height,
+            scale=scale,
+        )
+
+    def _match_component_states(
+        self,
+        components: List[Dict[str, Any]],
+        *,
+        fallback_prefix: str,
+        default_width: float,
+        default_height: float,
+        scale: float,
+    ) -> List[_DynamicPanelState]:
+        previous_states = list(self._component_states)
+        matched_states: List[Optional[_DynamicPanelState]] = [None] * len(components)
+        taken_state_indexes = set()
+
+        overlap_pairs: List[Tuple[int, int, int]] = []
+        for component_index, component in enumerate(components):
+            component_node_ids = component["node_ids"]
+            for state_index, state in enumerate(previous_states):
+                overlap = len(component_node_ids & state.node_ids)
+                if overlap > 0:
+                    overlap_pairs.append((overlap, component_index, state_index))
+
+        overlap_pairs.sort(key=lambda item: (-item[0], item[1], item[2]))
+        for _, component_index, state_index in overlap_pairs:
+            if matched_states[component_index] is not None or state_index in taken_state_indexes:
+                continue
+            state = previous_states[state_index]
+            state.node_ids = set(components[component_index]["node_ids"])
+            matched_states[component_index] = state
+            taken_state_indexes.add(state_index)
+
+        occupied_layouts = [
+            state.layout
+            for state in matched_states
+            if state is not None
+        ]
+
+        for component_index, component in enumerate(components):
+            if matched_states[component_index] is not None:
+                continue
+            panel_id = self._next_panel_id()
+            layout = self._suggest_component_layout(
+                width=default_width,
+                height=default_height,
+                scale=scale,
+                occupied_layouts=occupied_layouts,
+            )
+            state = _DynamicPanelState(
+                panel_id=panel_id,
+                title=self._derive_component_title(component["nodes"], fallback_prefix),
+                layout=layout,
+                node_ids=set(component["node_ids"]),
+            )
+            matched_states[component_index] = state
+            occupied_layouts.append(layout)
+
+        self._component_states = [state for state in matched_states if state is not None]
+        return self._component_states
+
+    def _render_panel(self) -> List[Dict[str, Any]]:
         all_nodes = list(self._nodes.values())
         nodes_by_id: Dict[str, VisTreeNode] = {n._id: n for n in all_nodes}
         if not all_nodes:
-            return {
-                "id": self.id,
-                "kind": "bst",
-                "title": self.title,
-                "typeLabel": self.type_label,
-                "x": self.layout.x,
-                "y": self.layout.y,
-                "width": self.layout.width,
-                "height": self.layout.height,
-                "minWidth": 24.0,
-                "minHeight": 22.0,
-                "scale": self.layout.scale,
-                "items": [],
-                "edges": [],
-            }
+            self._component_states = []
+            return []
 
         # Determine roots (nodes not referenced as a child).
         child_ids = set()
@@ -1181,6 +1319,8 @@ class _TreePanel(_VisObject):
                 )
 
             return {
+                "nodes": nodes,
+                "node_ids": {node._id for node in nodes},
                 "items": local_items,
                 "edges": local_edges,
                 "width": component_width,
@@ -1200,74 +1340,48 @@ class _TreePanel(_VisObject):
                 component["rootOrder"],
             )
         )
+        panel_states = self._match_component_states(
+            components,
+            fallback_prefix="tree",
+            default_width=28.0,
+            default_height=26.0,
+            scale=self.layout.scale,
+        )
 
-        outer_padding_x = 24.0
-        outer_padding_y = 20.0
-        component_gap_x = 44.0
-        component_gap_y = 42.0
-        max_component_width = max((component["width"] for component in components), default=320.0)
-        target_row_width = max(420.0, min(860.0, max_component_width + 220.0))
-
-        items = []
-        edges = []
-        x_cursor = outer_padding_x
-        y_cursor = outer_padding_y
-        row_height = 0.0
-        max_level_nodes = 1
-        max_depth_overall = 0
-        used_width = 0.0
-        for component in components:
-            if x_cursor > outer_padding_x and x_cursor + component["width"] > target_row_width:
-                x_cursor = outer_padding_x
-                y_cursor += row_height + component_gap_y
-                row_height = 0.0
-
+        rendered_panels: List[Dict[str, Any]] = []
+        for component, state in zip(components, panel_states):
+            items = []
             for item in component["items"]:
                 items.append(
                     {
                         **item,
-                        "x": x_cursor + item["x"],
-                        "y": y_cursor + item["y"],
+                        "x": (item["x"] / component["width"]) * 100.0,
+                        "y": (item["y"] / component["height"]) * 100.0,
                     }
                 )
-            edges.extend(component["edges"])
-            used_width = max(used_width, x_cursor + component["width"] + outer_padding_x)
-            x_cursor += component["width"] + component_gap_x
-            row_height = max(row_height, component["height"])
-            max_level_nodes = max(max_level_nodes, component["maxLevelNodes"])
-            max_depth_overall = max(max_depth_overall, component["maxDepth"])
+            items.sort(key=lambda it: (it["y"], it["x"]))
 
-        layout_width = max(320.0, used_width if components else 320.0)
-        layout_height = max(
-            240.0,
-            y_cursor + row_height + outer_padding_y if components else 240.0,
-        )
-        min_width = min(72.0, max(20.0, 18.0 + (max_level_nodes * 4.5)))
-        min_height = min(82.0, max(20.0, 22.0 + (len(components) * 12.0) + (max_depth_overall * 4.0)))
+            rendered_panels.append(
+                {
+                    "id": state.panel_id,
+                    "kind": "bst",
+                    "title": state.title,
+                    "typeLabel": self.type_label,
+                    "x": state.layout.x,
+                    "y": state.layout.y,
+                    "width": state.layout.width,
+                    "height": state.layout.height,
+                    "minWidth": min(72.0, max(20.0, 18.0 + (component["maxLevelNodes"] * 4.5))),
+                    "minHeight": min(82.0, max(20.0, 22.0 + (component["maxDepth"] * 4.0))),
+                    "layoutWidth": component["width"],
+                    "layoutHeight": component["height"],
+                    "scale": state.layout.scale,
+                    "items": items,
+                    "edges": component["edges"],
+                }
+            )
 
-        for item in items:
-            item["x"] = (item["x"] / layout_width) * 100.0
-            item["y"] = (item["y"] / layout_height) * 100.0
-
-        items.sort(key=lambda it: (it["y"], it["x"]))
-
-        return {
-            "id": self.id,
-            "kind": "bst",
-            "title": self.title,
-            "typeLabel": self.type_label,
-            "x": self.layout.x,
-            "y": self.layout.y,
-            "width": self.layout.width,
-            "height": self.layout.height,
-            "minWidth": min_width,
-            "minHeight": min_height,
-            "layoutWidth": layout_width,
-            "layoutHeight": layout_height,
-            "scale": self.layout.scale,
-            "items": items,
-            "edges": edges,
-        }
+        return rendered_panels
 
 
 _TREE_PANEL: Optional[_TreePanel] = None
@@ -1279,10 +1393,10 @@ class _ListPanel(_VisObject):
         title: str = "head",
         *,
         panel_id: str = "list",
-        x: float = 14,
-        y: float = 56,
-        width: float = 54,
-        height: float = 22,
+        x: float = 4,
+        y: float = 6,
+        width: float = 30,
+        height: float = 20,
         scale: float = 1.0,
     ) -> None:
         super().__init__(
@@ -1292,6 +1406,8 @@ class _ListPanel(_VisObject):
             layout=_PanelLayout(x=x, y=y, width=width, height=height, scale=scale),
         )
         self._nodes: Dict[str, VisListNode] = {}
+        self._component_states: List[_DynamicPanelState] = []
+        self._panel_counter = 0
 
     def _register(self, node: VisListNode) -> None:
         self._nodes[node._id] = node
@@ -1304,25 +1420,126 @@ class _ListPanel(_VisObject):
             _LIST_PANEL = None
         return removed
 
-    def _render_panel(self) -> Dict[str, Any]:
+    def _next_panel_id(self) -> str:
+        self._panel_counter += 1
+        return f"list_panel_{self._panel_counter}"
+
+    def _derive_component_title(self, nodes: List[VisListNode], fallback_prefix: str) -> str:
+        for node in nodes:
+            display_name = getattr(node, "_display_name", None)
+            if display_name:
+                return display_name
+        self._panel_counter += 1
+        return f"{fallback_prefix} {self._panel_counter}"
+
+    def _suggest_component_layout(
+        self,
+        *,
+        width: float,
+        height: float,
+        scale: float,
+        occupied_layouts: List[_PanelLayout],
+    ) -> _PanelLayout:
+        base_x = self.layout.x
+        base_y = self.layout.y
+
+        other_layouts = [obj.layout for obj in _TRACE._objects if obj is not self]
+
+        def overlaps(layout: _PanelLayout, x: float, y: float) -> bool:
+            left = x
+            top = y
+            right = x + width
+            bottom = y + height
+            if right <= layout.x or left >= layout.x + layout.width:
+                return False
+            if bottom <= layout.y or top >= layout.y + layout.height:
+                return False
+            return True
+
+        for x_offset in range(0, 88, 18):
+            for y_offset in range(0, 88, 18):
+                x = base_x + x_offset
+                y = base_y + y_offset
+                if x + width > 98 or y + height > 96:
+                    continue
+                if any(overlaps(layout, x, y) for layout in occupied_layouts):
+                    continue
+                if any(overlaps(layout, x, y) for layout in other_layouts):
+                    continue
+                return _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
+
+        return _PanelLayout(
+            x=base_x,
+            y=base_y + (len(occupied_layouts) * 20.0),
+            width=width,
+            height=height,
+            scale=scale,
+        )
+
+    def _match_component_states(
+        self,
+        components: List[Dict[str, Any]],
+        *,
+        fallback_prefix: str,
+        default_width: float,
+        default_height: float,
+        scale: float,
+    ) -> List[_DynamicPanelState]:
+        previous_states = list(self._component_states)
+        matched_states: List[Optional[_DynamicPanelState]] = [None] * len(components)
+        taken_state_indexes = set()
+
+        overlap_pairs: List[Tuple[int, int, int]] = []
+        for component_index, component in enumerate(components):
+            component_node_ids = component["node_ids"]
+            for state_index, state in enumerate(previous_states):
+                overlap = len(component_node_ids & state.node_ids)
+                if overlap > 0:
+                    overlap_pairs.append((overlap, component_index, state_index))
+
+        overlap_pairs.sort(key=lambda item: (-item[0], item[1], item[2]))
+        for _, component_index, state_index in overlap_pairs:
+            if matched_states[component_index] is not None or state_index in taken_state_indexes:
+                continue
+            state = previous_states[state_index]
+            state.node_ids = set(components[component_index]["node_ids"])
+            matched_states[component_index] = state
+            taken_state_indexes.add(state_index)
+
+        occupied_layouts = [
+            state.layout
+            for state in matched_states
+            if state is not None
+        ]
+
+        for component_index, component in enumerate(components):
+            if matched_states[component_index] is not None:
+                continue
+            panel_id = self._next_panel_id()
+            layout = self._suggest_component_layout(
+                width=default_width,
+                height=default_height,
+                scale=scale,
+                occupied_layouts=occupied_layouts,
+            )
+            state = _DynamicPanelState(
+                panel_id=panel_id,
+                title=self._derive_component_title(component["nodes"], fallback_prefix),
+                layout=layout,
+                node_ids=set(component["node_ids"]),
+            )
+            matched_states[component_index] = state
+            occupied_layouts.append(layout)
+
+        self._component_states = [state for state in matched_states if state is not None]
+        return self._component_states
+
+    def _render_panel(self) -> List[Dict[str, Any]]:
         all_nodes = list(self._nodes.values())
         nodes_by_id: Dict[str, VisListNode] = {n._id: n for n in all_nodes}
         if not all_nodes:
-            return {
-                "id": self.id,
-                "kind": "list",
-                "title": self.title,
-                "typeLabel": self.type_label,
-                "x": self.layout.x,
-                "y": self.layout.y,
-                "width": self.layout.width,
-                "height": self.layout.height,
-                "minWidth": 28.0,
-                "minHeight": 18.0,
-                "scale": self.layout.scale,
-                "items": [],
-                "edges": [],
-            }
+            self._component_states = []
+            return []
 
         def node_order(n: VisListNode) -> int:
             try:
@@ -1368,17 +1585,12 @@ class _ListPanel(_VisObject):
                 ]
             )
 
-        items = []
-        edges = []
+        component_layouts = []
         left_padding = 28.0
         top_y = 38.0
         node_gap = 118.0
         row_gap = 82.0
-        component_gap_y = 56.0
         bottom_padding = 34.0
-        component_offset_y = 0.0
-        max_depth_seen = 0
-        max_component_rows = 1
 
         for component in components:
             component_ids = {node._id for node in component}
@@ -1456,16 +1668,12 @@ class _ListPanel(_VisObject):
                     placed_y_values.append(next_y)
 
             component_max_local_y = max(local_y_by_id.values(), default=0.0)
-            component_base_y = top_y + component_offset_y
-            max_component_rows = max(
-                max_component_rows,
-                max(1, int(round(component_max_local_y / row_gap)) + 1),
-            )
-            max_depth_seen = max(max_depth_seen, max_depth)
-
+            max_component_rows = max(1, int(round(component_max_local_y / row_gap)) + 1)
+            items = []
+            edges = []
             for node in component:
                 x = left_padding + (depth_by_id[node._id] * node_gap)
-                y = component_base_y + local_y_by_id[node._id]
+                y = top_y + local_y_by_id[node._id]
                 items.append(
                     {
                         "id": node._id,
@@ -1479,33 +1687,61 @@ class _ListPanel(_VisObject):
                 if isinstance(node.right, VisListNode) and node.right._id in component_ids:
                     edges.append({"from": node._id, "to": node.right._id})
 
-            component_offset_y += component_max_local_y + row_gap + component_gap_y
+            component_layouts.append(
+                {
+                    "nodes": component,
+                    "node_ids": component_ids,
+                    "items": items,
+                    "edges": edges,
+                    "layoutWidth": max(320.0, left_padding * 2 + 72.0 + max_depth * node_gap),
+                    "layoutHeight": max(120.0, top_y + component_max_local_y + bottom_padding),
+                    "minWidth": min(72.0, max(28.0, 20.0 + ((max_depth + 1) * 8.5))),
+                    "minHeight": min(72.0, max(20.0, 14.0 + max_component_rows * 9.0)),
+                    "containsActive": any(item["tone"] == "active" for item in items),
+                    "nodeCount": len(items),
+                    "rootOrder": min(node_order(node) for node in roots) if roots else node_order(component[0]),
+                }
+            )
 
-        layout_width = max(320.0, left_padding * 2 + 72.0 + max_depth_seen * node_gap)
-        layout_height = max(
-            120.0,
-            top_y + max(0.0, component_offset_y - component_gap_y) + bottom_padding,
+        component_layouts.sort(
+            key=lambda component: (
+                0 if component["containsActive"] else 1,
+                -component["nodeCount"],
+                component["rootOrder"],
+            )
         )
-        min_width = min(72.0, max(28.0, 20.0 + ((max_depth_seen + 1) * 8.5)))
-        min_height = min(72.0, max(20.0, 14.0 + max_component_rows * 9.0))
 
-        return {
-            "id": self.id,
-            "kind": "list",
-            "title": self.title,
-            "typeLabel": self.type_label,
-            "x": self.layout.x,
-            "y": self.layout.y,
-            "width": self.layout.width,
-            "height": self.layout.height,
-            "minWidth": min_width,
-            "minHeight": min_height,
-            "layoutWidth": layout_width,
-            "layoutHeight": layout_height,
-            "scale": self.layout.scale,
-            "items": items,
-            "edges": edges,
-        }
+        panel_states = self._match_component_states(
+            component_layouts,
+            fallback_prefix="list",
+            default_width=30.0,
+            default_height=20.0,
+            scale=self.layout.scale,
+        )
+
+        rendered_panels: List[Dict[str, Any]] = []
+        for component, state in zip(component_layouts, panel_states):
+            rendered_panels.append(
+                {
+                    "id": state.panel_id,
+                    "kind": "list",
+                    "title": state.title,
+                    "typeLabel": self.type_label,
+                    "x": state.layout.x,
+                    "y": state.layout.y,
+                    "width": state.layout.width,
+                    "height": state.layout.height,
+                    "minWidth": component["minWidth"],
+                    "minHeight": component["minHeight"],
+                    "layoutWidth": component["layoutWidth"],
+                    "layoutHeight": component["layoutHeight"],
+                    "scale": state.layout.scale,
+                    "items": component["items"],
+                    "edges": component["edges"],
+                }
+            )
+
+        return rendered_panels
 
 
 def _ensure_tree_panel() -> _TreePanel:

@@ -136,6 +136,7 @@ Current `delVis` semantics:
 - deleting a `VisTreeNode` / `VisListNode` removes that node from visualization
 - if that node was the final node in its panel, the whole panel disappears
 - deleted objects stop emitting future visualization updates
+- rewiring a node out of a list or tree does not hide it automatically; explicit `delVis(...)` is the supported removal path for detached but still in-memory objects
 
 Relevant file:
 - `public/py/dsviz.py`
@@ -228,12 +229,13 @@ Implemented:
 - `Guides -> VisTreeNode`
 - `Examples -> Balanced Rebuild`
 - `Examples -> Delete Duplicates`
+- `Examples -> Multi Panel`
 
 The `Balanced Rebuild` example demonstrates:
-1. build a tree with at least 9 nodes
+1. build an unbalanced BST
 2. collect values by inorder traversal into `VisArray`
-3. quicksort the array with explicit visible swaps
-4. rebuild a balanced tree by divide and conquer
+3. build a second balanced BST by divide and conquer
+4. keep both trees visible in separate panels during replay
 
 Relevant files:
 - `public/examples/vis-array-example.py`
@@ -241,7 +243,7 @@ Relevant files:
 - `public/examples/vis-list-node-example.py`
 - `public/examples/vis-tree-node-example.py`
 - `public/examples/balanced-rebuild-example.py`
-- `public/examples/reverse-linked-list-example.py`
+- `public/examples/delete-duplicates-example.py`
 
 ## Editor Highlighting
 Implemented:
@@ -305,21 +307,17 @@ This standard is now implemented for `VisArray`, `VisTreeNode`, and `VisListNode
 The old drag / resize blockers are no longer the main TODOs. Remaining work is now narrower and more product-shaping.
 
 Current unfinished TODOs:
-1. support multiple independent tree panels and multiple independent list panels instead of the current one-panel-per-kind aggregation model
-2. decide the final product semantics for deleted / detached but still in-memory nodes beyond the current explicit `delVis(...)` behavior
-3. fix the `Delete Duplicates` example so `delVis(...)` removes the intended linked-list node cleanly in the demo path
-4. improve example comments and refine the showcased `delVis(...)` usage so the guides teach the intended pattern more clearly
-5. extend the unified interaction standard to future structures beyond arrays, lists, and trees
-6. further tune compact layout defaults for extreme traces, long labels, and unusual density
-7. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
-8. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
+1. decide the final product semantics for deleted / detached but still in-memory nodes beyond the current explicit `delVis(...)` behavior
+2. extend the unified interaction standard to future structures beyond arrays, lists, and trees
+3. further tune compact layout defaults for extreme traces, long labels, and unusual density
+4. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
+5. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
 
 These TODOs are the right next-agent starting point before any new broad feature branch.
 
 ## Local Repo State Notes
 At the end of this week:
-- the active feature branch is `feature/vis-list-node`
-- the remote branch already contains the latest functional changes through `28e6212`
+- the active feature branch is `feature/multi-panel-tree-list`
 - the local working tree may still contain only Python cache folders such as `public/py/__pycache__/` or `public/examples/__pycache__/`
 - bug-investigation screenshots were intentionally deleted and should not be considered part of project state
 

@@ -108,12 +108,6 @@ export function EditorPane({
           >
             Reset
           </button>
-          <span className="rounded-md border border-white/10 px-2 py-1">
-            Track variable
-          </span>
-          <span className="rounded-md border border-[#f59e0b]/30 bg-[#f59e0b]/10 px-2 py-1 text-[#fbbf24]">
-            watch(...)
-          </span>
         </div>
       </div>
 

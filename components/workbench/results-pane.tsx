@@ -28,10 +28,16 @@ type PanelPosition = {
   scale: number;
 };
 
+type PanelVisibilityMode = "open" | "minimized" | "closed";
+
+type PanelFocusRequest = {
+  panelId: string;
+  token: number;
+};
+
 type InteractionState = {
   mode: "drag" | "resize";
   panelId: string;
-  panelKind: TracePanel["kind"];
   startClientX: number;
   startClientY: number;
   panelStart: PanelPosition;
@@ -39,6 +45,12 @@ type InteractionState = {
   minHeight: number;
   maxWidth: number;
   maxHeight: number;
+  resizeFrom?: {
+    left: boolean;
+    right: boolean;
+    top: boolean;
+    bottom: boolean;
+  };
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -76,8 +88,8 @@ function setPanelScale(
 
 function getEffectiveMinSize(panel: TracePanel) {
   return {
-    width: panel.minWidth ?? panel.width,
-    height: panel.minHeight ?? panel.height,
+    width: 2,
+    height: 2,
   };
 }
 
@@ -111,6 +123,106 @@ function getPanelPosition(panel: TracePanel, positions: DragPositions): PanelPos
 
 function formatDimensions(dimensions?: number[]) {
   return dimensions && dimensions.length ? dimensions.join(" x ") : null;
+}
+
+function bringPanelToFront(order: string[], panelId: string) {
+  return [...order.filter((id) => id !== panelId), panelId];
+}
+
+function syncPanelOrder(order: string[], panels: TracePanel[]) {
+  const panelIds = panels.map((panel) => panel.id);
+  const panelIdSet = new Set(panelIds);
+  const retained = order.filter((panelId) => panelIdSet.has(panelId));
+  const additions = panelIds.filter((panelId) => !retained.includes(panelId));
+  return [...retained, ...additions];
+}
+
+function summarizeArrayCell(cell: TraceArrayCell): unknown {
+  if (cell.kind === "value") {
+    return {
+      kind: cell.kind,
+      id: cell.id,
+      label: cell.label,
+      tone: cell.tone ?? "default",
+      containsActive: !!cell.containsActive,
+    };
+  }
+
+  return {
+    kind: cell.kind,
+    id: cell.id,
+    layout: cell.layout ?? "row",
+    dimensions: cell.dimensions ?? [],
+    tone: cell.tone ?? "default",
+    containsActive: !!cell.containsActive,
+    cells: cell.cells.map((child) => summarizeArrayCell(child)),
+  };
+}
+
+function getPanelSignature(panel: TracePanel) {
+  if (panel.kind === "array") {
+    return JSON.stringify({
+      kind: panel.kind,
+      title: panel.title,
+      layout: panel.layout ?? "row",
+      dimensions: panel.dimensions ?? [],
+      cells: panel.cells.map((cell) => summarizeArrayCell(cell)),
+    });
+  }
+
+  return JSON.stringify({
+    kind: panel.kind,
+    title: panel.title,
+    items: panel.items.map((item) => ({
+      id: item.id,
+      label: item.label,
+      x: item.x,
+      y: item.y,
+      tone: item.tone ?? "default",
+      shape: item.shape ?? "circle",
+    })),
+    edges: panel.edges,
+  });
+}
+
+function clampCanvasZoom(value: number) {
+  return clamp(value, 0.3, 1.6);
+}
+
+function panelHasActiveFocus(panel: TracePanel) {
+  if (panel.kind === "array") {
+    const hasActiveCell = (cell: TraceArrayCell): boolean => {
+      if (cell.kind === "value") {
+        return cell.tone === "active" || !!cell.containsActive;
+      }
+      return (
+        cell.tone === "active" ||
+        !!cell.containsActive ||
+        cell.cells.some((child) => hasActiveCell(child))
+      );
+    };
+
+    return panel.cells.some((cell) => hasActiveCell(cell));
+  }
+
+  return panel.items.some((item) => item.tone === "active");
+}
+
+function getResizeCursor(resizeFrom: NonNullable<InteractionState["resizeFrom"]>) {
+  const { left, right, top, bottom } = resizeFrom;
+  if ((left && top) || (right && bottom)) {
+    return "nwse-resize";
+  }
+  if ((right && top) || (left && bottom)) {
+    return "nesw-resize";
+  }
+  if (left || right) {
+    return "ew-resize";
+  }
+  if (top || bottom) {
+    return "ns-resize";
+  }
+  return "default";
 }
 
 function ArrayValueCell({ cell }: { cell: Extract<TraceArrayCell, { kind: "value" }> }) {
@@ -349,6 +461,11 @@ function VisualizationPanel({
   requestFitView,
   trackingEnabled,
   toggleTracking,
+  zIndex,
+  onFocusPanel,
+  onMinimizePanel,
+  onClosePanel,
+  panelRef,
 }: {
   panel: TracePanel;
   positions: DragPositions;
@@ -357,6 +474,11 @@ function VisualizationPanel({
   requestFitView: (panelId: string) => void;
   trackingEnabled: boolean;
   toggleTracking: (panelId: string) => void;
+  zIndex: number;
+  onFocusPanel: (panelId: string) => void;
+  onMinimizePanel: (panelId: string) => void;
+  onClosePanel: (panelId: string) => void;
+  panelRef: (node: HTMLElement | null) => void;
 }) {
   const currentPanelPosition = getPanelPosition(panel, positions);
   const [interaction, setInteraction] = useState<InteractionState | null>(null);
@@ -368,7 +490,17 @@ function VisualizationPanel({
     const previousUserSelect = document.body.style.userSelect;
     const previousCursor = document.body.style.cursor;
     document.body.style.userSelect = "none";
-    document.body.style.cursor = activeInteraction.mode === "drag" ? "grabbing" : "se-resize";
+    document.body.style.cursor =
+      activeInteraction.mode === "drag"
+        ? "grabbing"
+        : getResizeCursor(
+            activeInteraction.resizeFrom ?? {
+              left: false,
+              right: true,
+              top: false,
+              bottom: true,
+            },
+          );
 
     function onPointerMove(event: PointerEvent) {
       const host = document.querySelector<HTMLElement>('[data-canvas-root="true"]');
@@ -394,41 +526,76 @@ function VisualizationPanel({
           return next;
         }
 
-        const startWidth = activeInteraction.panelStart.width;
-        const startHeight = activeInteraction.panelStart.height;
-        const nextWidth = clamp(
-          startWidth + dxPct,
-          activeInteraction.minWidth,
-          Math.max(
+        const resizeFrom = activeInteraction.resizeFrom ?? {
+          left: false,
+          right: true,
+          top: false,
+          bottom: true,
+        };
+        const rightEdge = activeInteraction.panelStart.x + activeInteraction.panelStart.width;
+        const bottomEdge = activeInteraction.panelStart.y + activeInteraction.panelStart.height;
+        const maxRight = Math.min(
+          activeInteraction.maxWidth + activeInteraction.panelStart.x,
+          98,
+        );
+        const maxBottom = Math.min(
+          activeInteraction.maxHeight + activeInteraction.panelStart.y,
+          96,
+        );
+
+        let nextX = activeInteraction.panelStart.x;
+        let nextY = activeInteraction.panelStart.y;
+        let nextWidth = activeInteraction.panelStart.width;
+        let nextHeight = activeInteraction.panelStart.height;
+
+        if (resizeFrom.right) {
+          nextWidth = clamp(
+            activeInteraction.panelStart.width + dxPct,
             activeInteraction.minWidth,
-            Math.min(activeInteraction.maxWidth, 96 - activeInteraction.panelStart.x),
-          ),
-        );
-        const maxHeight = Math.max(
-          activeInteraction.minHeight,
-          Math.min(activeInteraction.maxHeight, 96 - activeInteraction.panelStart.y),
-        );
-
-        if (activeInteraction.panelKind === "array") {
-          const nextHeight = clamp(
-            startHeight + dyPct,
-            activeInteraction.minHeight,
-            maxHeight,
+            Math.max(activeInteraction.minWidth, maxRight - activeInteraction.panelStart.x),
           );
-
-          next[panelKey(activeInteraction.panelId)] = {
-            ...activeInteraction.panelStart,
-            width: nextWidth,
-            height: nextHeight,
-          };
-          return next;
         }
 
-        const ratio = startWidth > 0 ? nextWidth / startWidth : 1;
-        const nextHeight = clamp(startHeight * ratio, activeInteraction.minHeight, maxHeight);
+        if (resizeFrom.bottom) {
+          nextHeight = clamp(
+            activeInteraction.panelStart.height + dyPct,
+            activeInteraction.minHeight,
+            Math.max(activeInteraction.minHeight, maxBottom - activeInteraction.panelStart.y),
+          );
+        }
+
+        if (resizeFrom.left) {
+          const rawNextX = clamp(
+            activeInteraction.panelStart.x + dxPct,
+            2,
+            rightEdge - activeInteraction.minWidth,
+          );
+          nextWidth = clamp(
+            rightEdge - rawNextX,
+            activeInteraction.minWidth,
+            activeInteraction.maxWidth,
+          );
+          nextX = rightEdge - nextWidth;
+        }
+
+        if (resizeFrom.top) {
+          const rawNextY = clamp(
+            activeInteraction.panelStart.y + dyPct,
+            4,
+            bottomEdge - activeInteraction.minHeight,
+          );
+          nextHeight = clamp(
+            bottomEdge - rawNextY,
+            activeInteraction.minHeight,
+            activeInteraction.maxHeight,
+          );
+          nextY = bottomEdge - nextHeight;
+        }
 
         next[panelKey(activeInteraction.panelId)] = {
           ...activeInteraction.panelStart,
+          x: nextX,
+          y: nextY,
           width: nextWidth,
           height: nextHeight,
         };
@@ -454,18 +621,19 @@ function VisualizationPanel({
   function startInteraction(
     event: ReactPointerEvent<HTMLElement>,
     mode: InteractionState["mode"],
+    resizeFrom?: NonNullable<InteractionState["resizeFrom"]>,
   ) {
     if (event.button !== 0) return;
 
     event.preventDefault();
     event.stopPropagation();
+    onFocusPanel(panel.id);
 
     const minSize = getEffectiveMinSize(panel);
     const maxSize = getEffectiveMaxSize(panel);
     setInteraction({
       mode,
       panelId: panel.id,
-      panelKind: panel.kind,
       startClientX: event.clientX,
       startClientY: event.clientY,
       panelStart: currentPanelPosition,
@@ -473,17 +641,64 @@ function VisualizationPanel({
       minHeight: minSize.height,
       maxWidth: maxSize.width,
       maxHeight: maxSize.height,
+      resizeFrom,
     });
   }
 
+  const resizeHandles = [
+    {
+      key: "top",
+      className: "absolute left-2 right-2 top-0 z-20 h-2 cursor-ns-resize",
+      resizeFrom: { left: false, right: false, top: true, bottom: false },
+    },
+    {
+      key: "bottom",
+      className: "absolute bottom-0 left-2 right-2 z-20 h-2 cursor-ns-resize",
+      resizeFrom: { left: false, right: false, top: false, bottom: true },
+    },
+    {
+      key: "left",
+      className: "absolute bottom-2 left-0 top-2 z-20 w-2 cursor-ew-resize",
+      resizeFrom: { left: true, right: false, top: false, bottom: false },
+    },
+    {
+      key: "right",
+      className: "absolute bottom-2 right-0 top-2 z-20 w-2 cursor-ew-resize",
+      resizeFrom: { left: false, right: true, top: false, bottom: false },
+    },
+    {
+      key: "top-left",
+      className: "absolute left-0 top-0 z-30 h-3 w-3 cursor-nwse-resize",
+      resizeFrom: { left: true, right: false, top: true, bottom: false },
+    },
+    {
+      key: "top-right",
+      className: "absolute right-0 top-0 z-30 h-3 w-3 cursor-nesw-resize",
+      resizeFrom: { left: false, right: true, top: true, bottom: false },
+    },
+    {
+      key: "bottom-left",
+      className: "absolute bottom-0 left-0 z-30 h-3 w-3 cursor-nesw-resize",
+      resizeFrom: { left: true, right: false, top: false, bottom: true },
+    },
+    {
+      key: "bottom-right",
+      className: "absolute bottom-0 right-0 z-30 h-3 w-3 cursor-nwse-resize",
+      resizeFrom: { left: false, right: true, top: false, bottom: true },
+    },
+  ] as const;
+
   return (
     <article
+      ref={panelRef}
+      onPointerDown={() => onFocusPanel(panel.id)}
       className="absolute overflow-hidden rounded-xl border border-[#d6d9df] bg-white shadow-sm"
       style={{
         left: `${currentPanelPosition.x}%`,
         top: `${currentPanelPosition.y}%`,
         width: `${currentPanelPosition.width}%`,
         height: `${currentPanelPosition.height}%`,
+        zIndex,
       }}
     >
       <div
@@ -535,7 +750,36 @@ function VisualizationPanel({
               </button>
             </>
           ) : null}
-          <span className="text-[10px] text-[#6b7280]">drag</span>
+          <button
+            type="button"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onMinimizePanel(panel.id);
+            }}
+            className="rounded-md border border-[#e5e7eb] bg-white px-2 py-1 text-[10px] text-[#4b5563] hover:bg-[#f9fafb]"
+          >
+            Minimize
+          </button>
+          <button
+            type="button"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onClosePanel(panel.id);
+            }}
+            className="rounded-md border border-[#fecaca] bg-[#fff1f2] px-2 py-1 text-[10px] text-[#b91c1c] hover:bg-[#ffe4e6]"
+          >
+            Close
+          </button>
         </div>
       </div>
       <div
@@ -560,12 +804,13 @@ function VisualizationPanel({
             setPositions={setPositions}
           />
         )}
-        <button
-          type="button"
-          onPointerDown={(event) => startInteraction(event, "resize")}
-          className="absolute bottom-1.5 right-1.5 z-10 h-3.5 w-3.5 cursor-se-resize rounded-sm border border-[#d1d5db] bg-white"
-          aria-label={`Resize ${panel.title}`}
-        />
+        {resizeHandles.map((handle) => (
+          <div
+            key={handle.key}
+            onPointerDown={(event) => startInteraction(event, "resize", handle.resizeFrom)}
+            className={handle.className}
+          />
+        ))}
       </div>
     </article>
   );
@@ -589,6 +834,16 @@ export function ResultsPane({
   const [positions, setPositions] = useState<DragPositions>({});
   const [fitRequests, setFitRequests] = useState<Record<string, number>>({});
   const [trackingModes, setTrackingModes] = useState<Record<string, boolean>>({});
+  const [panelOrder, setPanelOrder] = useState<string[]>([]);
+  const [panelVisibilityModes, setPanelVisibilityModes] = useState<
+    Record<string, PanelVisibilityMode>
+  >({});
+  const [canvasZoom, setCanvasZoom] = useState(1);
+  const [focusRequest, setFocusRequest] = useState<PanelFocusRequest | null>(null);
+  const canvasViewportRef = useRef<HTMLDivElement | null>(null);
+  const panelSignatureRef = useRef<Record<string, string>>({});
+  const panelElementRefs = useRef<Record<string, HTMLElement | null>>({});
+  const focusRequestCounterRef = useRef(0);
 
   function requestFitView(panelId: string) {
     setFitRequests((current) => ({
@@ -597,11 +852,64 @@ export function ResultsPane({
     }));
   }
 
+  function focusPanel(panelId: string) {
+    setPanelOrder((current) => bringPanelToFront(current, panelId));
+  }
+
+  function focusAndTrackPanel(panelId: string) {
+    focusPanel(panelId);
+    focusRequestCounterRef.current += 1;
+    setFocusRequest({
+      panelId,
+      token: focusRequestCounterRef.current,
+    });
+  }
+
   function toggleTracking(panelId: string) {
     setTrackingModes((current) => ({
       ...current,
       [panelId]: !(current[panelId] ?? true),
     }));
+  }
+
+  function minimizePanel(panelId: string) {
+    setPanelVisibilityModes((current) => ({
+      ...current,
+      [panelId]: "minimized",
+    }));
+  }
+
+  function closePanel(panelId: string) {
+    setPanelVisibilityModes((current) => ({
+      ...current,
+      [panelId]: "closed",
+    }));
+  }
+
+  function openPanel(panelId: string) {
+    setPanelVisibilityModes((current) => ({
+      ...current,
+      [panelId]: "open",
+    }));
+    focusAndTrackPanel(panelId);
+  }
+
+  function registerPanelElement(panelId: string, node: HTMLElement | null) {
+    panelElementRefs.current[panelId] = node;
+  }
+
+  function scrollPanelIntoView(panelId: string) {
+    const panelElement = panelElementRefs.current[panelId];
+    if (!panelElement) {
+      return false;
+    }
+    panelElement.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "center",
+    });
+
+    return true;
   }
 
   useEffect(() => {
@@ -618,6 +926,102 @@ export function ResultsPane({
       return changed ? next : current;
     });
   }, [frame.panels]);
+
+  useEffect(() => {
+    setPanelOrder((current) => syncPanelOrder(current, frame.panels));
+  }, [frame.panels]);
+
+  useEffect(() => {
+    const changedPanelIds: string[] = [];
+    const activeChangedPanelIds: string[] = [];
+    const newOrRestoredPanelIds: string[] = [];
+    const nextVisibilityModes = { ...panelVisibilityModes };
+    let visibilityChanged = false;
+
+    for (const panel of frame.panels) {
+      const signature = getPanelSignature(panel);
+      const previousSignature = panelSignatureRef.current[panel.id];
+      const mode = nextVisibilityModes[panel.id];
+
+      if (!mode) {
+        nextVisibilityModes[panel.id] = "open";
+        visibilityChanged = true;
+        changedPanelIds.push(panel.id);
+        newOrRestoredPanelIds.push(panel.id);
+        if (panelHasActiveFocus(panel)) {
+          activeChangedPanelIds.push(panel.id);
+        }
+      } else if (previousSignature !== undefined && previousSignature !== signature) {
+        changedPanelIds.push(panel.id);
+        if (panelHasActiveFocus(panel)) {
+          activeChangedPanelIds.push(panel.id);
+        }
+        if (mode !== "open") {
+          nextVisibilityModes[panel.id] = "open";
+          visibilityChanged = true;
+          newOrRestoredPanelIds.push(panel.id);
+        }
+      }
+
+      panelSignatureRef.current[panel.id] = signature;
+    }
+
+    if (visibilityChanged) {
+      setPanelVisibilityModes(nextVisibilityModes);
+    }
+
+    if (changedPanelIds.length) {
+      const focusTargetPanelId =
+        newOrRestoredPanelIds[newOrRestoredPanelIds.length - 1] ??
+        activeChangedPanelIds[activeChangedPanelIds.length - 1] ??
+        changedPanelIds[changedPanelIds.length - 1] ??
+        null;
+
+      if (focusTargetPanelId) {
+        setPanelOrder((current) => bringPanelToFront(current, focusTargetPanelId));
+        focusRequestCounterRef.current += 1;
+        setFocusRequest({
+          panelId: focusTargetPanelId,
+          token: focusRequestCounterRef.current,
+        });
+      }
+    }
+  }, [frame.panels, panelVisibilityModes]);
+
+  useEffect(() => {
+    if (!focusRequest) {
+      return;
+    }
+
+    let timeoutId = 0;
+    let attemptCount = 0;
+    let cancelled = false;
+
+    const tryScroll = () => {
+      if (cancelled) {
+        return;
+      }
+
+      scrollPanelIntoView(focusRequest.panelId);
+      attemptCount += 1;
+
+      if (attemptCount < 8) {
+        timeoutId = window.setTimeout(tryScroll, 90);
+        return;
+      }
+
+      setFocusRequest((current) =>
+        current?.token === focusRequest.token ? null : current,
+      );
+    };
+
+    timeoutId = window.setTimeout(tryScroll, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [canvasZoom, focusRequest, frame.panels, positions, panelVisibilityModes]);
 
   useEffect(() => {
     setPositions((current) => {
@@ -652,33 +1056,134 @@ export function ResultsPane({
     });
   }, [frame]);
 
+  const panelById = new Map(frame.panels.map((panel) => [panel.id, panel]));
+  const orderedPanels = panelOrder
+    .map((panelId) => panelById.get(panelId))
+    .filter((panel): panel is TracePanel => !!panel);
+  const activePanelId = [...orderedPanels]
+    .reverse()
+    .find((panel) => panelVisibilityModes[panel.id] === "open")?.id;
+  const visiblePanels = orderedPanels.filter(
+    (panel) => panelVisibilityModes[panel.id] !== "minimized" && panelVisibilityModes[panel.id] !== "closed",
+  );
+  const tabPanels = orderedPanels.filter((panel) => panelVisibilityModes[panel.id] !== "closed");
+
   return (
     <section className="relative flex min-h-[720px] min-w-0 flex-1 overflow-hidden rounded-xl border border-[#d1d5db] bg-[#fafafa] shadow-sm">
-      <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white/95 p-2 shadow-sm backdrop-blur">
-        <button
-          onClick={onPrev}
-          disabled={phase === "running" || frame.index === 0}
-          className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-center gap-4 border-b border-[#e5e7eb] bg-white/95 px-4 py-3">
+          <div className="min-w-0 flex-1 overflow-x-auto">
+            <div className="flex min-h-11 min-w-max items-center gap-2 pr-2">
+              {tabPanels.length ? (
+                tabPanels.map((panel) => {
+                  const mode = panelVisibilityModes[panel.id] ?? "open";
+                  const isActive = activePanelId === panel.id;
+                  return (
+                    <button
+                      key={panel.id}
+                      type="button"
+                      onClick={() => openPanel(panel.id)}
+                      className={`flex items-center gap-2 rounded-t-xl border px-3 py-2 text-left text-xs transition ${
+                        mode === "minimized"
+                          ? "border-[#d1d5db] bg-[#f8fafc] text-[#64748b]"
+                          : isActive
+                            ? "border-[#fdba74] bg-[#fff7ed] text-[#9a3412]"
+                            : "border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f9fafb]"
+                      }`}
+                    >
+                      <span className="max-w-[160px] truncate font-medium">{panel.title}</span>
+                      <span className="rounded-md bg-black/5 px-1.5 py-0.5 text-[10px]">
+                        {mode === "minimized" ? "Hidden" : panel.typeLabel}
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="rounded-xl border border-dashed border-[#d1d5db] px-3 py-2 text-xs text-[#94a3b8]">
+                  No active panels
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white p-2 shadow-sm">
+            <div className="flex items-center gap-1 rounded-md border border-[#e5e7eb] bg-[#fafafa] px-1.5 py-1">
+              <button
+                type="button"
+                onClick={() => setCanvasZoom((current) => clampCanvasZoom(current - 0.1))}
+                className="rounded-md border border-[#e5e7eb] bg-white px-2 py-1 text-xs text-[#4b5563] hover:bg-[#f9fafb]"
+              >
+                -
+              </button>
+              <button
+                type="button"
+                onClick={() => setCanvasZoom(1)}
+                className="rounded-md px-2 py-1 text-xs font-medium text-[#4b5563] hover:bg-white"
+              >
+                {Math.round(canvasZoom * 100)}%
+              </button>
+              <button
+                type="button"
+                onClick={() => setCanvasZoom((current) => clampCanvasZoom(current + 0.1))}
+                className="rounded-md border border-[#e5e7eb] bg-white px-2 py-1 text-xs text-[#4b5563] hover:bg-[#f9fafb]"
+              >
+                +
+              </button>
+            </div>
+            <button
+              onClick={onPrev}
+              disabled={phase === "running" || frame.index === 0}
+              className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Prev
+            </button>
+            <button
+              onClick={onNext}
+              disabled={phase === "running" || frame.index === totalFrames - 1}
+              className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next
+            </button>
+            <div className="rounded-md bg-[#f3f4f6] px-3 py-2 text-sm text-[#4b5563]">
+              {frame.index + 1} / {totalFrames}
+            </div>
+          </div>
+        </div>
+
+        <div
+          ref={canvasViewportRef}
+          className="flex-1 overflow-auto bg-[linear-gradient(#fcfcfd,#f8fafc)]"
         >
-          Prev
-        </button>
-        <button
-          onClick={onNext}
-          disabled={phase === "running" || frame.index === totalFrames - 1}
-          className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Next
-        </button>
-        <div className="rounded-md bg-[#f3f4f6] px-3 py-2 text-sm text-[#4b5563]">
-          {frame.index + 1} / {totalFrames}
+          <div
+            data-canvas-root="true"
+            className="relative min-h-[2200px] min-w-[1180px] w-full bg-[radial-gradient(circle_at_top_left,#ffffff,#f8fafc_45%,#eef2ff_100%)]"
+            style={{ zoom: canvasZoom }}
+          >
+            {visiblePanels.map((panel, index) => (
+              <VisualizationPanel
+                key={panel.id}
+                panel={panel}
+                positions={positions}
+                setPositions={setPositions}
+                fitRequestToken={fitRequests[panel.id] ?? 0}
+                requestFitView={requestFitView}
+                trackingEnabled={trackingModes[panel.id] ?? true}
+                toggleTracking={toggleTracking}
+                zIndex={20 + index}
+                onFocusPanel={focusPanel}
+                onMinimizePanel={minimizePanel}
+                onClosePanel={closePanel}
+                panelRef={(node) => registerPanelElement(panel.id, node)}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
-      <aside className="absolute right-4 top-20 z-20 w-[240px] rounded-xl border border-[#e5e7eb] bg-white/96 shadow-sm backdrop-blur">
+      <aside className="flex w-[240px] shrink-0 flex-col border-l border-[#e5e7eb] bg-white/96">
         <div className="border-b border-[#f3f4f6] px-4 py-3 text-sm font-medium text-[#111827]">
           Variables
         </div>
-        <div className="space-y-2 p-4">
+        <div className="space-y-2 overflow-auto p-4">
           {frame.variables.map((item) => (
             <div
               key={item.name}
@@ -692,7 +1197,7 @@ export function ResultsPane({
         <div className="border-t border-[#f3f4f6] px-4 py-3 text-sm font-medium text-[#111827]">
           Output
         </div>
-        <div className="space-y-3 p-4 text-sm text-[#4b5563]">
+        <div className="space-y-3 overflow-auto p-4 text-sm text-[#4b5563]">
           {phase === "error" && errorInfo ? (
             <div className="rounded-xl border border-[#fecaca] bg-[#fef2f2] p-3 text-[#7f1d1d]">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#dc2626]">
@@ -730,26 +1235,6 @@ export function ResultsPane({
           )}
         </div>
       </aside>
-
-      <div className="flex-1 overflow-hidden p-0">
-        <div
-          data-canvas-root="true"
-          className="relative h-full min-h-[720px] w-full bg-[linear-gradient(#fcfcfd,#f8fafc)]"
-        >
-          {frame.panels.map((panel) => (
-            <VisualizationPanel
-              key={panel.id}
-              panel={panel}
-              positions={positions}
-              setPositions={setPositions}
-              fitRequestToken={fitRequests[panel.id] ?? 0}
-              requestFitView={requestFitView}
-              trackingEnabled={trackingModes[panel.id] ?? true}
-              toggleTracking={toggleTracking}
-            />
-          ))}
-        </div>
-      </div>
     </section>
   );
 }

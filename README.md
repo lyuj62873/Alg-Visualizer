@@ -65,6 +65,7 @@ Currently supports:
 - `val`
 - `left`
 - `right`
+- multiple independent tree panels in one run
 - node updates through normal attribute assignment
 - temporary disconnected tree components staying visible during rebuild workflows
 
@@ -73,6 +74,7 @@ Currently supports:
 Currently supports:
 - `val`
 - `right`
+- multiple independent list panels in one run
 - linked-list rewiring through normal attribute assignment
 - disconnected list segments staying visible during rewiring
 - shared-tail rendering without duplicating the same suffix chain
@@ -89,6 +91,7 @@ Current behavior:
 - `delVis(VisArray)` removes the array panel
 - `delVis(VisTreeNode)` removes that node from visualization
 - `delVis(VisListNode)` removes that node from visualization
+- rewiring a node out of a tree or list does not automatically hide it; use `delVis(...)` when the detached object should disappear from the canvas
 
 ## Current Interaction Model
 
@@ -117,6 +120,7 @@ Tree/List-specific behavior:
 Current `Examples`:
 - `Balanced Rebuild`
 - `Delete Duplicates`
+- `Multi Panel`
 
 Current `Guides`:
 - `VisArray`
@@ -165,12 +169,11 @@ If you are continuing development, start with `V2-summary.md` first.
 ## Planned Follow-Up
 
 The current prototype is already usable, but several follow-up areas remain:
-- support multiple independent tree panels and multiple independent list panels
-- improve `delVis(...)` behavior in example flows such as `Delete Duplicates`
-- refine example comments and `delVis(...)` teaching patterns
+- decide whether detached but still in-memory nodes should always remain visible until `delVis(...)`, or whether some future automatic hiding rule is worth adding
 - keep tuning compact layout defaults for large or unusual traces
 - extend the same interaction model to future structures
 - consider editor-assisted help for inserting `watch(...)`
+- consider whether the fixed 1000-frame cap and 30-second timeout should become configurable
 
 ## Non-Goals For Now
 
