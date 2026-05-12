@@ -486,6 +486,7 @@ function ArrayPanelBody({
 
   function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
     event.preventDefault();
+    event.stopPropagation();
     const delta = event.deltaY === 0 ? event.deltaX : event.deltaY;
     const zoomStep = delta > 0 ? -0.08 : 0.08;
     setPanelScale(setPositions, panel, scale + zoomStep);
@@ -493,6 +494,8 @@ function ArrayPanelBody({
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
     const container = scrollRef.current;
     if (!container) return;
 
@@ -531,7 +534,10 @@ function ArrayPanelBody({
       onPointerMove={handlePointerMove}
       onPointerUp={endPointerDrag}
       onPointerCancel={endPointerDrag}
-      style={{ overflow: isResizing ? "hidden" : undefined }}
+      style={{
+        overflow: isResizing ? "hidden" : undefined,
+        overscrollBehavior: "contain",
+      }}
       className={`absolute inset-0 overflow-auto p-3 ${
         dragScroll ? "cursor-grabbing" : "cursor-grab"
       }`}
@@ -594,6 +600,7 @@ function MapPanelBody({
 
   function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
     event.preventDefault();
+    event.stopPropagation();
     const delta = event.deltaY === 0 ? event.deltaX : event.deltaY;
     const zoomStep = delta > 0 ? -0.08 : 0.08;
     setPanelScale(setPositions, panel, scale + zoomStep);
@@ -601,6 +608,8 @@ function MapPanelBody({
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
     const container = scrollRef.current;
     if (!container) return;
 
@@ -639,7 +648,10 @@ function MapPanelBody({
       onPointerMove={handlePointerMove}
       onPointerUp={endPointerDrag}
       onPointerCancel={endPointerDrag}
-      style={{ overflow: isResizing ? "hidden" : undefined }}
+      style={{
+        overflow: isResizing ? "hidden" : undefined,
+        overscrollBehavior: "contain",
+      }}
       className={`absolute inset-0 overflow-auto p-3 ${
         dragScroll ? "cursor-grabbing" : "cursor-grab"
       }`}
