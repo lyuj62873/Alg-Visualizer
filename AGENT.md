@@ -1,10 +1,10 @@
 # AGENT.md
 
 ## Project
-**AlgoLens** is a browser-based visual debugger for Python algorithm code. The current v2 state is a working single-page prototype: the user writes Python in the browser, runs `run_case()`, generates a full snapshot trace in worker-isolated Pyodide, and steps through visual state changes in the frontend.
+**AlgoLens** is a browser-based visual debugger for Python algorithm code. The current v3 state is a working single-page prototype: the user writes Python in the browser, runs `run_case()`, generates a full snapshot trace in worker-isolated Pyodide, and steps through visual state changes in the frontend.
 
-## Current v2 Demo Flow
-The shipped v2 flow is:
+## Current v3 Demo Flow
+The shipped v3 flow is:
 1. The user pastes or writes Python code in the Monaco editor.
 2. The user defines test input directly inside `run_case()`.
 3. The user wraps only the data structures they want to inspect with `dsviz` objects.
@@ -164,7 +164,7 @@ Each frame currently contains:
 The `line` field is used to highlight the active source line in Monaco.
 
 ## Current Non-Goals
-Still out of scope for v2:
+Still out of scope for v3:
 - auth
 - save/share
 - backend execution
@@ -172,10 +172,10 @@ Still out of scope for v2:
 - automatic debugger-style introspection for arbitrary Python state
 - production-grade layout polish for every visualization edge case
 
-## Known v2 Gaps
+## Known v3 Gaps
 Known remaining gaps are narrower now:
-1. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
-2. Future structures should preserve the current separation between panel resize, internal panning, and wheel zoom instead of inventing per-structure interaction models.
+1. Future container structures should reuse the current panel interaction model while also supporting panel-to-panel nested references for `VisXxx` values.
+2. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
 3. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
 
 `delVis(...)` is no longer an open design question.
@@ -183,6 +183,14 @@ Known remaining gaps are narrower now:
 - rewiring or detaching a node does not imply removal
 - explicit `delVis(...)` is the supported way for user code to reduce visual noise when a structure is no longer worth showing
 - this is preferred over automatic inference because runtime topology changes alone cannot reliably identify algorithmically irrelevant nodes
+
+Nested `VisXxx` design direction is also decided:
+- nested visualization should be reference-first, not inline-first
+- each `VisXxx` remains a top-level panel owner
+- parent structures should render child `VisXxx` values as clickable reference tokens
+- clicking a reference token should reuse the same bring-to-front and track behavior as clicking a panel tab
+- plain Python containers are not automatically promoted into panels; this mechanism is reserved for explicit `VisXxx` objects
+- reference labels should prefer user variable names, with numeric suffixes added only when duplicate names must be disambiguated
 
 ## Collaboration Rules
 - Repo-facing docs should stay in English.

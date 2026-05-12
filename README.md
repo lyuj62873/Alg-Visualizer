@@ -165,21 +165,38 @@ npm run start
 
 Important files:
 - [AGENT.md](AGENT.md)
-- [V2-summary.md](V2-summary.md)
-- [docs/v2-spec.md](docs/v2-spec.md)
+- [V3-summary.md](V3-summary.md)
+- [docs/v3-spec.md](docs/v3-spec.md)
 - [components/workbench/workbench.tsx](components/workbench/workbench.tsx)
 - [components/workbench/pyodide-runner.ts](components/workbench/pyodide-runner.ts)
 - [public/py/dsviz.py](public/py/dsviz.py)
 
-If you are continuing development, start with `V2-summary.md` first.
+If you are continuing development, start with `V3-summary.md` first.
 
 ## Planned Follow-Up
 
 The current prototype is already usable, but several follow-up areas remain:
+- add nested container visualization for future `VisXxx` structures using panel-to-panel references rather than default inline expansion
 - keep tuning compact layout defaults for large or unusual traces
 - extend the same interaction model to future structures
 - consider editor-assisted help for inserting `watch(...)`
 - consider whether the fixed 1000-frame cap and 30-second timeout should become configurable
+
+### Planned Nested Container Rule
+
+For future container-style structures such as `VisMap`, `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`, nested visualization should default to references rather than duplicated inline rendering.
+
+Planned behavior:
+- each `VisXxx` object still owns its own floating panel
+- if one `VisXxx` object is stored inside another `VisXxx`, the parent shows a clickable reference token instead of expanding the full child structure inline
+- clicking that token should behave like clicking the child's tab: bring that child panel to the front and track the canvas to it
+- plain Python values still render inline; only explicit `VisXxx` objects become cross-panel references
+- if `delVis(child)` removes a child visualization, any parent reference to it should degrade into a non-clickable summary instead of a broken link
+
+Planned naming rule:
+- prefer the variable name when one is available
+- if multiple visible objects share the same variable-style name, preserve the original meaningful name when possible and disambiguate repeated names with numeric suffixes such as `node1`, `node2`, ...
+- this is intended to keep labels such as `head` and `tail` intact while still distinguishing repeated loop-local names
 
 ## Non-Goals For Now
 

@@ -1,7 +1,7 @@
-# AlgoLens v2 Spec
+# AlgoLens v3 Spec
 
 ## Goal
-AlgoLens v2 is a browser-based Python execution workbench for debugging algorithm code through explicit visualization hooks.
+AlgoLens v3 is a browser-based Python execution workbench for debugging algorithm code through explicit visualization hooks.
 
 The current successful demo path is:
 - the user writes Python in the editor
@@ -39,7 +39,7 @@ Rules:
 - ordinary Python values that are not wrapped remain non-visual
 
 ## Input Model
-There is no separate input config UI in the current v2 implementation.
+There is no separate input config UI in the current v3 implementation.
 
 Users define their test input directly inside `run_case()`.
 
@@ -54,7 +54,7 @@ def run_case():
 ```
 
 ## Instrumentation Model
-AlgoLens v2 visualizes only explicitly tracked values.
+AlgoLens v3 visualizes only explicitly tracked values.
 
 Current supported primitives:
 - `VisArray`
@@ -205,6 +205,25 @@ Current list behavior:
 - disconnected list segments remain visible during rewiring
 - shared-tail list states render as one shared suffix rather than duplicated chains
 
+## Planned Nested `VisXxx` References
+
+Future container structures should support nesting through panel references rather than automatic inline expansion.
+
+Specification direction:
+- every explicit `VisXxx` object remains the owner of its own top-level panel
+- when a `VisXxx` object is stored inside another `VisXxx`, the parent panel should render a reference token to the child instead of embedding a second full rendering of the child
+- clicking the reference token should invoke the same focus behavior as clicking the child's tab:
+  - bring the child panel to the front
+  - track the outer canvas to the child panel
+- plain Python values may still render inline according to the parent structure's own display rules
+- plain Python containers are not automatically promoted into panels; this nested reference system is reserved for explicit `VisXxx` objects
+- if a child visualization is removed with `delVis(child)`, parent references to that child should degrade into non-clickable summaries
+
+Reference labeling direction:
+- prefer inferred variable names when available
+- if multiple visible objects share the same inferred name, disambiguate them with numeric suffixes
+- preserve semantically meaningful user names such as `head` and `tail` whenever possible
+
 ## UI Model
 The current single-page workbench contains:
 - a code editor pane
@@ -255,4 +274,4 @@ This is a product decision rather than a temporary gap:
 - list cleanup and tree rebuild flows need different visibility choices even when the runtime sees similar pointer changes
 - final visibility control is therefore left to user code via `delVis(...)`
 
-These are post-v2 polish items, not blockers for the current prototype.
+These are post-v3 polish items, not blockers for the current prototype.

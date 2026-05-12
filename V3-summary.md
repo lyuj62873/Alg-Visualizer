@@ -1,17 +1,17 @@
-# AlgoLens V2 Summary
+# AlgoLens V3 Summary
 
 ## Purpose
-This document is the fastest way for a new agent to understand the current state of the repo after the v2 implementation pass.
+This document is the fastest way for a new agent to understand the current state of the repo after the v3 implementation pass.
 
 Use this together with:
 - `AGENT.md`
-- `docs/v2-spec.md`
+- `docs/v3-spec.md`
 - `PROJECT_PROPOSAL.md`
 
 Those files describe the intended product direction. This file describes what was actually built, what changed during implementation, and what is still unresolved.
 
 ## Current Product State
-AlgoLens v2 is a working browser-based Python visualization workbench.
+AlgoLens v3 is a working browser-based Python visualization workbench.
 
 Implemented end-to-end flow:
 1. The user writes Python code in Monaco.
@@ -306,11 +306,27 @@ The repo now has a usable default standard for visual structures:
 
 This standard is now implemented for `VisArray`, `VisTreeNode`, and `VisListNode` and should be reused for future structures.
 
+## Planned Nested `VisXxx` References
+
+Nested container visualization should default to cross-panel references rather than inline duplication.
+
+Decision:
+- each `VisXxx` object owns its own panel
+- if a `VisXxx` object is stored inside another `VisXxx`, the parent should render a clickable reference token instead of embedding a second full copy of the child structure
+- clicking that token should reuse the same bring-to-front and canvas-track behavior as clicking the child's tab
+- plain Python values still render inline; only explicit `VisXxx` objects participate in this panel reference system
+- if `delVis(child)` removes a child visualization, parent references should degrade to non-clickable summaries instead of leaving broken navigation
+
+Reference naming rule:
+- prefer the inferred variable name when available
+- if repeated names collide, preserve meaningful names and disambiguate duplicates with numeric suffixes such as `node1`, `node2`, ...
+- this is intended to preserve user-authored names like `head` and `tail` while still distinguishing loop-created repeated names
+
 ## Remaining Follow-Up
 The old drag / resize blockers are no longer the main TODOs. Remaining work is now narrower and more product-shaping.
 
 Current unfinished TODOs:
-1. extend the unified interaction standard to future structures beyond arrays, lists, and trees
+1. implement the reference-first nested container model for future structures such as `VisMap`, `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`
 2. further tune compact layout defaults for extreme traces, long labels, and unusual density
 3. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
 4. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
@@ -319,15 +335,15 @@ These TODOs are the right next-agent starting point before any new broad feature
 
 ## Local Repo State Notes
 At the end of this week:
-- the active feature branch is `feature/multi-panel-tree-list`
+- the current default branch is `main`
 - the local working tree may still contain only Python cache folders such as `public/py/__pycache__/` or `public/examples/__pycache__/`
 - bug-investigation screenshots were intentionally deleted and should not be considered part of project state
 
 ## Fast Start For A New Agent
 If a new agent needs to continue this repo, the most useful reading order is:
-1. `V2-summary.md`
+1. `V3-summary.md`
 2. `AGENT.md`
-3. `docs/v2-spec.md`
+3. `docs/v3-spec.md`
 4. `components/workbench/workbench.tsx`
 5. `components/workbench/pyodide-runner.ts`
 6. `public/py/dsviz.py`
