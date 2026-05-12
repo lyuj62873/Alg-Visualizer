@@ -738,6 +738,8 @@ function VisualizationPanel({
 
     const previousUserSelect = document.body.style.userSelect;
     const previousCursor = document.body.style.cursor;
+    const canvasViewport = document.querySelector<HTMLElement>('[data-canvas-viewport="true"]');
+    const previousCanvasOverflow = canvasViewport?.style.overflow;
     document.body.style.userSelect = "none";
     document.body.style.cursor =
       activeInteraction.mode === "drag"
@@ -750,6 +752,9 @@ function VisualizationPanel({
               bottom: true,
             },
           );
+    if (canvasViewport) {
+      canvasViewport.style.overflow = "hidden";
+    }
 
     function onPointerMove(event: PointerEvent) {
       const host = document.querySelector<HTMLElement>('[data-canvas-root="true"]');
@@ -862,6 +867,9 @@ function VisualizationPanel({
     return () => {
       document.body.style.userSelect = previousUserSelect;
       document.body.style.cursor = previousCursor;
+      if (canvasViewport) {
+        canvasViewport.style.overflow = previousCanvasOverflow ?? "";
+      }
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
@@ -1408,6 +1416,7 @@ export function ResultsPane({
 
         <div
           ref={canvasViewportRef}
+          data-canvas-viewport="true"
           className="flex-1 overflow-auto bg-[linear-gradient(#fcfcfd,#f8fafc)]"
         >
           <div
