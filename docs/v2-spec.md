@@ -247,7 +247,12 @@ Additional failure mode:
 Current unresolved limitations:
 1. Compact defaults have been tuned manually and may need further calibration for very large traces or unusual value lengths.
 2. Array, tree, and list interaction rules are now stable, but future structures should reuse the same separation between panel resize, content zoom, and internal panning where appropriate.
-3. Automatic garbage-collection-like hiding of detached nodes is not implemented; explicit `delVis(...)` is the current supported removal path.
+3. Automatic garbage-collection-like hiding of detached nodes is intentionally not implemented; explicit `delVis(...)` is the supported removal path.
 4. The visualization frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit is configurable from the UI.
+
+This is a product decision rather than a temporary gap:
+- topology changes alone are not enough to infer when a node has become semantically irrelevant
+- list cleanup and tree rebuild flows need different visibility choices even when the runtime sees similar pointer changes
+- final visibility control is therefore left to user code via `delVis(...)`
 
 These are post-v2 polish items, not blockers for the current prototype.

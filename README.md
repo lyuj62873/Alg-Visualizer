@@ -93,6 +93,13 @@ Current behavior:
 - `delVis(VisListNode)` removes that node from visualization
 - rewiring a node out of a tree or list does not automatically hide it; use `delVis(...)` when the detached object should disappear from the canvas
 
+Design intent:
+- `delVis(...)` is an explicit user-controlled noise-reduction tool, not an automatic cleanup rule
+- the runtime does not try to infer whether a detached node is still algorithmically important
+- detached nodes may still matter later in rebuild, reconnect, or rotation-heavy tree workflows
+- some nodes may no longer be useful to show even if they were never fully detached, such as duplicate list nodes that are skipped or bypassed
+- because the target user is expected to understand their own algorithm state, final visibility control is left to user code instead of automatic inference
+
 ## Current Interaction Model
 
 The visualization system now follows one shared interaction model across arrays, trees, and lists.
@@ -169,7 +176,6 @@ If you are continuing development, start with `V2-summary.md` first.
 ## Planned Follow-Up
 
 The current prototype is already usable, but several follow-up areas remain:
-- decide whether detached but still in-memory nodes should always remain visible until `delVis(...)`, or whether some future automatic hiding rule is worth adding
 - keep tuning compact layout defaults for large or unusual traces
 - extend the same interaction model to future structures
 - consider editor-assisted help for inserting `watch(...)`

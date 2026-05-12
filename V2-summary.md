@@ -137,6 +137,9 @@ Current `delVis` semantics:
 - if that node was the final node in its panel, the whole panel disappears
 - deleted objects stop emitting future visualization updates
 - rewiring a node out of a list or tree does not hide it automatically; explicit `delVis(...)` is the supported removal path for detached but still in-memory objects
+- this is an intentional user-control mechanism, not a missing auto-cleanup feature
+- the runtime does not attempt to infer whether a detached node is still algorithmically relevant
+- this keeps behavior predictable across cases like duplicate-node cleanup in lists versus temporary detach-and-reconnect workflows in trees
 
 Relevant file:
 - `public/py/dsviz.py`
@@ -307,11 +310,10 @@ This standard is now implemented for `VisArray`, `VisTreeNode`, and `VisListNode
 The old drag / resize blockers are no longer the main TODOs. Remaining work is now narrower and more product-shaping.
 
 Current unfinished TODOs:
-1. decide the final product semantics for deleted / detached but still in-memory nodes beyond the current explicit `delVis(...)` behavior
-2. extend the unified interaction standard to future structures beyond arrays, lists, and trees
-3. further tune compact layout defaults for extreme traces, long labels, and unusual density
-4. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
-5. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
+1. extend the unified interaction standard to future structures beyond arrays, lists, and trees
+2. further tune compact layout defaults for extreme traces, long labels, and unusual density
+3. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
+4. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
 
 These TODOs are the right next-agent starting point before any new broad feature branch.
 

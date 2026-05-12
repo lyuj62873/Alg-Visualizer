@@ -176,8 +176,13 @@ Still out of scope for v2:
 Known remaining gaps are narrower now:
 1. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
 2. Future structures should preserve the current separation between panel resize, internal panning, and wheel zoom instead of inventing per-structure interaction models.
-3. The final semantics of what should happen to in-memory but no-longer-interesting detached nodes are still intentionally conservative; only explicit `delVis(...)` is supported today.
-4. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
+3. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
+
+`delVis(...)` is no longer an open design question.
+- default runtime visibility is intentionally conservative
+- rewiring or detaching a node does not imply removal
+- explicit `delVis(...)` is the supported way for user code to reduce visual noise when a structure is no longer worth showing
+- this is preferred over automatic inference because runtime topology changes alone cannot reliably identify algorithmically irrelevant nodes
 
 ## Collaboration Rules
 - Repo-facing docs should stay in English.
