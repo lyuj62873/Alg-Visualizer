@@ -6,7 +6,7 @@ import type {
   SetStateAction,
 } from "react";
 import { useEffect, useRef, useState } from "react";
-import { TraceArrayCell, TraceFrame, TracePanel } from "./mock-trace";
+import { TraceContentCell, TraceFrame, TraceMapEntry, TracePanel } from "./mock-trace";
 import { NodeFlowViewport } from "./tree-flow";
 
 function isNodeFlowKind(
@@ -137,12 +137,14 @@ function syncPanelOrder(order: string[], panels: TracePanel[]) {
   return [...retained, ...additions];
 }
 
-function summarizeArrayCell(cell: TraceArrayCell): unknown {
-  if (cell.kind === "value") {
+function summarizeContentCell(cell: TraceContentCell): unknown {
+  if (cell.kind === "value" || cell.kind === "ref") {
     return {
       kind: cell.kind,
       id: cell.id,
       label: cell.label,
+      targetPanelId: cell.kind === "ref" ? cell.targetPanelId ?? null : null,
+      clickable: cell.kind === "ref" ? cell.clickable !== false : false,
       tone: cell.tone ?? "default",
       containsActive: !!cell.containsActive,
     };
@@ -155,7 +157,17 @@ function summarizeArrayCell(cell: TraceArrayCell): unknown {
     dimensions: cell.dimensions ?? [],
     tone: cell.tone ?? "default",
     containsActive: !!cell.containsActive,
-    cells: cell.cells.map((child) => summarizeArrayCell(child)),
+    cells: cell.cells.map((child) => summarizeContentCell(child)),
+  };
+}
+
+function summarizeMapEntry(entry: TraceMapEntry): unknown {
+  return {
+    id: entry.id,
+    tone: entry.tone ?? "default",
+    containsActive: !!entry.containsActive,
+    key: summarizeContentCell(entry.key),
+    value: summarizeContentCell(entry.value),
   };
 }
 
@@ -166,7 +178,15 @@ function getPanelSignature(panel: TracePanel) {
       title: panel.title,
       layout: panel.layout ?? "row",
       dimensions: panel.dimensions ?? [],
-      cells: panel.cells.map((cell) => summarizeArrayCell(cell)),
+      cells: panel.cells.map((cell) => summarizeContentCell(cell)),
+    });
+  }
+
+  if (panel.kind === "map") {
+    return JSON.stringify({
+      kind: panel.kind,
+      title: panel.title,
+      entries: panel.entries.map((entry) => summarizeMapEntry(entry)),
     });
   }
 
@@ -190,19 +210,29 @@ function clampCanvasZoom(value: number) {
 }
 
 function panelHasActiveFocus(panel: TracePanel) {
-  if (panel.kind === "array") {
-    const hasActiveCell = (cell: TraceArrayCell): boolean => {
-      if (cell.kind === "value") {
-        return cell.tone === "active" || !!cell.containsActive;
-      }
-      return (
-        cell.tone === "active" ||
-        !!cell.containsActive ||
-        cell.cells.some((child) => hasActiveCell(child))
-      );
-    };
+  const hasActiveCell = (cell: TraceContentCell): boolean => {
+    if (cell.kind === "value" || cell.kind === "ref") {
+      return cell.tone === "active" || !!cell.containsActive;
+    }
+    return (
+      cell.tone === "active" ||
+      !!cell.containsActive ||
+      cell.cells.some((child) => hasActiveCell(child))
+    );
+  };
 
+  if (panel.kind === "array") {
     return panel.cells.some((cell) => hasActiveCell(cell));
+  }
+
+  if (panel.kind === "map") {
+    return panel.entries.some(
+      (entry) =>
+        entry.tone === "active" ||
+        !!entry.containsActive ||
+        hasActiveCell(entry.key) ||
+        hasActiveCell(entry.value),
+    );
   }
 
   return panel.items.some((item) => item.tone === "active");
@@ -225,7 +255,7 @@ function getResizeCursor(resizeFrom: NonNullable<InteractionState["resizeFrom"]>
   return "default";
 }
 
-function ArrayValueCell({ cell }: { cell: Extract<TraceArrayCell, { kind: "value" }> }) {
+function ValueToken({ cell }: { cell: Extract<TraceContentCell, { kind: "value" }> }) {
   const isActive = cell.tone === "active";
   const containsActive = !!cell.containsActive;
 
@@ -244,14 +274,68 @@ function ArrayValueCell({ cell }: { cell: Extract<TraceArrayCell, { kind: "value
   );
 }
 
-function ArrayContentView({
+function ReferenceToken({
+  cell,
+  onReferenceClick,
+}: {
+  cell: Extract<TraceContentCell, { kind: "ref" }>;
+  onReferenceClick: (panelId: string) => void;
+}) {
+  const isActive = cell.tone === "active";
+  const containsActive = !!cell.containsActive;
+  const isClickable = cell.clickable !== false && !!cell.targetPanelId;
+
+  if (!isClickable) {
+    return (
+      <div
+        className={`flex min-h-10 min-w-[52px] items-center justify-center rounded-lg border px-2.5 py-2 text-[13px] font-semibold shadow-sm ${
+          isActive
+            ? "border-[#fb923c] bg-[#fff7ed] text-[#c2410c]"
+            : containsActive
+              ? "border-[#fdba74] bg-[#fffbeb] text-[#9a3412]"
+              : "border-[#d1d5db] bg-[#f9fafb] text-[#6b7280]"
+        }`}
+      >
+        <span className="whitespace-nowrap">{cell.label}</span>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onPointerDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onReferenceClick(cell.targetPanelId!);
+      }}
+      className={`flex min-h-10 min-w-[52px] items-center justify-center rounded-lg border px-2.5 py-2 text-[13px] font-semibold shadow-sm transition hover:-translate-y-[1px] ${
+        isActive
+          ? "border-[#fb923c] bg-[#fff7ed] text-[#c2410c]"
+          : containsActive
+            ? "border-[#fdba74] bg-[#fffbeb] text-[#9a3412]"
+            : "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8] hover:bg-[#dbeafe]"
+      }`}
+    >
+      <span className="whitespace-nowrap">{cell.label}</span>
+    </button>
+  );
+}
+
+function ContentView({
   layout,
   cells,
   depth,
+  onReferenceClick,
 }: {
   layout: "row" | "matrix" | "stack";
-  cells: TraceArrayCell[];
+  cells: TraceContentCell[];
   depth: number;
+  onReferenceClick: (panelId: string) => void;
 }) {
   if (layout === "matrix") {
     return (
@@ -265,7 +349,12 @@ function ArrayContentView({
                 </div>
                 <div className="flex min-w-max items-start gap-1.5">
                   {row.cells.map((child) => (
-                    <ArrayCellView key={child.id} cell={child} depth={depth + 1} />
+                    <ContentCellView
+                      key={child.id}
+                      cell={child}
+                      depth={depth + 1}
+                      onReferenceClick={onReferenceClick}
+                    />
                   ))}
                 </div>
               </div>
@@ -277,7 +366,7 @@ function ArrayContentView({
               <div className="w-5 text-right text-[10px] font-semibold text-[#94a3b8]">
                 {rowIndex}
               </div>
-              <ArrayCellView cell={row} depth={depth + 1} />
+              <ContentCellView cell={row} depth={depth + 1} onReferenceClick={onReferenceClick} />
             </div>
           );
         })}
@@ -293,7 +382,7 @@ function ArrayContentView({
             <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#94a3b8]">
               Slice {index}
             </div>
-            <ArrayCellView cell={child} depth={depth + 1} />
+            <ContentCellView cell={child} depth={depth + 1} onReferenceClick={onReferenceClick} />
           </div>
         ))}
       </div>
@@ -303,22 +392,33 @@ function ArrayContentView({
   return (
     <div className="flex min-w-max items-start gap-1.5 pb-1">
       {cells.map((child) => (
-        <ArrayCellView key={child.id} cell={child} depth={depth + 1} />
+        <ContentCellView
+          key={child.id}
+          cell={child}
+          depth={depth + 1}
+          onReferenceClick={onReferenceClick}
+        />
       ))}
     </div>
   );
 }
 
-function ArrayCellView({
+function ContentCellView({
   cell,
   depth,
+  onReferenceClick,
 }: {
-  cell: TraceArrayCell;
+  cell: TraceContentCell;
   depth: number;
+  onReferenceClick: (panelId: string) => void;
 }) {
   const nestedBg = depth % 2 === 0 ? "bg-[#fffaf5]" : "bg-white";
   if (cell.kind === "value") {
-    return <ArrayValueCell cell={cell} />;
+    return <ValueToken cell={cell} />;
+  }
+
+  if (cell.kind === "ref") {
+    return <ReferenceToken cell={cell} onReferenceClick={onReferenceClick} />;
   }
 
   const isActive = cell.tone === "active";
@@ -343,7 +443,12 @@ function ArrayCellView({
         {dimensionsLabel ? <span>{dimensionsLabel}</span> : null}
       </div>
       {cell.cells.length ? (
-        <ArrayContentView layout={layout} cells={cell.cells} depth={depth} />
+        <ContentView
+          layout={layout}
+          cells={cell.cells}
+          depth={depth}
+          onReferenceClick={onReferenceClick}
+        />
       ) : (
         <div className="rounded-lg border border-dashed border-[#d1d5db] px-3 py-2 text-xs text-[#6b7280]">
           Empty
@@ -357,10 +462,12 @@ function ArrayPanelBody({
   panel,
   scale,
   setPositions,
+  onReferenceClick,
 }: {
   panel: Extract<TracePanel, { kind: "array" }>;
   scale: number;
   setPositions: Dispatch<SetStateAction<DragPositions>>;
+  onReferenceClick: (panelId: string) => void;
 }) {
   const dimensionsLabel = formatDimensions(panel.dimensions);
   const layout = panel.layout ?? "row";
@@ -441,11 +548,151 @@ function ArrayPanelBody({
                 <span>{Math.round(scale * 100)}%</span>
               </div>
             </div>
-            <ArrayContentView layout={layout} cells={panel.cells} depth={0} />
+            <ContentView
+              layout={layout}
+              cells={panel.cells}
+              depth={0}
+              onReferenceClick={onReferenceClick}
+            />
           </div>
         ) : (
           <div className="flex h-full min-h-24 items-center justify-center rounded-xl border border-dashed border-[#d1d5db] text-sm text-[#6b7280]">
             No objects yet for this step.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MapPanelBody({
+  panel,
+  scale,
+  setPositions,
+  onReferenceClick,
+}: {
+  panel: Extract<TracePanel, { kind: "map" }>;
+  scale: number;
+  setPositions: Dispatch<SetStateAction<DragPositions>>;
+  onReferenceClick: (panelId: string) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [dragScroll, setDragScroll] = useState<{
+    pointerId: number;
+    startClientX: number;
+    startClientY: number;
+    scrollLeft: number;
+    scrollTop: number;
+  } | null>(null);
+
+  function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const delta = event.deltaY === 0 ? event.deltaX : event.deltaY;
+    const zoomStep = delta > 0 ? -0.08 : 0.08;
+    setPanelScale(setPositions, panel, scale + zoomStep);
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    const container = scrollRef.current;
+    if (!container) return;
+
+    setDragScroll({
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      scrollLeft: container.scrollLeft,
+      scrollTop: container.scrollTop,
+    });
+    container.setPointerCapture(event.pointerId);
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!dragScroll || dragScroll.pointerId !== event.pointerId) return;
+    const container = scrollRef.current;
+    if (!container) return;
+
+    container.scrollLeft = dragScroll.scrollLeft - (event.clientX - dragScroll.startClientX);
+    container.scrollTop = dragScroll.scrollTop - (event.clientY - dragScroll.startClientY);
+  }
+
+  function endPointerDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const container = scrollRef.current;
+    if (container && dragScroll?.pointerId === event.pointerId && container.hasPointerCapture(event.pointerId)) {
+      container.releasePointerCapture(event.pointerId);
+    }
+    setDragScroll(null);
+  }
+
+  return (
+    <div
+      ref={scrollRef}
+      onWheel={handleWheel}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={endPointerDrag}
+      onPointerCancel={endPointerDrag}
+      className={`absolute inset-0 overflow-auto p-3 ${
+        dragScroll ? "cursor-grabbing" : "cursor-grab"
+      }`}
+    >
+      <div
+        className="inline-block min-w-full origin-top-left align-top"
+        style={{
+          zoom: scale,
+        }}
+      >
+        {panel.entries.length ? (
+          <div className="min-w-max space-y-2 pb-1">
+            <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#94a3b8]">
+              <span>Map</span>
+              <div className="flex items-center gap-2">
+                <span>{panel.entries.length} entries</span>
+                <span>{Math.round(scale * 100)}%</span>
+              </div>
+            </div>
+            {panel.entries.map((entry) => {
+              const entryActive =
+                entry.tone === "active" || !!entry.containsActive;
+              return (
+                <div
+                  key={entry.id}
+                  className={`grid min-w-[420px] grid-cols-[minmax(140px,1fr)_20px_minmax(180px,1.4fr)] items-start gap-3 rounded-xl border px-3 py-3 shadow-sm ${
+                    entryActive
+                      ? "border-[#fdba74] bg-[#fffaf0]"
+                      : "border-[#e5e7eb] bg-white"
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#94a3b8]">
+                      Key
+                    </div>
+                    <ContentCellView
+                      cell={entry.key}
+                      depth={0}
+                      onReferenceClick={onReferenceClick}
+                    />
+                  </div>
+                  <div className="pt-7 text-center text-[13px] font-semibold text-[#94a3b8]">
+                    →
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#94a3b8]">
+                      Value
+                    </div>
+                    <ContentCellView
+                      cell={entry.value}
+                      depth={0}
+                      onReferenceClick={onReferenceClick}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex h-full min-h-24 items-center justify-center rounded-xl border border-dashed border-[#d1d5db] text-sm text-[#6b7280]">
+            Map is empty for this step.
           </div>
         )}
       </div>
@@ -463,6 +710,7 @@ function VisualizationPanel({
   toggleTracking,
   zIndex,
   onFocusPanel,
+  onReferenceClick,
   onMinimizePanel,
   onClosePanel,
   panelRef,
@@ -476,6 +724,7 @@ function VisualizationPanel({
   toggleTracking: (panelId: string) => void;
   zIndex: number;
   onFocusPanel: (panelId: string) => void;
+  onReferenceClick: (panelId: string) => void;
   onMinimizePanel: (panelId: string) => void;
   onClosePanel: (panelId: string) => void;
   panelRef: (node: HTMLElement | null) => void;
@@ -797,11 +1046,19 @@ function VisualizationPanel({
             fitRequestToken={fitRequestToken}
             trackingEnabled={trackingEnabled}
           />
+        ) : panel.kind === "map" ? (
+          <MapPanelBody
+            panel={panel}
+            scale={currentPanelPosition.scale}
+            setPositions={setPositions}
+            onReferenceClick={onReferenceClick}
+          />
         ) : (
           <ArrayPanelBody
             panel={panel as Extract<TracePanel, { kind: "array" }>}
             scale={currentPanelPosition.scale}
             setPositions={setPositions}
+            onReferenceClick={onReferenceClick}
           />
         )}
         {resizeHandles.map((handle) => (
@@ -1170,6 +1427,7 @@ export function ResultsPane({
                 toggleTracking={toggleTracking}
                 zIndex={20 + index}
                 onFocusPanel={focusPanel}
+                onReferenceClick={focusAndTrackPanel}
                 onMinimizePanel={minimizePanel}
                 onClosePanel={closePanel}
                 panelRef={(node) => registerPanelElement(panel.id, node)}

@@ -20,20 +20,21 @@ Implemented end-to-end flow:
 4. `dsviz` emits a full trace of render-ready frames.
 5. The frontend replays those frames with `Prev` and `Next`.
 6. The editor highlights the currently executing line for the active frame.
-7. Visualized arrays, linked lists, trees, watched scalars, and runtime errors all update with frame changes.
+7. Visualized arrays, maps, linked lists, trees, watched scalars, and runtime errors all update with frame changes.
 
 ## This Week's Summary
 This week focused on stabilizing the visual interaction model and expanding the supported data structures.
 
 Main outcomes:
 - `VisArray` was upgraded from simple 1D rendering to full multidimensional list visualization.
+- `VisMap` now exists as the first reference-first nested container, with clickable child `VisXxx` references.
 - `VisTreeNode` interaction and layout were tightened until the default tree view became compact, navigable, and readable.
 - `VisListNode` was added as a first-class visualization primitive with arrow-based linked-list rendering.
 - detached list and tree components remain visible during rewiring and rebuild algorithms instead of disappearing until they reconnect.
 - node panels now use manual `Fit` plus default-on `Track` instead of unconditional auto-recenter.
 - `delVis(...)` was added so user code can explicitly remove an existing visualization.
 
-The branch is now at the point where array, tree, and list visualizations all exist and share a mostly unified panel model.
+The repo is now at the point where array, map, tree, and list visualizations all exist and share a mostly unified panel model.
 
 ## Important Product Decisions
 Several planning assumptions changed during implementation.
@@ -58,7 +59,7 @@ Current reality:
 Earlier UI drafts used `Trace` plus `Examples`.
 
 Current reality:
-- top nav now contains `Workbench`, `Examples`, and `Guides`
+- top nav now contains `Examples` and `Guides`
 - `Examples` is for runnable algorithm demos
 - `Guides` is for focused DS usage examples
 
@@ -304,11 +305,16 @@ The repo now has a usable default standard for visual structures:
 5. the user may pan inside the panel when the structure overflows its viewport
 6. single visual elements are not draggable
 
-This standard is now implemented for `VisArray`, `VisTreeNode`, and `VisListNode` and should be reused for future structures.
+This standard is now implemented for `VisArray`, `VisMap`, `VisTreeNode`, and `VisListNode` and should be reused for future structures.
 
 ## Planned Nested `VisXxx` References
 
 Nested container visualization should default to cross-panel references rather than inline duplication.
+
+Current implementation status:
+- this is now live for `VisMap`
+- child `VisXxx` values render as clickable reference tokens inside the map panel
+- `delVis(child)` degrades those references into non-clickable summaries
 
 Decision:
 - each `VisXxx` object owns its own panel
@@ -326,7 +332,7 @@ Reference naming rule:
 The old drag / resize blockers are no longer the main TODOs. Remaining work is now narrower and more product-shaping.
 
 Current unfinished TODOs:
-1. implement the reference-first nested container model for future structures such as `VisMap`, `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`
+1. extend the reference-first nested container model from `VisMap` to future structures such as `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`
 2. further tune compact layout defaults for extreme traces, long labels, and unusual density
 3. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
 4. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment

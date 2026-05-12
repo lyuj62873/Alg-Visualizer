@@ -21,11 +21,20 @@ def run_case():
     sol = Solution()
     return sol.solve(root)`;
 
-export type TraceArrayCell =
+export type TraceContentCell =
   | {
       id: string;
       kind: "value";
       label: string;
+      tone?: "default" | "active";
+      containsActive?: boolean;
+    }
+  | {
+      id: string;
+      kind: "ref";
+      label: string;
+      targetPanelId?: string;
+      clickable?: boolean;
       tone?: "default" | "active";
       containsActive?: boolean;
     }
@@ -36,8 +45,16 @@ export type TraceArrayCell =
       dimensions?: number[];
       tone?: "default" | "active";
       containsActive?: boolean;
-      cells: TraceArrayCell[];
+      cells: TraceContentCell[];
     };
+
+export type TraceMapEntry = {
+  id: string;
+  key: TraceContentCell;
+  value: TraceContentCell;
+  tone?: "default" | "active";
+  containsActive?: boolean;
+};
 
 export type TraceVisualItem = {
   id: string;
@@ -82,7 +99,11 @@ export type TracePanel =
       kind: "array";
       layout?: "row" | "matrix" | "stack";
       dimensions?: number[];
-      cells: TraceArrayCell[];
+      cells: TraceContentCell[];
+    })
+  | (TracePanelBase & {
+      kind: "map";
+      entries: TraceMapEntry[];
     });
 
 export type TraceFrame = {
@@ -99,18 +120,18 @@ function valueCell(
   id: string,
   label: string,
   tone: "default" | "active" = "default",
-): TraceArrayCell {
+): TraceContentCell {
   return { id, kind: "value", label, tone };
 }
 
 function arrayCell(
   id: string,
-  cells: TraceArrayCell[],
+  cells: TraceContentCell[],
   layout: "row" | "matrix" | "stack" = "row",
   dimensions?: number[],
   tone: "default" | "active" = "default",
   containsActive = false,
-): TraceArrayCell {
+): TraceContentCell {
   return { id, kind: "array", cells, layout, dimensions, tone, containsActive };
 }
 

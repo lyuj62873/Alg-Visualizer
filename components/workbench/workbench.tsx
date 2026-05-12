@@ -88,6 +88,11 @@ export function Workbench() {
       description: "linked-list init, insert, rewire next pointers, replace tail",
       path: "/examples/vis-list-node-example.py",
     },
+    {
+      label: "VisMap",
+      description: "map entries with clickable references to child VisXxx panels",
+      path: "/examples/vis-map-example.py",
+    },
   ];
 
   async function loadExample(path: string) {

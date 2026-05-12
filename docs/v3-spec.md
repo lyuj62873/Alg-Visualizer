@@ -58,6 +58,7 @@ AlgoLens v3 visualizes only explicitly tracked values.
 
 Current supported primitives:
 - `VisArray`
+- `VisMap`
 - `VisListNode`
 - `VisTreeNode`
 - `delVis(value)`
@@ -223,6 +224,12 @@ Reference labeling direction:
 - prefer inferred variable names when available
 - if multiple visible objects share the same inferred name, disambiguate them with numeric suffixes
 - preserve semantically meaningful user names such as `head` and `tail` whenever possible
+
+Current implementation status:
+- the reference-first model is now implemented for `VisMap`
+- map entries may render child `VisXxx` values as clickable reference tokens
+- clicking a token reuses the same bring-to-front and canvas-track behavior as a panel tab
+- `delVis(child)` degrades those map references into non-clickable summaries
 
 ## UI Model
 The current single-page workbench contains:

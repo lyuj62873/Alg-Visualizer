@@ -52,6 +52,7 @@ Only explicitly instrumented values are visualized.
 
 Current supported instrumentation:
 - `VisArray`
+- `VisMap`
 - `VisListNode`
 - `VisTreeNode`
 - `delVis(value)`
@@ -71,7 +72,6 @@ The workbench is a single-page split layout with:
 - draggable visualization panels
 
 Top navigation currently contains:
-- `Workbench`
 - `Examples`
 - `Guides`
 
@@ -95,6 +95,7 @@ Current built-in examples:
 Current built-in guides:
 - `VisArray`
 - `VisArray 2D/3D`
+- `VisMap`
 - `VisListNode`
 - `VisTreeNode`
 
@@ -112,7 +113,7 @@ Rendering split:
 - custom overlay panels handle variables and runtime output
 
 ## Current Visualization Standard
-`VisArray`, `VisTreeNode`, and `VisListNode` now follow one shared interaction standard.
+`VisArray`, `VisMap`, `VisTreeNode`, and `VisListNode` now follow one shared interaction standard.
 
 Shared rules:
 - every structure renders in a floating panel on the canvas
@@ -174,7 +175,7 @@ Still out of scope for v3:
 
 ## Known v3 Gaps
 Known remaining gaps are narrower now:
-1. Future container structures should reuse the current panel interaction model while also supporting panel-to-panel nested references for `VisXxx` values.
+1. Future container structures should extend the current `VisMap` reference-first nesting model to `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`.
 2. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
 3. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
 
@@ -191,6 +192,7 @@ Nested `VisXxx` design direction is also decided:
 - clicking a reference token should reuse the same bring-to-front and track behavior as clicking a panel tab
 - plain Python containers are not automatically promoted into panels; this mechanism is reserved for explicit `VisXxx` objects
 - reference labels should prefer user variable names, with numeric suffixes added only when duplicate names must be disambiguated
+- this direction is now partially implemented through `VisMap`
 
 ## Collaboration Rules
 - Repo-facing docs should stay in English.

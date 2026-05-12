@@ -34,6 +34,7 @@ Current end-to-end behavior:
 
 Current public `dsviz` APIs:
 - `VisArray`
+- `VisMap`
 - `VisTreeNode`
 - `VisListNode`
 - `watch(name, value)`
@@ -69,6 +70,27 @@ Currently supports:
 - node updates through normal attribute assignment
 - temporary disconnected tree components staying visible during rebuild workflows
 
+### `VisMap`
+
+Currently supports:
+- scalar keys
+- scalar values
+- `VisXxx` child references as clickable cross-panel tokens
+- non-clickable degraded summaries after `delVis(child)`
+- top-level map mutations through normal dictionary-style operations
+
+Current map-like operations include:
+- `__getitem__`
+- `__setitem__`
+- `__delitem__`
+- `get`
+- `pop`
+- `clear`
+- `update`
+- `keys`
+- `values`
+- `items`
+
 ### `VisListNode`
 
 Currently supports:
@@ -102,7 +124,7 @@ Design intent:
 
 ## Current Interaction Model
 
-The visualization system now follows one shared interaction model across arrays, trees, and lists.
+The visualization system now follows one shared interaction model across arrays, maps, trees, and lists.
 
 Shared rules:
 - every structure renders in a floating panel
@@ -176,7 +198,7 @@ If you are continuing development, start with `V3-summary.md` first.
 ## Planned Follow-Up
 
 The current prototype is already usable, but several follow-up areas remain:
-- add nested container visualization for future `VisXxx` structures using panel-to-panel references rather than default inline expansion
+- expand the reference-first nested container model from `VisMap` to future `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`
 - keep tuning compact layout defaults for large or unusual traces
 - extend the same interaction model to future structures
 - consider editor-assisted help for inserting `watch(...)`

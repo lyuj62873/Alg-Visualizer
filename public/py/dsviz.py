@@ -8,6 +8,7 @@ import linecache
 from typing import Any, Dict, List, Optional, Tuple
 
 MAX_TRACE_FRAMES = 1000
+_MISSING = object()
 
 
 class VisualizationFrameLimitExceededError(Exception):
@@ -164,6 +165,23 @@ class _TraceState:
             cloned["index"] = idx
             frames.append(cloned)
         return frames
+
+    def resolve_object_label(self, obj: "_VisObject", fallback: str) -> str:
+        base_name = getattr(obj, "_display_name", None) or fallback
+        siblings = [
+            other
+            for other in self._objects
+            if getattr(other, "_is_visualized", False)
+            and (getattr(other, "_display_name", None) or other.title) == base_name
+        ]
+        if len(siblings) <= 1:
+            return base_name
+
+        for index, sibling in enumerate(siblings, start=1):
+            if sibling is obj:
+                return f"{base_name}{index}"
+
+        return base_name
 
 
 _TRACE = _TraceState()
@@ -323,12 +341,14 @@ class _VisObject:
         type_label: str,
         layout: _PanelLayout,
         panel_id: Optional[str] = None,
+        display_name: Optional[str] = None,
     ) -> None:
         _VisObject._id_counter += 1
         self.id = panel_id or f"panel_{_VisObject._id_counter}"
         self.title = title
         self.type_label = type_label
         self.layout = layout
+        self._display_name = display_name
         self._is_visualized = True
         _TRACE.register_object(self)
 
@@ -340,6 +360,28 @@ class _VisObject:
 
     def _render_panel(self) -> Any:
         raise NotImplementedError
+
+
+def _reference_cell(value: "_VisObject", cell_id: str) -> Dict[str, Any]:
+    label = _TRACE.resolve_object_label(value, value.title)
+    is_live = getattr(value, "_is_visualized", False)
+    return {
+        "id": cell_id,
+        "kind": "ref",
+        "label": label,
+        "targetPanelId": value.id if is_live else None,
+        "clickable": is_live,
+    }
+
+
+def _value_cell(value: Any, cell_id: str) -> Dict[str, Any]:
+    if isinstance(value, _VisObject):
+        return _reference_cell(value, cell_id)
+    return {
+        "id": cell_id,
+        "kind": "value",
+        "label": _safe_str(value),
+    }
 
 
 class _NestedArray:
@@ -574,6 +616,7 @@ class VisArray(_VisObject):
             type_label="VisArray",
             panel_id=panel_id,
             layout=layout,
+            display_name=resolved_name,
         )
         self._active_path: Optional[Tuple[int, ...]] = None
         self._root_array = _NestedArray(self, (), list(values))
@@ -804,7 +847,7 @@ class VisArray(_VisObject):
         return {
             "id": self.id,
             "kind": "array",
-            "title": self.title,
+            "title": _TRACE.resolve_object_label(self, self.title),
             "typeLabel": self.type_label,
             "x": self.layout.x,
             "y": self.layout.y,
@@ -817,6 +860,172 @@ class VisArray(_VisObject):
             "layout": rendered_root["layout"],
             "dimensions": rendered_root["dimensions"],
             "cells": rendered_root["cells"],
+        }
+
+
+class VisMap(_VisObject):
+    def __init__(
+        self,
+        values: Optional[Dict[Any, Any]] = None,
+        name: Optional[str] = None,
+        *,
+        panel_id: Optional[str] = None,
+        x: float = 8,
+        y: float = 12,
+        width: float = 40,
+        height: float = 24,
+        scale: float = 1.0,
+    ) -> None:
+        self._uses_default_layout = (
+            panel_id is None
+            and x == 8
+            and y == 12
+            and width == 40
+            and height == 24
+            and scale == 1.0
+        )
+        resolved_name = name
+        if resolved_name is None:
+            frame = inspect.currentframe()
+            try:
+                caller = frame.f_back if frame is not None else None
+                resolved_name = (
+                    _infer_constructor_target_name(caller, "VisMap")
+                    if caller is not None
+                    else None
+                )
+            finally:
+                del frame
+            if not resolved_name:
+                resolved_name = "map"
+
+        if self._uses_default_layout:
+            layout = _TRACE.suggest_panel_layout(
+                preferred_x=x,
+                preferred_y=y,
+                width=width,
+                height=height,
+                scale=scale,
+            )
+        else:
+            layout = _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
+
+        super().__init__(
+            title=resolved_name,
+            type_label="VisMap",
+            panel_id=panel_id,
+            layout=layout,
+            display_name=resolved_name,
+        )
+        self._values: "OrderedDict[Any, Any]" = OrderedDict()
+        self._active_key: Optional[Any] = None
+        if values:
+            for key, value in values.items():
+                self._values[key] = value
+        _TRACE.emit(label=f"{resolved_name}: init")
+
+    def __len__(self) -> int:
+        return len(self._values)
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __contains__(self, key: Any) -> bool:
+        return key in self._values
+
+    def __getitem__(self, key: Any) -> Any:
+        self._active_key = key
+        return self._values[key]
+
+    def __setitem__(self, key: Any, value: Any) -> None:
+        self._values[key] = value
+        self._active_key = key
+        if self._is_visualized:
+            _TRACE.emit(label=f"{self.title}[{_safe_str(key)}] = {_safe_str(value)}")
+
+    def __delitem__(self, key: Any) -> None:
+        del self._values[key]
+        self._active_key = None
+        if self._is_visualized:
+            _TRACE.emit(label=f"del {self.title}[{_safe_str(key)}]")
+
+    def get(self, key: Any, default: Any = None) -> Any:
+        self._active_key = key
+        return self._values.get(key, default)
+
+    def keys(self):
+        return self._values.keys()
+
+    def values(self):
+        return self._values.values()
+
+    def items(self):
+        return self._values.items()
+
+    def pop(self, key: Any, default: Any = _MISSING) -> Any:
+        had_key = key in self._values
+        if had_key:
+            value = self._values.pop(key)
+            self._active_key = None
+            if self._is_visualized:
+                _TRACE.emit(label=f"{self.title}.pop({_safe_str(key)})")
+            return value
+        if default is not _MISSING:
+            return default
+        raise KeyError(key)
+
+    def clear(self) -> None:
+        self._values.clear()
+        self._active_key = None
+        if self._is_visualized:
+            _TRACE.emit(label=f"{self.title}.clear()")
+
+    def update(self, other: Dict[Any, Any]) -> None:
+        for key, value in other.items():
+            self._values[key] = value
+            self._active_key = key
+        if self._is_visualized:
+            _TRACE.emit(label=f"{self.title}.update({_safe_str(other)})")
+
+    def _render_panel(self) -> Dict[str, Any]:
+        entries: List[Dict[str, Any]] = []
+        for index, (key, value) in enumerate(self._values.items()):
+            key_cell = _value_cell(key, f"{self.id}_k_{index}")
+            value_cell = _value_cell(value, f"{self.id}_v_{index}")
+            is_active = self._active_key == key
+            contains_active = (
+                isinstance(value, _VisObject)
+                and _TRACE.last_touched == value.id
+            )
+            entries.append(
+                {
+                    "id": f"{self.id}_entry_{index}",
+                    "key": key_cell,
+                    "value": value_cell,
+                    "tone": "active" if is_active else "default",
+                    "containsActive": contains_active,
+                }
+            )
+
+        width = 40.0 if self._uses_default_layout else self.layout.width
+        height = max(20.0, min(74.0, 10.0 + (len(entries) * 8.2)))
+        if not self._uses_default_layout:
+            height = self.layout.height
+
+        return {
+            "id": self.id,
+            "kind": "map",
+            "title": _TRACE.resolve_object_label(self, self.title),
+            "typeLabel": self.type_label,
+            "x": self.layout.x,
+            "y": self.layout.y,
+            "width": width,
+            "height": height,
+            "minWidth": 24.0,
+            "minHeight": 16.0,
+            "maxWidth": 72.0,
+            "scale": self.layout.scale,
+            "entries": entries,
         }
 
 
