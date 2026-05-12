@@ -463,11 +463,13 @@ function ArrayPanelBody({
   scale,
   setPositions,
   onReferenceClick,
+  disabled,
 }: {
   panel: Extract<TracePanel, { kind: "array" }>;
   scale: number;
   setPositions: Dispatch<SetStateAction<DragPositions>>;
   onReferenceClick: (panelId: string) => void;
+  disabled: boolean;
 }) {
   const dimensionsLabel = formatDimensions(panel.dimensions);
   const layout = panel.layout ?? "row";
@@ -481,6 +483,7 @@ function ArrayPanelBody({
   } | null>(null);
 
   function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
+    if (disabled) return;
     event.preventDefault();
     const delta = event.deltaY === 0 ? event.deltaX : event.deltaY;
     const zoomStep = delta > 0 ? -0.08 : 0.08;
@@ -488,6 +491,7 @@ function ArrayPanelBody({
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (disabled) return;
     if (event.button !== 0) return;
     const container = scrollRef.current;
     if (!container) return;
@@ -503,6 +507,7 @@ function ArrayPanelBody({
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (disabled) return;
     if (!dragScroll || dragScroll.pointerId !== event.pointerId) return;
     const container = scrollRef.current;
     if (!container) return;
@@ -527,6 +532,7 @@ function ArrayPanelBody({
       onPointerMove={handlePointerMove}
       onPointerUp={endPointerDrag}
       onPointerCancel={endPointerDrag}
+      style={{ pointerEvents: disabled ? "none" : "auto" }}
       className={`absolute inset-0 overflow-auto p-3 ${
         dragScroll ? "cursor-grabbing" : "cursor-grab"
       }`}
@@ -570,11 +576,13 @@ function MapPanelBody({
   scale,
   setPositions,
   onReferenceClick,
+  disabled,
 }: {
   panel: Extract<TracePanel, { kind: "map" }>;
   scale: number;
   setPositions: Dispatch<SetStateAction<DragPositions>>;
   onReferenceClick: (panelId: string) => void;
+  disabled: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [dragScroll, setDragScroll] = useState<{
@@ -586,6 +594,7 @@ function MapPanelBody({
   } | null>(null);
 
   function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
+    if (disabled) return;
     event.preventDefault();
     const delta = event.deltaY === 0 ? event.deltaX : event.deltaY;
     const zoomStep = delta > 0 ? -0.08 : 0.08;
@@ -593,6 +602,7 @@ function MapPanelBody({
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (disabled) return;
     if (event.button !== 0) return;
     const container = scrollRef.current;
     if (!container) return;
@@ -608,6 +618,7 @@ function MapPanelBody({
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (disabled) return;
     if (!dragScroll || dragScroll.pointerId !== event.pointerId) return;
     const container = scrollRef.current;
     if (!container) return;
@@ -632,6 +643,7 @@ function MapPanelBody({
       onPointerMove={handlePointerMove}
       onPointerUp={endPointerDrag}
       onPointerCancel={endPointerDrag}
+      style={{ pointerEvents: disabled ? "none" : "auto" }}
       className={`absolute inset-0 overflow-auto p-3 ${
         dragScroll ? "cursor-grabbing" : "cursor-grab"
       }`}
@@ -944,6 +956,7 @@ function VisualizationPanel({
       resizeFrom: { left: false, right: true, top: false, bottom: true },
     },
   ] as const;
+  const contentInteractionDisabled = interaction?.mode === "resize";
 
   return (
     <article
@@ -1060,6 +1073,7 @@ function VisualizationPanel({
             scale={currentPanelPosition.scale}
             setPositions={setPositions}
             onReferenceClick={onReferenceClick}
+            disabled={contentInteractionDisabled}
           />
         ) : (
           <ArrayPanelBody
@@ -1067,6 +1081,7 @@ function VisualizationPanel({
             scale={currentPanelPosition.scale}
             setPositions={setPositions}
             onReferenceClick={onReferenceClick}
+            disabled={contentInteractionDisabled}
           />
         )}
         {resizeHandles.map((handle) => (
