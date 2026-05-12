@@ -465,11 +465,13 @@ function ArrayPanelBody({
   scale,
   setPositions,
   onReferenceClick,
+  isResizing,
 }: {
   panel: Extract<TracePanel, { kind: "array" }>;
   scale: number;
   setPositions: Dispatch<SetStateAction<DragPositions>>;
   onReferenceClick: (panelId: string) => void;
+  isResizing: boolean;
 }) {
   const dimensionsLabel = formatDimensions(panel.dimensions);
   const layout = panel.layout ?? "row";
@@ -529,6 +531,7 @@ function ArrayPanelBody({
       onPointerMove={handlePointerMove}
       onPointerUp={endPointerDrag}
       onPointerCancel={endPointerDrag}
+      style={{ overflow: isResizing ? "hidden" : undefined }}
       className={`absolute inset-0 overflow-auto p-3 ${
         dragScroll ? "cursor-grabbing" : "cursor-grab"
       }`}
@@ -572,11 +575,13 @@ function MapPanelBody({
   scale,
   setPositions,
   onReferenceClick,
+  isResizing,
 }: {
   panel: Extract<TracePanel, { kind: "map" }>;
   scale: number;
   setPositions: Dispatch<SetStateAction<DragPositions>>;
   onReferenceClick: (panelId: string) => void;
+  isResizing: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [dragScroll, setDragScroll] = useState<{
@@ -634,6 +639,7 @@ function MapPanelBody({
       onPointerMove={handlePointerMove}
       onPointerUp={endPointerDrag}
       onPointerCancel={endPointerDrag}
+      style={{ overflow: isResizing ? "hidden" : undefined }}
       className={`absolute inset-0 overflow-auto p-3 ${
         dragScroll ? "cursor-grabbing" : "cursor-grab"
       }`}
@@ -948,6 +954,7 @@ function VisualizationPanel({
       resizeFrom: { left: false, right: true, top: false, bottom: true },
     },
   ] as const;
+  const isResizing = interaction?.mode === "resize";
 
   return (
     <article
@@ -1064,6 +1071,7 @@ function VisualizationPanel({
             scale={currentPanelPosition.scale}
             setPositions={setPositions}
             onReferenceClick={onReferenceClick}
+            isResizing={!!isResizing}
           />
         ) : (
           <ArrayPanelBody
@@ -1071,12 +1079,14 @@ function VisualizationPanel({
             scale={currentPanelPosition.scale}
             setPositions={setPositions}
             onReferenceClick={onReferenceClick}
+            isResizing={!!isResizing}
           />
         )}
         {resizeHandles.map((handle) => (
           <div
             key={handle.key}
             onPointerDown={(event) => startInteraction(event, "resize", handle.resizeFrom)}
+            style={{ touchAction: "none" }}
             className={handle.className}
           />
         ))}
