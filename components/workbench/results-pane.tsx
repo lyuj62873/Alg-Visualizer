@@ -38,6 +38,7 @@ type PanelFocusRequest = {
 type InteractionState = {
   mode: "drag" | "resize";
   panelId: string;
+  pointerId: number;
   startClientX: number;
   startClientY: number;
   panelStart: PanelPosition;
@@ -45,6 +46,7 @@ type InteractionState = {
   minHeight: number;
   maxWidth: number;
   maxHeight: number;
+  captureTarget: HTMLElement | null;
   resizeFrom?: {
     left: boolean;
     right: boolean;
@@ -463,13 +465,11 @@ function ArrayPanelBody({
   scale,
   setPositions,
   onReferenceClick,
-  disabled,
 }: {
   panel: Extract<TracePanel, { kind: "array" }>;
   scale: number;
   setPositions: Dispatch<SetStateAction<DragPositions>>;
   onReferenceClick: (panelId: string) => void;
-  disabled: boolean;
 }) {
   const dimensionsLabel = formatDimensions(panel.dimensions);
   const layout = panel.layout ?? "row";
@@ -483,7 +483,6 @@ function ArrayPanelBody({
   } | null>(null);
 
   function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
-    if (disabled) return;
     event.preventDefault();
     const delta = event.deltaY === 0 ? event.deltaX : event.deltaY;
     const zoomStep = delta > 0 ? -0.08 : 0.08;
@@ -491,7 +490,6 @@ function ArrayPanelBody({
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (disabled) return;
     if (event.button !== 0) return;
     const container = scrollRef.current;
     if (!container) return;
@@ -507,7 +505,6 @@ function ArrayPanelBody({
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    if (disabled) return;
     if (!dragScroll || dragScroll.pointerId !== event.pointerId) return;
     const container = scrollRef.current;
     if (!container) return;
@@ -532,7 +529,6 @@ function ArrayPanelBody({
       onPointerMove={handlePointerMove}
       onPointerUp={endPointerDrag}
       onPointerCancel={endPointerDrag}
-      style={{ pointerEvents: disabled ? "none" : "auto" }}
       className={`absolute inset-0 overflow-auto p-3 ${
         dragScroll ? "cursor-grabbing" : "cursor-grab"
       }`}
@@ -576,13 +572,11 @@ function MapPanelBody({
   scale,
   setPositions,
   onReferenceClick,
-  disabled,
 }: {
   panel: Extract<TracePanel, { kind: "map" }>;
   scale: number;
   setPositions: Dispatch<SetStateAction<DragPositions>>;
   onReferenceClick: (panelId: string) => void;
-  disabled: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [dragScroll, setDragScroll] = useState<{
@@ -594,7 +588,6 @@ function MapPanelBody({
   } | null>(null);
 
   function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
-    if (disabled) return;
     event.preventDefault();
     const delta = event.deltaY === 0 ? event.deltaX : event.deltaY;
     const zoomStep = delta > 0 ? -0.08 : 0.08;
@@ -602,7 +595,6 @@ function MapPanelBody({
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (disabled) return;
     if (event.button !== 0) return;
     const container = scrollRef.current;
     if (!container) return;
@@ -618,7 +610,6 @@ function MapPanelBody({
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    if (disabled) return;
     if (!dragScroll || dragScroll.pointerId !== event.pointerId) return;
     const container = scrollRef.current;
     if (!container) return;
@@ -643,7 +634,6 @@ function MapPanelBody({
       onPointerMove={handlePointerMove}
       onPointerUp={endPointerDrag}
       onPointerCancel={endPointerDrag}
-      style={{ pointerEvents: disabled ? "none" : "auto" }}
       className={`absolute inset-0 overflow-auto p-3 ${
         dragScroll ? "cursor-grabbing" : "cursor-grab"
       }`}
@@ -750,8 +740,6 @@ function VisualizationPanel({
 
     const previousUserSelect = document.body.style.userSelect;
     const previousCursor = document.body.style.cursor;
-    const canvasViewport = document.querySelector<HTMLElement>('[data-canvas-viewport="true"]');
-    const previousCanvasOverflow = canvasViewport?.style.overflow;
     document.body.style.userSelect = "none";
     document.body.style.cursor =
       activeInteraction.mode === "drag"
@@ -764,9 +752,6 @@ function VisualizationPanel({
               bottom: true,
             },
           );
-    if (canvasViewport) {
-      canvasViewport.style.overflow = "hidden";
-    }
 
     function onPointerMove(event: PointerEvent) {
       const host = document.querySelector<HTMLElement>('[data-canvas-root="true"]');
@@ -870,6 +855,12 @@ function VisualizationPanel({
     }
 
     function onPointerUp() {
+      if (
+        activeInteraction.captureTarget &&
+        activeInteraction.captureTarget.hasPointerCapture(activeInteraction.pointerId)
+      ) {
+        activeInteraction.captureTarget.releasePointerCapture(activeInteraction.pointerId);
+      }
       setInteraction(null);
     }
 
@@ -879,9 +870,6 @@ function VisualizationPanel({
     return () => {
       document.body.style.userSelect = previousUserSelect;
       document.body.style.cursor = previousCursor;
-      if (canvasViewport) {
-        canvasViewport.style.overflow = previousCanvasOverflow ?? "";
-      }
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
@@ -900,9 +888,12 @@ function VisualizationPanel({
 
     const minSize = getEffectiveMinSize(panel);
     const maxSize = getEffectiveMaxSize(panel);
+    const captureTarget = event.currentTarget;
+    captureTarget.setPointerCapture(event.pointerId);
     setInteraction({
       mode,
       panelId: panel.id,
+      pointerId: event.pointerId,
       startClientX: event.clientX,
       startClientY: event.clientY,
       panelStart: currentPanelPosition,
@@ -910,6 +901,7 @@ function VisualizationPanel({
       minHeight: minSize.height,
       maxWidth: maxSize.width,
       maxHeight: maxSize.height,
+      captureTarget,
       resizeFrom,
     });
   }
@@ -956,7 +948,6 @@ function VisualizationPanel({
       resizeFrom: { left: false, right: true, top: false, bottom: true },
     },
   ] as const;
-  const contentInteractionDisabled = interaction?.mode === "resize";
 
   return (
     <article
@@ -1073,7 +1064,6 @@ function VisualizationPanel({
             scale={currentPanelPosition.scale}
             setPositions={setPositions}
             onReferenceClick={onReferenceClick}
-            disabled={contentInteractionDisabled}
           />
         ) : (
           <ArrayPanelBody
@@ -1081,7 +1071,6 @@ function VisualizationPanel({
             scale={currentPanelPosition.scale}
             setPositions={setPositions}
             onReferenceClick={onReferenceClick}
-            disabled={contentInteractionDisabled}
           />
         )}
         {resizeHandles.map((handle) => (
@@ -1431,7 +1420,6 @@ export function ResultsPane({
 
         <div
           ref={canvasViewportRef}
-          data-canvas-viewport="true"
           className="flex-1 overflow-auto bg-[linear-gradient(#fcfcfd,#f8fafc)]"
         >
           <div
