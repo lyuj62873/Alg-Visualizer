@@ -540,9 +540,34 @@ def _reference_cell(value: "_VisObject", cell_id: str) -> Dict[str, Any]:
     }
 
 
+def _node_reference_cell(value: Any, cell_id: str) -> Optional[Dict[str, Any]]:
+    if "VisTreeNode" in globals() and isinstance(value, VisTreeNode):
+        panel = _TREE_PANEL
+    elif "VisListNode" in globals() and isinstance(value, VisListNode):
+        panel = _LIST_PANEL
+    else:
+        return None
+
+    if panel is None:
+        return None
+
+    ref = panel._node_reference_payload(value)
+    if ref is None:
+        return None
+
+    return {
+        "id": cell_id,
+        "kind": "ref",
+        **ref,
+    }
+
+
 def _value_cell(value: Any, cell_id: str) -> Dict[str, Any]:
     if isinstance(value, _VisObject):
         return _reference_cell(value, cell_id)
+    node_ref = _node_reference_cell(value, cell_id)
+    if node_ref is not None:
+        return node_ref
     return {
         "id": cell_id,
         "kind": "value",
@@ -563,6 +588,34 @@ def _sequence_cell(
     if contains_active:
         cell["containsActive"] = True
     return cell
+
+
+def _visual_item_value_fields(
+    value: Any,
+    item_id: str,
+    *,
+    contains_active: bool = False,
+) -> Dict[str, Any]:
+    cell = _value_cell(value, f"{item_id}_value")
+    fields = {
+        "label": cell["label"],
+    }
+    if cell["kind"] == "ref":
+        fields["targetPanelId"] = cell.get("targetPanelId")
+        fields["clickable"] = cell.get("clickable", False)
+    if contains_active:
+        fields["containsActive"] = True
+    return fields
+
+
+def _value_contains_active(value: Any) -> bool:
+    if isinstance(value, _VisObject):
+        return _TRACE.last_touched == value.id
+    if "VisTreeNode" in globals() and isinstance(value, VisTreeNode):
+        return _TRACE.last_touched == value._id
+    if "VisListNode" in globals() and isinstance(value, VisListNode):
+        return _TRACE.last_touched == value._id
+    return False
 
 
 class _NestedArray:
@@ -979,13 +1032,12 @@ class VisArray(_VisObject):
                 continue
 
             rendered_cells.append(
-                {
-                    "id": cell_id,
-                    "kind": "value",
-                    "label": _safe_str(value),
-                    "tone": "active" if is_active else "default",
-                    "containsActive": contains_active,
-                }
+                _sequence_cell(
+                    value,
+                    cell_id,
+                    is_active=is_active,
+                    contains_active=contains_active or _value_contains_active(value),
+                )
             )
 
         return {
@@ -1157,8 +1209,7 @@ class VisMap(_VisObject):
             value_cell = _value_cell(value, f"{self.id}_v_{index}")
             is_active = self._active_key == key
             contains_active = (
-                isinstance(value, _VisObject)
-                and _TRACE.last_touched == value.id
+                _value_contains_active(value)
             )
             entries.append(
                 {
@@ -1249,7 +1300,7 @@ class _SequenceVisObject(_VisObject):
         self._active_indexes = {idx for idx in indexes if 0 <= idx < len(self._values)}
 
     def _contains_active(self, value: Any) -> bool:
-        return isinstance(value, _VisObject) and _TRACE.last_touched == value.id
+        return _value_contains_active(value)
 
     def _emit_sequence_change(self, label: str, *active_indexes: int) -> None:
         self._mark_active(*active_indexes)
@@ -1261,8 +1312,9 @@ class _SequenceVisObject(_VisObject):
             return 12.0
         widths = []
         for value in self._values:
-            if isinstance(value, _VisObject):
-                label = _TRACE.resolve_object_label(value, value.title)
+            reference_cell = _value_cell(value, "_measure")
+            if reference_cell["kind"] == "ref":
+                label = reference_cell["label"]
                 widths.append(min(22.0, max(10.0, 8.0 + len(label) * 0.8)))
             else:
                 widths.append(min(20.0, max(10.0, 6.0 + len(_safe_str(value)) * 0.9)))
@@ -1704,11 +1756,11 @@ class VisBST(_VisObject):
             items.append(
                 {
                     "id": node_id,
-                    "label": _safe_str(n.val),
                     "x": x_left + x_step * i,
                     "y": y,
                     "shape": "circle",
                     "tone": "default",
+                    **_visual_item_value_fields(n.val, node_id),
                 }
             )
 
@@ -1822,6 +1874,7 @@ class _TreePanel(_VisObject):
         )
         self._nodes: Dict[str, VisTreeNode] = {}
         self._component_states: List[_DynamicPanelState] = []
+        self._node_panel_refs: Dict[str, Dict[str, Any]] = {}
         self._panel_counter = 0
 
     def _register(self, node: VisTreeNode) -> None:
@@ -1829,11 +1882,35 @@ class _TreePanel(_VisObject):
 
     def _unregister(self, node: VisTreeNode) -> bool:
         removed = self._nodes.pop(node._id, None) is not None
+        self._node_panel_refs.pop(node._id, None)
         if removed and not self._nodes:
             self._detach_visualization()
             global _TREE_PANEL
             _TREE_PANEL = None
         return removed
+
+    def _node_reference_payload(self, node: VisTreeNode) -> Optional[Dict[str, Any]]:
+        if not getattr(node, "_is_visualized", False):
+            return {
+                "label": getattr(node, "_display_name", None) or node._id,
+                "targetPanelId": None,
+                "clickable": False,
+            }
+
+        ref = self._node_panel_refs.get(node._id)
+        if ref is None:
+            for state in self._component_states:
+                if node._id in state.node_ids:
+                    ref = {"panelId": state.panel_id, "title": state.title}
+                    break
+        if ref is None:
+            return None
+
+        return {
+            "label": getattr(node, "_display_name", None) or ref["title"],
+            "targetPanelId": ref["panelId"],
+            "clickable": True,
+        }
 
     def _next_panel_id(self) -> str:
         self._panel_counter += 1
@@ -1954,6 +2031,7 @@ class _TreePanel(_VisObject):
         nodes_by_id: Dict[str, VisTreeNode] = {n._id: n for n in all_nodes}
         if not all_nodes:
             self._component_states = []
+            self._node_panel_refs = {}
             return []
 
         # Determine roots (nodes not referenced as a child).
@@ -2059,11 +2137,15 @@ class _TreePanel(_VisObject):
                 raw_items.append(
                     {
                         "id": node._id,
-                        "label": _safe_str(node.val),
                         "xPct": x_pct,
                         "yPct": y_pct,
                         "shape": "circle",
                         "tone": "active" if _TRACE.last_touched == node._id else "default",
+                        **_visual_item_value_fields(
+                            node.val,
+                            node._id,
+                            contains_active=_value_contains_active(node.val),
+                        ),
                     }
                 )
                 if isinstance(node.left, VisTreeNode) and node.left._id in nodes_by_id:
@@ -2092,6 +2174,9 @@ class _TreePanel(_VisObject):
                         "y": (item["yPct"] / 100.0) * component_height,
                         "shape": item["shape"],
                         "tone": item["tone"],
+                        "containsActive": item.get("containsActive", False),
+                        "targetPanelId": item.get("targetPanelId"),
+                        "clickable": item.get("clickable", False),
                     }
                 )
 
@@ -2106,7 +2191,10 @@ class _TreePanel(_VisObject):
                 "maxDepth": max_depth,
                 "nodeCount": len(local_items),
                 "rootOrder": node_order(root),
-                "containsActive": any(item["tone"] == "active" for item in local_items),
+                "containsActive": any(
+                    item["tone"] == "active" or item.get("containsActive")
+                    for item in local_items
+                ),
             }
 
         components = [build_component_layout(root) for root in component_roots]
@@ -2126,6 +2214,7 @@ class _TreePanel(_VisObject):
         )
 
         rendered_panels: List[Dict[str, Any]] = []
+        node_panel_refs: Dict[str, Dict[str, Any]] = {}
         for component, state in zip(components, panel_states):
             items = []
             for item in component["items"]:
@@ -2157,7 +2246,13 @@ class _TreePanel(_VisObject):
                     "edges": component["edges"],
                 }
             )
+            for node in component["nodes"]:
+                node_panel_refs[node._id] = {
+                    "panelId": state.panel_id,
+                    "title": state.title,
+                }
 
+        self._node_panel_refs = node_panel_refs
         return rendered_panels
 
 
@@ -2184,6 +2279,7 @@ class _ListPanel(_VisObject):
         )
         self._nodes: Dict[str, VisListNode] = {}
         self._component_states: List[_DynamicPanelState] = []
+        self._node_panel_refs: Dict[str, Dict[str, Any]] = {}
         self._panel_counter = 0
 
     def _register(self, node: VisListNode) -> None:
@@ -2191,11 +2287,35 @@ class _ListPanel(_VisObject):
 
     def _unregister(self, node: VisListNode) -> bool:
         removed = self._nodes.pop(node._id, None) is not None
+        self._node_panel_refs.pop(node._id, None)
         if removed and not self._nodes:
             self._detach_visualization()
             global _LIST_PANEL
             _LIST_PANEL = None
         return removed
+
+    def _node_reference_payload(self, node: VisListNode) -> Optional[Dict[str, Any]]:
+        if not getattr(node, "_is_visualized", False):
+            return {
+                "label": getattr(node, "_display_name", None) or node._id,
+                "targetPanelId": None,
+                "clickable": False,
+            }
+
+        ref = self._node_panel_refs.get(node._id)
+        if ref is None:
+            for state in self._component_states:
+                if node._id in state.node_ids:
+                    ref = {"panelId": state.panel_id, "title": state.title}
+                    break
+        if ref is None:
+            return None
+
+        return {
+            "label": getattr(node, "_display_name", None) or ref["title"],
+            "targetPanelId": ref["panelId"],
+            "clickable": True,
+        }
 
     def _next_panel_id(self) -> str:
         self._panel_counter += 1
@@ -2316,6 +2436,7 @@ class _ListPanel(_VisObject):
         nodes_by_id: Dict[str, VisListNode] = {n._id: n for n in all_nodes}
         if not all_nodes:
             self._component_states = []
+            self._node_panel_refs = {}
             return []
 
         def node_order(n: VisListNode) -> int:
@@ -2454,11 +2575,15 @@ class _ListPanel(_VisObject):
                 items.append(
                     {
                         "id": node._id,
-                        "label": _safe_str(node.val),
                         "x": x,
                         "y": y,
                         "shape": "pill",
                         "tone": "active" if _TRACE.last_touched == node._id else "default",
+                        **_visual_item_value_fields(
+                            node.val,
+                            node._id,
+                            contains_active=_value_contains_active(node.val),
+                        ),
                     }
                 )
                 if isinstance(node.right, VisListNode) and node.right._id in component_ids:
@@ -2474,7 +2599,10 @@ class _ListPanel(_VisObject):
                     "layoutHeight": max(120.0, top_y + component_max_local_y + bottom_padding),
                     "minWidth": min(72.0, max(28.0, 20.0 + ((max_depth + 1) * 8.5))),
                     "minHeight": min(72.0, max(20.0, 14.0 + max_component_rows * 9.0)),
-                    "containsActive": any(item["tone"] == "active" for item in items),
+                    "containsActive": any(
+                        item["tone"] == "active" or item.get("containsActive")
+                        for item in items
+                    ),
                     "nodeCount": len(items),
                     "rootOrder": min(node_order(node) for node in roots) if roots else node_order(component[0]),
                 }
@@ -2497,6 +2625,7 @@ class _ListPanel(_VisObject):
         )
 
         rendered_panels: List[Dict[str, Any]] = []
+        node_panel_refs: Dict[str, Dict[str, Any]] = {}
         for component, state in zip(component_layouts, panel_states):
             rendered_panels.append(
                 {
@@ -2517,7 +2646,13 @@ class _ListPanel(_VisObject):
                     "edges": component["edges"],
                 }
             )
+            for node in component["nodes"]:
+                node_panel_refs[node._id] = {
+                    "panelId": state.panel_id,
+                    "title": state.title,
+                }
 
+        self._node_panel_refs = node_panel_refs
         return rendered_panels
 
 

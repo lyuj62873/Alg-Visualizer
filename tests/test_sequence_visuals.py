@@ -10,10 +10,12 @@ from dsviz import (  # noqa: E402
     VisArray,
     VisDeque,
     VisHeap,
+    VisListNode,
     VisMap,
     VisQueue,
     VisSet,
     VisStack,
+    VisTreeNode,
     export_trace,
     reset_trace,
 )
@@ -35,6 +37,19 @@ class SequenceVisualTests(unittest.TestCase):
         self.assertEqual(stack_panel["cells"][0]["kind"], "ref")
         self.assertEqual(stack_panel["cells"][0]["targetPanelId"], child.id)
         self.assertEqual(stack_panel["cells"][1]["label"], "3")
+
+    def test_array_renders_vis_children_as_references(self):
+        child_stack = VisStack([1], name="child_stack")
+        array = VisArray([child_stack, "ok"], name="array")
+        panel = next(
+            panel
+            for panel in export_trace()["frames"][-1]["panels"]
+            if panel["typeLabel"] == "VisArray" and panel["title"] == "array"
+        )
+
+        self.assertEqual(panel["cells"][0]["kind"], "ref")
+        self.assertEqual(panel["cells"][0]["targetPanelId"], child_stack.id)
+        self.assertEqual(panel["cells"][1]["label"], "ok")
 
     def test_queue_and_deque_emit_expected_labels(self):
         queue = VisQueue([1], name="queue")
@@ -72,6 +87,78 @@ class SequenceVisualTests(unittest.TestCase):
         labels = [cell["label"] for cell in panel["cells"]]
         self.assertEqual(labels[0], "1")
         self.assertIn("2", labels)
+
+    def test_tree_node_value_can_reference_other_visual_panels(self):
+        child_map = VisMap({"a": 1}, name="child_map")
+        root = VisTreeNode(child_map)
+        panels = export_trace()["frames"][-1]["panels"]
+        tree_panel = next(panel for panel in panels if panel["typeLabel"] == "VisTreeNode")
+        root_item = next(item for item in tree_panel["items"] if item["id"] == root._id)
+
+        self.assertEqual(root_item["label"], "child_map")
+        self.assertEqual(root_item["targetPanelId"], child_map.id)
+        self.assertTrue(root_item["clickable"])
+
+    def test_list_node_value_can_reference_other_visual_panels(self):
+        child_array = VisArray([9], name="child_array")
+        head = VisListNode(child_array)
+        panels = export_trace()["frames"][-1]["panels"]
+        list_panel = next(panel for panel in panels if panel["typeLabel"] == "VisListNode")
+        head_item = next(item for item in list_panel["items"] if item["id"] == head._id)
+
+        self.assertEqual(head_item["label"], "child_array")
+        self.assertEqual(head_item["targetPanelId"], child_array.id)
+        self.assertTrue(head_item["clickable"])
+
+    def test_map_can_reference_tree_and_list_panels(self):
+        root = VisTreeNode(7)
+        head = VisListNode(11)
+        graph = VisMap({"tree": root, "list": head}, name="graph")
+        panel = next(
+            panel
+            for panel in export_trace()["frames"][-1]["panels"]
+            if panel["typeLabel"] == "VisMap" and panel["title"] == "graph"
+        )
+
+        tree_entry = next(entry for entry in panel["entries"] if entry["key"]["label"] == "tree")
+        list_entry = next(entry for entry in panel["entries"] if entry["key"]["label"] == "list")
+        self.assertEqual(tree_entry["value"]["kind"], "ref")
+        self.assertTrue(tree_entry["value"]["targetPanelId"].startswith("tree_panel_"))
+        self.assertEqual(list_entry["value"]["kind"], "ref")
+        self.assertTrue(list_entry["value"]["targetPanelId"].startswith("list_panel_"))
+
+    def test_sequence_can_reference_tree_and_list_panels(self):
+        root = VisTreeNode(3)
+        head = VisListNode(5)
+        stack = VisStack([root, head], name="stack")
+        panel = next(
+            panel
+            for panel in export_trace()["frames"][-1]["panels"]
+            if panel["typeLabel"] == "VisStack" and panel["title"] == "stack"
+        )
+
+        self.assertEqual(panel["cells"][0]["kind"], "ref")
+        self.assertTrue(panel["cells"][0]["targetPanelId"].startswith("tree_panel_"))
+        self.assertEqual(panel["cells"][1]["kind"], "ref")
+        self.assertTrue(panel["cells"][1]["targetPanelId"].startswith("list_panel_"))
+
+    def test_map_list_map_cycle_renders_as_references(self):
+        outer = VisMap(name="outer")
+        head = VisListNode("placeholder")
+        inner = VisMap({"outer": outer}, name="inner")
+        head.val = inner
+        outer["head"] = head
+
+        panels = export_trace()["frames"][-1]["panels"]
+        outer_panel = next(panel for panel in panels if panel["typeLabel"] == "VisMap" and panel["title"] == "outer")
+        list_panel = next(panel for panel in panels if panel["typeLabel"] == "VisListNode")
+        head_entry = next(entry for entry in outer_panel["entries"] if entry["key"]["label"] == "head")
+        head_item = next(item for item in list_panel["items"] if item["id"] == head._id)
+
+        self.assertEqual(head_entry["value"]["kind"], "ref")
+        self.assertTrue(head_entry["value"]["targetPanelId"].startswith("list_panel_"))
+        self.assertEqual(head_item["label"], "inner")
+        self.assertEqual(head_item["targetPanelId"], inner.id)
 
 
 if __name__ == "__main__":

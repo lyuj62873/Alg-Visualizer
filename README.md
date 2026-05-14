@@ -78,6 +78,7 @@ Current behavior:
 - all five reuse the same sequence-like array panel family
 - nested `_VisObject` children render as reference tokens rather than inline expansions
 - `VisHeap` intentionally defaults to a list-like / priority-queue style panel instead of a tree-teaching view
+- `VisArray`, `VisTreeNode`, and `VisListNode` now also render object-valued entries as references instead of flattening them to plain strings
 
 Current structure-specific operations include:
 - `VisStack`: `push`, `pop`, `peek`, `clear`

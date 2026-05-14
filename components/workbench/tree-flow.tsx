@@ -19,6 +19,10 @@ type TreeNodeData = {
   label: string;
   tone?: "default" | "active";
   shape?: "circle" | "pill";
+  containsActive?: boolean;
+  targetPanelId?: string;
+  clickable?: boolean;
+  onReferenceClick?: (panelId: string) => void;
 };
 
 type TreeNodeModel = Node<TreeNodeData, "treeNode">;
@@ -29,6 +33,7 @@ type TreeFlowProps = {
   onScaleChange: (nextScale: number) => void;
   fitRequestToken: number;
   trackingEnabled: boolean;
+  onReferenceClick: (panelId: string) => void;
 };
 
 const nodeTypes: NodeTypes = {
@@ -40,7 +45,9 @@ const TREE_LAYOUT_HEIGHT = 240;
 
 function TreeNode({ data }: NodeProps<TreeNodeModel>) {
   const active = data.tone === "active";
+  const containsActive = !!data.containsActive;
   const isListNode = data.shape === "pill";
+  const isClickable = data.clickable !== false && !!data.targetPanelId && !!data.onReferenceClick;
   return (
     <div
       className={`relative flex items-center justify-center border text-[11px] font-semibold shadow-sm ${
@@ -48,6 +55,10 @@ function TreeNode({ data }: NodeProps<TreeNodeModel>) {
       } ${
         active
           ? "border-[#fb923c] bg-[#fff7ed] text-[#c2410c]"
+          : containsActive
+            ? "border-[#fdba74] bg-[#fffbeb] text-[#9a3412]"
+            : isClickable
+              ? "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]"
           : "border-[#d1d5db] bg-white text-[#111827]"
       }`}
     >
@@ -56,7 +67,21 @@ function TreeNode({ data }: NodeProps<TreeNodeModel>) {
         position={isListNode ? Position.Left : Position.Top}
         style={{ width: 8, height: 8, border: "none", background: "transparent", opacity: 0 }}
       />
-      <span className="select-none">{data.label}</span>
+      {isClickable ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            data.onReferenceClick?.(data.targetPanelId!);
+          }}
+          className="select-none whitespace-nowrap rounded px-1 hover:underline"
+        >
+          {data.label}
+        </button>
+      ) : (
+        <span className="select-none whitespace-nowrap">{data.label}</span>
+      )}
       <Handle
         type="source"
         position={isListNode ? Position.Right : Position.Bottom}
@@ -208,6 +233,7 @@ export function NodeFlowViewport({
   onScaleChange,
   fitRequestToken,
   trackingEnabled,
+  onReferenceClick,
 }: TreeFlowProps) {
   const { ref, size } = useElementSize<HTMLDivElement>();
   const layoutWidth = panel.layoutWidth ?? TREE_LAYOUT_WIDTH;
@@ -226,11 +252,15 @@ export function NodeFlowViewport({
         label: item.label,
         tone: item.tone,
         shape: item.shape,
+        containsActive: item.containsActive,
+        targetPanelId: item.targetPanelId,
+        clickable: item.clickable,
+        onReferenceClick,
       },
       sourcePosition: item.shape === "pill" ? Position.Right : Position.Bottom,
       targetPosition: item.shape === "pill" ? Position.Left : Position.Top,
     }));
-  }, [isListPanel, layoutHeight, layoutWidth, panel.items]);
+  }, [isListPanel, layoutHeight, layoutWidth, onReferenceClick, panel.items]);
 
   const nodePositionById = useMemo(
     () =>

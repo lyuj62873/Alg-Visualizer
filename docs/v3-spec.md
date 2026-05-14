@@ -235,7 +235,10 @@ Reference labeling direction:
 - preserve semantically meaningful user names such as `head` and `tail` whenever possible
 
 Current implementation status:
-- the reference-first model is now implemented for `VisMap` and the sequence-style structures
+- the reference-first model is now implemented for `VisMap`, the sequence-style structures, `VisArray`, and object-valued `VisTreeNode` / `VisListNode` entries
+- map entries may render child `VisXxx` values as clickable reference tokens
+- array cells may render child `VisXxx` values as reference tokens
+- tree/list node values may render child `VisXxx` values as clickable references
 - map entries may render child `VisXxx` values as clickable reference tokens
 - clicking a token reuses the same bring-to-front and canvas-track behavior as a panel tab
 - `delVis(child)` degrades those map references into non-clickable summaries

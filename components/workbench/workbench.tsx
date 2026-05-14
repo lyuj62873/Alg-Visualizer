@@ -65,6 +65,11 @@ export function Workbench() {
       description: "independent trees and lists render in separate visualization panels",
       path: "/examples/multi-panel-example.py",
     },
+    {
+      label: "Nested References",
+      description: "cross-visual nesting, a Map -> List -> Map cycle, and a Map -> List -> Set chain",
+      path: "/examples/nested-reference-example.py",
+    },
   ];
 
   const guideItems = [

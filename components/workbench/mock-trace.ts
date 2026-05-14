@@ -63,6 +63,9 @@ export type TraceVisualItem = {
   y: number;
   shape?: "circle" | "pill";
   tone?: "default" | "active";
+  containsActive?: boolean;
+  targetPanelId?: string;
+  clickable?: boolean;
 };
 
 type TracePanelBase = {

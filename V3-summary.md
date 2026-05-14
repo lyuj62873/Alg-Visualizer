@@ -132,6 +132,11 @@ Implemented:
 - change tracking through `__setattr__`
 - list-style node/arrow rendering rather than tree layout
 
+Current sequence-style behavior:
+- `VisStack`, `VisQueue`, `VisDeque`, `VisSet`, and `VisHeap` all render through the shared sequence-style panel contract
+- `VisArray`, `VisTreeNode`, and `VisListNode` now also treat object-valued entries as references instead of degrading them to plain labels
+- `VisHeap` intentionally remains sequence-like by default to match LeetCode / priority-queue debugging workflows
+
 `delVis(value)` currently supports:
 - `VisArray`
 - `VisTreeNode`
@@ -346,8 +351,8 @@ This standard is now implemented for `VisArray`, `VisMap`, `VisTreeNode`, and `V
 Nested container visualization should default to cross-panel references rather than inline duplication.
 
 Current implementation status:
-- this is now live for `VisMap`
-- child `VisXxx` values render as clickable reference tokens inside the map panel
+- this is now live for `VisMap`, the sequence-style structures, `VisArray`, and object-valued `VisTreeNode` / `VisListNode` entries
+- child `VisXxx` values render as clickable reference tokens inside map, sequence, array, and object-valued tree/list contexts
 - `delVis(child)` degrades those references into non-clickable summaries
 
 Decision:

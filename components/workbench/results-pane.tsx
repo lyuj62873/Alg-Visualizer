@@ -199,6 +199,9 @@ function getPanelSignature(panel: TracePanel) {
       y: item.y,
       tone: item.tone ?? "default",
       shape: item.shape ?? "circle",
+      containsActive: !!item.containsActive,
+      targetPanelId: item.targetPanelId ?? null,
+      clickable: item.clickable !== false,
     })),
     edges: panel.edges,
   });
@@ -234,7 +237,7 @@ function panelHasActiveFocus(panel: TracePanel) {
     );
   }
 
-  return panel.items.some((item) => item.tone === "active");
+  return panel.items.some((item) => item.tone === "active" || !!item.containsActive);
 }
 
 function getResizeCursor(resizeFrom: NonNullable<InteractionState["resizeFrom"]>) {
@@ -1073,6 +1076,7 @@ function VisualizationPanel({
             onScaleChange={(nextScale) => setPanelScale(setPositions, panel, nextScale)}
             fitRequestToken={fitRequestToken}
             trackingEnabled={trackingEnabled}
+            onReferenceClick={onReferenceClick}
           />
         ) : panel.kind === "map" ? (
           <MapPanelBody
