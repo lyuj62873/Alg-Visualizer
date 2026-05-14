@@ -6,6 +6,7 @@ import type {
   SetStateAction,
 } from "react";
 import { useEffect, useRef, useState } from "react";
+import { clamp, getCanvasScrollTarget } from "./canvas-tracking";
 import { TraceContentCell, TraceFrame, TraceMapEntry, TracePanel } from "./mock-trace";
 import { NodeFlowViewport } from "./tree-flow";
 
@@ -54,10 +55,6 @@ type InteractionState = {
     bottom: boolean;
   };
 };
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
 
 function panelKey(panelId: string) {
   return `panel:${panelId}`;
@@ -1198,24 +1195,22 @@ export function ResultsPane({
 
     const viewportRect = canvasViewport.getBoundingClientRect();
     const panelRect = panelElement.getBoundingClientRect();
-    const targetLeft = clamp(
-      canvasViewport.scrollLeft +
-        (panelRect.left - viewportRect.left) -
-        Math.max(0, (canvasViewport.clientWidth - panelRect.width) / 2),
-      0,
-      Math.max(0, canvasViewport.scrollWidth - canvasViewport.clientWidth),
-    );
-    const targetTop = clamp(
-      canvasViewport.scrollTop +
-        (panelRect.top - viewportRect.top) -
-        Math.max(0, (canvasViewport.clientHeight - panelRect.height) / 2),
-      0,
-      Math.max(0, canvasViewport.scrollHeight - canvasViewport.clientHeight),
+    const target = getCanvasScrollTarget(
+      {
+        clientWidth: canvasViewport.clientWidth,
+        clientHeight: canvasViewport.clientHeight,
+        scrollWidth: canvasViewport.scrollWidth,
+        scrollHeight: canvasViewport.scrollHeight,
+        scrollLeft: canvasViewport.scrollLeft,
+        scrollTop: canvasViewport.scrollTop,
+      },
+      viewportRect,
+      panelRect,
     );
 
     canvasViewport.scrollTo({
-      left: targetLeft,
-      top: targetTop,
+      left: target.left,
+      top: target.top,
       behavior: "smooth",
     });
 

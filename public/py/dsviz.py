@@ -25,6 +25,66 @@ def _safe_str(value: Any) -> str:
             return "<unprintable>"
 
 
+def _preferred_matrix_panel_height(dimensions: Optional[Tuple[int, ...]]) -> float:
+    rows = dimensions[0] if dimensions else 0
+    cols = dimensions[1] if dimensions and len(dimensions) > 1 else 0
+    row_height = 3.9
+    header_height = 8.5
+    column_allowance = min(4.0, cols * 0.18)
+    return header_height + (rows * row_height) + column_allowance
+
+
+def _preferred_nested_panel_height(dimensions: Optional[Tuple[int, ...]]) -> float:
+    if not dimensions:
+        return 18.0
+
+    if len(dimensions) == 1:
+        columns = dimensions[0]
+        return 9.5 + min(4.0, columns * 0.3)
+
+    if len(dimensions) == 2:
+        rows = dimensions[0]
+        visible_rows = min(rows, 6)
+        overflow_hint = 2.5 if rows > visible_rows else 0.0
+        return _preferred_matrix_panel_height(dimensions[:2]) - (
+            max(0, rows - visible_rows) * 3.9
+        ) + overflow_hint
+
+    slices = dimensions[0]
+    visible_slices = min(slices, 3)
+    child_height = _preferred_nested_panel_height(dimensions[1:])
+    slice_shell_height = min(16.5, max(10.5, child_height * 0.55 + 4.5))
+    overflow_hint = 2.5 if slices > visible_slices else 0.0
+    return (
+        6.0
+        + (visible_slices * slice_shell_height)
+        + max(0, visible_slices - 1) * 2.0
+        + overflow_hint
+    )
+
+
+def _preferred_array_panel_height(
+    layout: str,
+    dimensions: Optional[Tuple[int, ...]],
+    height_units: float,
+    min_height: float,
+    max_height: float,
+) -> float:
+    if layout == "row":
+        return min(max_height, max(min_height, 4.5 + (height_units * 4.1)))
+
+    if dimensions is not None:
+        return min(max_height, max(min_height, _preferred_nested_panel_height(dimensions)))
+
+    fallback_base = 8.0 if layout == "matrix" else 10.0
+    fallback_scale = 3.8 if layout == "matrix" else 3.4
+    fallback_cap = 7.0 if layout == "matrix" else 9.5
+    return min(
+        max_height,
+        max(min_height, fallback_base + min(height_units, fallback_cap) * fallback_scale),
+    )
+
+
 @dataclass
 class _PanelLayout:
     x: float
@@ -778,59 +838,6 @@ class VisArray(_VisObject):
         height = sum(size[1] for size in child_sizes) + max(0, len(child_sizes) - 1) * 3.2 + 6.0
         return width, height
 
-    def _preferred_matrix_panel_height(self, dimensions: Optional[Tuple[int, ...]]) -> float:
-        rows = dimensions[0] if dimensions else 0
-        cols = dimensions[1] if dimensions and len(dimensions) > 1 else 0
-        row_height = 3.9
-        header_height = 8.5
-        column_allowance = min(4.0, cols * 0.18)
-        return header_height + (rows * row_height) + column_allowance
-
-    def _preferred_nested_panel_height(self, dimensions: Optional[Tuple[int, ...]]) -> float:
-        if not dimensions:
-            return 18.0
-
-        if len(dimensions) == 1:
-            columns = dimensions[0]
-            return 9.5 + min(4.0, columns * 0.3)
-
-        if len(dimensions) == 2:
-            rows = dimensions[0]
-            visible_rows = min(rows, 6)
-            overflow_hint = 2.5 if rows > visible_rows else 0.0
-            return self._preferred_matrix_panel_height(dimensions[:2]) - (
-                max(0, rows - visible_rows) * 3.9
-            ) + overflow_hint
-
-        slices = dimensions[0]
-        visible_slices = min(slices, 3)
-        child_height = self._preferred_nested_panel_height(dimensions[1:])
-        slice_shell_height = min(16.5, max(10.5, child_height * 0.55 + 4.5))
-        overflow_hint = 2.5 if slices > visible_slices else 0.0
-        return 6.0 + (visible_slices * slice_shell_height) + max(0, visible_slices - 1) * 2.0 + overflow_hint
-
-    def _preferred_array_panel_height(
-        self,
-        layout: str,
-        dimensions: Optional[Tuple[int, ...]],
-        height_units: float,
-        min_height: float,
-        max_height: float,
-    ) -> float:
-        if layout == "row":
-            return min(max_height, max(min_height, 4.5 + (height_units * 4.1)))
-
-        if dimensions is not None:
-            return min(max_height, max(min_height, self._preferred_nested_panel_height(dimensions)))
-
-        fallback_base = 8.0 if layout == "matrix" else 10.0
-        fallback_scale = 3.8 if layout == "matrix" else 3.4
-        fallback_cap = 7.0 if layout == "matrix" else 9.5
-        return min(
-            max_height,
-            max(min_height, fallback_base + min(height_units, fallback_cap) * fallback_scale),
-        )
-
     def _render_array_node(self, values: List[Any], path: Tuple[int, ...]) -> Dict[str, Any]:
         layout = self._array_layout(values)
         dimensions = self._infer_dimensions(values)
@@ -889,7 +896,7 @@ class VisArray(_VisObject):
 
         min_height = 12.0 if layout == "row" else 18.0 if layout == "matrix" else 20.0
         max_height = 28.0 if layout == "row" else 44.0 if layout == "matrix" else 52.0
-        preferred_height = self._preferred_array_panel_height(
+        preferred_height = _preferred_array_panel_height(
             layout,
             dimensions,
             height_units,
