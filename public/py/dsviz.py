@@ -786,6 +786,51 @@ class VisArray(_VisObject):
         column_allowance = min(4.0, cols * 0.18)
         return header_height + (rows * row_height) + column_allowance
 
+    def _preferred_nested_panel_height(self, dimensions: Optional[Tuple[int, ...]]) -> float:
+        if not dimensions:
+            return 18.0
+
+        if len(dimensions) == 1:
+            columns = dimensions[0]
+            return 9.5 + min(4.0, columns * 0.3)
+
+        if len(dimensions) == 2:
+            rows = dimensions[0]
+            visible_rows = min(rows, 6)
+            overflow_hint = 2.5 if rows > visible_rows else 0.0
+            return self._preferred_matrix_panel_height(dimensions[:2]) - (
+                max(0, rows - visible_rows) * 3.9
+            ) + overflow_hint
+
+        slices = dimensions[0]
+        visible_slices = min(slices, 3)
+        child_height = self._preferred_nested_panel_height(dimensions[1:])
+        slice_shell_height = min(16.5, max(10.5, child_height * 0.55 + 4.5))
+        overflow_hint = 2.5 if slices > visible_slices else 0.0
+        return 6.0 + (visible_slices * slice_shell_height) + max(0, visible_slices - 1) * 2.0 + overflow_hint
+
+    def _preferred_array_panel_height(
+        self,
+        layout: str,
+        dimensions: Optional[Tuple[int, ...]],
+        height_units: float,
+        min_height: float,
+        max_height: float,
+    ) -> float:
+        if layout == "row":
+            return min(max_height, max(min_height, 4.5 + (height_units * 4.1)))
+
+        if dimensions is not None:
+            return min(max_height, max(min_height, self._preferred_nested_panel_height(dimensions)))
+
+        fallback_base = 8.0 if layout == "matrix" else 10.0
+        fallback_scale = 3.8 if layout == "matrix" else 3.4
+        fallback_cap = 7.0 if layout == "matrix" else 9.5
+        return min(
+            max_height,
+            max(min_height, fallback_base + min(height_units, fallback_cap) * fallback_scale),
+        )
+
     def _render_array_node(self, values: List[Any], path: Tuple[int, ...]) -> Dict[str, Any]:
         layout = self._array_layout(values)
         dimensions = self._infer_dimensions(values)
@@ -843,18 +888,21 @@ class VisArray(_VisObject):
         preferred_width = min(max_width, max(min_width, 10.0 + (width_units * 0.48)))
 
         min_height = 12.0 if layout == "row" else 18.0 if layout == "matrix" else 20.0
-        if layout == "row":
-            preferred_height = min(28.0, max(min_height, 4.5 + (height_units * 4.1)))
-        elif layout == "matrix":
-            preferred_height = min(
-                56.0,
-                max(min_height, self._preferred_matrix_panel_height(dimensions)),
-            )
-        else:
-            preferred_height = min(78.0, max(min_height, 6.0 + (height_units * 5.8)))
+        max_height = 28.0 if layout == "row" else 44.0 if layout == "matrix" else 52.0
+        preferred_height = self._preferred_array_panel_height(
+            layout,
+            dimensions,
+            height_units,
+            min_height,
+            max_height,
+        )
 
         width = preferred_width if self._uses_default_layout else max(self.layout.width, min_width)
-        height = preferred_height if self._uses_default_layout else max(self.layout.height, min_height)
+        height = (
+            preferred_height
+            if self._uses_default_layout
+            else min(max_height, max(min_height, self.layout.height))
+        )
 
         return {
             "id": self.id,
@@ -868,6 +916,7 @@ class VisArray(_VisObject):
             "minWidth": min_width,
             "minHeight": min_height,
             "maxWidth": max_width,
+            "maxHeight": max_height,
             "scale": self.layout.scale,
             "layout": rendered_root["layout"],
             "dimensions": rendered_root["dimensions"],

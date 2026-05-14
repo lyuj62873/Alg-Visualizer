@@ -1190,14 +1190,33 @@ export function ResultsPane({
   }
 
   function scrollPanelIntoView(panelId: string) {
+    const canvasViewport = canvasViewportRef.current;
     const panelElement = panelElementRefs.current[panelId];
-    if (!panelElement) {
+    if (!canvasViewport || !panelElement) {
       return false;
     }
-    panelElement.scrollIntoView({
+
+    const viewportRect = canvasViewport.getBoundingClientRect();
+    const panelRect = panelElement.getBoundingClientRect();
+    const targetLeft = clamp(
+      canvasViewport.scrollLeft +
+        (panelRect.left - viewportRect.left) -
+        Math.max(0, (canvasViewport.clientWidth - panelRect.width) / 2),
+      0,
+      Math.max(0, canvasViewport.scrollWidth - canvasViewport.clientWidth),
+    );
+    const targetTop = clamp(
+      canvasViewport.scrollTop +
+        (panelRect.top - viewportRect.top) -
+        Math.max(0, (canvasViewport.clientHeight - panelRect.height) / 2),
+      0,
+      Math.max(0, canvasViewport.scrollHeight - canvasViewport.clientHeight),
+    );
+
+    canvasViewport.scrollTo({
+      left: targetLeft,
+      top: targetTop,
       behavior: "smooth",
-      block: "center",
-      inline: "center",
     });
 
     return true;
