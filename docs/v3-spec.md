@@ -273,6 +273,10 @@ Additional failure mode:
 - frame-cap termination when user code generates more than 1000 visualization frames
 - worker timeout termination when user code does not finish within 30 seconds
 
+Current regression coverage:
+- `components/workbench/canvas-tracking.test.ts` verifies that panel tracking computes scroll targets against the workbench canvas viewport rather than the whole page
+- `tests/test_dsviz_array_sizing.py` verifies default preview-height behavior for 2D, 3D, and higher-dimensional `VisArray` panels
+
 ## Known Limitations
 Current unresolved limitations:
 1. Compact defaults have been tuned manually and may need further calibration for very large traces or unusual value lengths.

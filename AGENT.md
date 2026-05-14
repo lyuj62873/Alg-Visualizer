@@ -201,5 +201,6 @@ Nested `VisXxx` design direction is also decided:
 - Repo-facing docs should stay in English.
 - Prefer explicit runtime behavior over hidden magic.
 - Preserve ordinary Python shape whenever possible.
+- Keep regression coverage for canvas-only tracking math and default array panel sizing aligned with the shipped behavior.
 - When updating docs, keep them aligned with the actual shipped UI and code, not earlier planning language.
 - When handing off to another agent, mention the current active branch and whether remaining local changes are only cache artifacts.

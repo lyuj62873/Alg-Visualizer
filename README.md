@@ -179,6 +179,12 @@ Build for production:
 npm run build
 ```
 
+Run the regression test suite:
+
+```bash
+npm run test
+```
+
 Start the production server:
 
 ```bash
@@ -191,9 +197,11 @@ Important files:
 - [AGENT.md](AGENT.md)
 - [V3-summary.md](V3-summary.md)
 - [docs/v3-spec.md](docs/v3-spec.md)
+- [components/workbench/canvas-tracking.ts](components/workbench/canvas-tracking.ts)
 - [components/workbench/workbench.tsx](components/workbench/workbench.tsx)
 - [components/workbench/pyodide-runner.ts](components/workbench/pyodide-runner.ts)
 - [public/py/dsviz.py](public/py/dsviz.py)
+- [tests/test_dsviz_array_sizing.py](tests/test_dsviz_array_sizing.py)
 
 If you are continuing development, start with `V3-summary.md` first.
 

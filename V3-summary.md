@@ -294,11 +294,18 @@ The following were explicitly checked during implementation:
 - `VisListNode` example runs
 - `Balanced Rebuild` runs and emits a large trace
 - `Delete Duplicates` runs and emits a linked-list trace
+- canvas-only panel tracking math is covered by `Vitest`
+- default array panel height rules for 2D / 3D / higher-dimensional arrays are covered by Python `unittest`
 - TypeScript type check passes
+- `npm run test` passes locally
 - `next build` passes locally after the `next` upgrade
 - built-in examples load from the navbar menus
 - active-line highlighting changes when stepping frames
 - list rewiring was manually inspected in browser screenshots after the shared-tail layout fix
+
+Relevant regression test files:
+- `components/workbench/canvas-tracking.test.ts`
+- `tests/test_dsviz_array_sizing.py`
 
 ## Current Visualization Standard
 The repo now has a usable default standard for visual structures:
