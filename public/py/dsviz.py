@@ -778,6 +778,14 @@ class VisArray(_VisObject):
         height = sum(size[1] for size in child_sizes) + max(0, len(child_sizes) - 1) * 3.2 + 6.0
         return width, height
 
+    def _preferred_matrix_panel_height(self, dimensions: Optional[Tuple[int, ...]]) -> float:
+        rows = dimensions[0] if dimensions else 0
+        cols = dimensions[1] if dimensions and len(dimensions) > 1 else 0
+        row_height = 3.9
+        header_height = 8.5
+        column_allowance = min(4.0, cols * 0.18)
+        return header_height + (rows * row_height) + column_allowance
+
     def _render_array_node(self, values: List[Any], path: Tuple[int, ...]) -> Dict[str, Any]:
         layout = self._array_layout(values)
         dimensions = self._infer_dimensions(values)
@@ -828,6 +836,7 @@ class VisArray(_VisObject):
         root_values = self._root_array._values
         rendered_root = self._render_array_node(root_values, ())
         layout = rendered_root["layout"]
+        dimensions = tuple(rendered_root["dimensions"]) if rendered_root["dimensions"] else None
         width_units, height_units = self._measure_block(root_values)
         max_width = 54.0 if layout == "row" else 58.0 if layout == "matrix" else 62.0
         min_width = 22.0 if layout == "row" else 26.0 if layout == "matrix" else 30.0
@@ -837,7 +846,10 @@ class VisArray(_VisObject):
         if layout == "row":
             preferred_height = min(28.0, max(min_height, 4.5 + (height_units * 4.1)))
         elif layout == "matrix":
-            preferred_height = min(78.0, max(min_height, 5.0 + (height_units * 5.2)))
+            preferred_height = min(
+                56.0,
+                max(min_height, self._preferred_matrix_panel_height(dimensions)),
+            )
         else:
             preferred_height = min(78.0, max(min_height, 6.0 + (height_units * 5.8)))
 

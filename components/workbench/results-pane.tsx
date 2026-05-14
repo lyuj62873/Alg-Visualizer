@@ -927,42 +927,42 @@ function VisualizationPanel({
   const resizeHandles = [
     {
       key: "top",
-      className: "absolute left-2 right-2 top-0 z-20 h-2 cursor-ns-resize",
+      className: "absolute left-3 right-3 top-0 z-20 h-3 cursor-ns-resize",
       resizeFrom: { left: false, right: false, top: true, bottom: false },
     },
     {
       key: "bottom",
-      className: "absolute bottom-0 left-2 right-2 z-20 h-2 cursor-ns-resize",
+      className: "absolute bottom-0 left-3 right-3 z-20 h-3 cursor-ns-resize",
       resizeFrom: { left: false, right: false, top: false, bottom: true },
     },
     {
       key: "left",
-      className: "absolute bottom-2 left-0 top-2 z-20 w-2 cursor-ew-resize",
+      className: "absolute bottom-3 left-0 top-3 z-20 w-3 cursor-ew-resize",
       resizeFrom: { left: true, right: false, top: false, bottom: false },
     },
     {
       key: "right",
-      className: "absolute bottom-2 right-0 top-2 z-20 w-2 cursor-ew-resize",
+      className: "absolute bottom-3 right-0 top-3 z-20 w-3 cursor-ew-resize",
       resizeFrom: { left: false, right: true, top: false, bottom: false },
     },
     {
       key: "top-left",
-      className: "absolute left-0 top-0 z-30 h-3 w-3 cursor-nwse-resize",
+      className: "absolute left-0 top-0 z-30 h-5 w-5 cursor-nwse-resize",
       resizeFrom: { left: true, right: false, top: true, bottom: false },
     },
     {
       key: "top-right",
-      className: "absolute right-0 top-0 z-30 h-3 w-3 cursor-nesw-resize",
+      className: "absolute right-0 top-0 z-30 h-5 w-5 cursor-nesw-resize",
       resizeFrom: { left: false, right: true, top: true, bottom: false },
     },
     {
       key: "bottom-left",
-      className: "absolute bottom-0 left-0 z-30 h-3 w-3 cursor-nesw-resize",
+      className: "absolute bottom-0 left-0 z-30 h-5 w-5 cursor-nesw-resize",
       resizeFrom: { left: true, right: false, top: false, bottom: true },
     },
     {
       key: "bottom-right",
-      className: "absolute bottom-0 right-0 z-30 h-3 w-3 cursor-nwse-resize",
+      className: "absolute bottom-0 right-0 z-30 h-5 w-5 cursor-nwse-resize",
       resizeFrom: { left: false, right: true, top: false, bottom: true },
     },
   ] as const;

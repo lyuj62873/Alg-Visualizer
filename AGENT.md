@@ -175,11 +175,9 @@ Still out of scope for v3:
 
 ## Known v3 Gaps
 Known remaining gaps are narrower now:
-1. Panel resize borders should be made thicker; current hit targets are still too easy to miss and can fall through into panel-body interactions.
-2. Initial panel sizing for 2D arrays is still wrong in some cases and can produce excessively tall panels.
-3. Future container structures should extend the current `VisMap` reference-first nesting model to `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`.
-4. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
-5. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
+1. Future container structures should extend the current `VisMap` reference-first nesting model to `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`.
+2. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
+3. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
 
 `delVis(...)` is no longer an open design question.
 - default runtime visibility is intentionally conservative

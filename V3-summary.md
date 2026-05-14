@@ -229,6 +229,7 @@ Relevant file:
 Implemented:
 - `Guides -> VisArray`
 - `Guides -> VisArray 2D/3D`
+- `Guides -> VisMap`
 - `Guides -> VisListNode`
 - `Guides -> VisTreeNode`
 - `Examples -> Balanced Rebuild`
@@ -332,12 +333,10 @@ Reference naming rule:
 The old drag / resize blockers are no longer the main TODOs. Remaining work is now narrower and more product-shaping.
 
 Current unfinished TODOs:
-1. make panel resize borders thicker so resize gestures do not fall through into panel-body interactions
-2. fix excessively tall initial panel sizing for some 2D arrays
-3. extend the reference-first nested container model from `VisMap` to future structures such as `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`
-4. further tune compact layout defaults for extreme traces, long labels, and unusual density
-5. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
-6. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
+1. extend the reference-first nested container model from `VisMap` to future structures such as `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`
+2. further tune compact layout defaults for extreme traces, long labels, and unusual density
+3. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
+4. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
 
 These TODOs are the right next-agent starting point before any new broad feature branch.
 

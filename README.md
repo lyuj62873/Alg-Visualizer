@@ -154,6 +154,7 @@ Current `Examples`:
 Current `Guides`:
 - `VisArray`
 - `VisArray 2D/3D`
+- `VisMap`
 - `VisTreeNode`
 - `VisListNode`
 

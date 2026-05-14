@@ -247,6 +247,7 @@ Current built-in `Examples`:
 Current built-in `Guides`:
 - `VisArray`
 - `VisArray 2D/3D`
+- `VisMap`
 - `VisListNode`
 - `VisTreeNode`
 
