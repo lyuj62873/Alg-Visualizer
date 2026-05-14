@@ -97,6 +97,11 @@ Relevant files:
 ### Visualization primitives
 Implemented:
 - `VisArray`
+- `VisStack`
+- `VisQueue`
+- `VisDeque`
+- `VisSet`
+- `VisHeap`
 - `VisListNode`
 - `VisTreeNode`
 - `delVis(value)`
@@ -141,6 +146,18 @@ Current `delVis` semantics:
 - this is an intentional user-control mechanism, not a missing auto-cleanup feature
 - the runtime does not attempt to infer whether a detached node is still algorithmically relevant
 - this keeps behavior predictable across cases like duplicate-node cleanup in lists versus temporary detach-and-reconnect workflows in trees
+
+The new sequence-style structures currently share one panel family:
+- `VisStack`
+- `VisQueue`
+- `VisDeque`
+- `VisSet`
+- `VisHeap`
+
+Current sequence-style behavior:
+- all five render through the same array-like sequence panel contract
+- nested `_VisObject` children render as reference tokens
+- `VisHeap` intentionally stays sequence-like by default to match LeetCode / priority-queue debugging workflows
 
 Relevant file:
 - `public/py/dsviz.py`
@@ -233,6 +250,11 @@ Implemented:
 - `Guides -> VisArray`
 - `Guides -> VisArray 2D/3D`
 - `Guides -> VisMap`
+- `Guides -> VisStack`
+- `Guides -> VisQueue`
+- `Guides -> VisDeque`
+- `Guides -> VisSet`
+- `Guides -> VisHeap`
 - `Guides -> VisListNode`
 - `Guides -> VisTreeNode`
 - `Examples -> Balanced Rebuild`
@@ -290,6 +312,7 @@ Relevant files:
 ## Validation Completed
 The following were explicitly checked during implementation:
 - `VisArray` operations run successfully in Python
+- `VisStack` / `VisQueue` / `VisDeque` / `VisSet` / `VisHeap` operations run successfully in Python
 - `VisTreeNode` example runs
 - `VisListNode` example runs
 - `Balanced Rebuild` runs and emits a large trace
@@ -343,10 +366,13 @@ Reference naming rule:
 The old drag / resize blockers are no longer the main TODOs. Remaining work is now narrower and more product-shaping.
 
 Current unfinished TODOs:
-1. extend the reference-first nested container model from `VisMap` to future structures such as `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`
-2. further tune compact layout defaults for extreme traces, long labels, and unusual density
-3. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
-4. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
+1. extend the shared panel / reference contract from `VisArray`, `VisMap`, and the sequence-style structures to the remaining visual families
+2. extend the reference-first nesting model from `VisMap` and the sequence-style structures to those remaining structures
+3. add an object-like custom panel for user-defined helper classes whose attributes may point at other `VisXxx` panels
+4. rewrite the user guide so panel controls, instrumentation methods, and every shipped `VisXxx` type are documented together
+5. further tune compact layout defaults for extreme traces, long labels, and unusual density
+6. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
+7. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
 
 These TODOs are the right next-agent starting point before any new broad feature branch.
 

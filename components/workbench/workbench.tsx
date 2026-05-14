@@ -93,6 +93,31 @@ export function Workbench() {
       description: "map entries with clickable references to child VisXxx panels",
       path: "/examples/vis-map-example.py",
     },
+    {
+      label: "VisStack",
+      description: "push, pop, peek, and stack panels with reference-first cells",
+      path: "/examples/vis-stack-example.py",
+    },
+    {
+      label: "VisQueue",
+      description: "enqueue, dequeue, and front-of-queue inspection",
+      path: "/examples/vis-queue-example.py",
+    },
+    {
+      label: "VisDeque",
+      description: "append/pop on both ends with the same sequence panel model",
+      path: "/examples/vis-deque-example.py",
+    },
+    {
+      label: "VisSet",
+      description: "insertion-style set panels with reference-first child cells",
+      path: "/examples/vis-set-example.py",
+    },
+    {
+      label: "VisHeap",
+      description: "priority-queue style heap operations in a sequence-like panel",
+      path: "/examples/vis-heap-example.py",
+    },
   ];
 
   async function loadExample(path: string) {

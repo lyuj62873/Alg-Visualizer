@@ -34,6 +34,11 @@ Current end-to-end behavior:
 
 Current public `dsviz` APIs:
 - `VisArray`
+- `VisStack`
+- `VisQueue`
+- `VisDeque`
+- `VisSet`
+- `VisHeap`
 - `VisMap`
 - `VisTreeNode`
 - `VisListNode`
@@ -59,6 +64,27 @@ Current list-like operations include:
 - `extend`
 - `reverse`
 - `clear`
+
+### Sequence-Style Containers
+
+Currently supported sequence-style structures:
+- `VisStack`
+- `VisQueue`
+- `VisDeque`
+- `VisSet`
+- `VisHeap`
+
+Current behavior:
+- all five reuse the same sequence-like array panel family
+- nested `_VisObject` children render as reference tokens rather than inline expansions
+- `VisHeap` intentionally defaults to a list-like / priority-queue style panel instead of a tree-teaching view
+
+Current structure-specific operations include:
+- `VisStack`: `push`, `pop`, `peek`, `clear`
+- `VisQueue`: `enqueue`, `dequeue`, `peek`, `clear`
+- `VisDeque`: `append_left`, `append_right`, `pop_left`, `pop_right`, `clear`
+- `VisSet`: `add`, `discard`, `remove`, `pop`, `clear`
+- `VisHeap`: `push`, `pop`, `peek`, `replace`, `pushpop`, `heapify`
 
 ### `VisTreeNode`
 
@@ -156,6 +182,11 @@ Current `Guides`:
 - `VisArray`
 - `VisArray 2D/3D`
 - `VisMap`
+- `VisStack`
+- `VisQueue`
+- `VisDeque`
+- `VisSet`
+- `VisHeap`
 - `VisTreeNode`
 - `VisListNode`
 
@@ -208,15 +239,18 @@ If you are continuing development, start with `V3-summary.md` first.
 ## Planned Follow-Up
 
 The current prototype is already usable, but several follow-up areas remain:
-- expand the reference-first nested container model from `VisMap` to future `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`
+- continue extending the shared panel / reference contract from `VisArray`, `VisMap`, and the new sequence-style structures to the remaining visual families
+- expand the reference-first nested container model from `VisMap` and the new sequence-style structures to the remaining structures after that shared contract is in place
+- add an object-like custom visualization panel for user-defined LeetCode helper classes whose attributes may point at other `VisXxx` panels
 - keep tuning compact layout defaults for large or unusual traces
 - extend the same interaction model to future structures
+- rewrite the user guide so panel controls, examples, `watch(...)`, `delVis(...)`, and each public `VisXxx` API are all documented in one coherent flow
 - consider editor-assisted help for inserting `watch(...)`
 - consider whether the fixed 1000-frame cap and 30-second timeout should become configurable
 
 ### Planned Nested Container Rule
 
-For future container-style structures such as `VisMap`, `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`, nested visualization should default to references rather than duplicated inline rendering.
+For future container-style structures such as `VisMap`, `VisSet`, `VisQueue`, `VisStack`, `VisDeque`, `VisHeap`, and future object-like custom panels, nested visualization should default to references rather than duplicated inline rendering.
 
 Planned behavior:
 - each `VisXxx` object still owns its own floating panel
@@ -229,6 +263,30 @@ Planned naming rule:
 - prefer the variable name when one is available
 - if multiple visible objects share the same variable-style name, preserve the original meaningful name when possible and disambiguate repeated names with numeric suffixes such as `node1`, `node2`, ...
 - this is intended to keep labels such as `head` and `tail` intact while still distinguishing repeated loop-local names
+
+### Planned Shared Panel Contract
+
+The long-term direction is to unify every `VisXxx` object under one panel / reference contract even when their rendered bodies differ.
+
+Planned shared behavior:
+- every `VisXxx` owns a stable panel identity, title, type label, sizing hints, focus state, and reference behavior
+- parent panels may expose child `VisXxx` objects only through reference tokens
+- scalar values still render inline according to the parent structure's own display rules
+- render families may differ even when the panel contract is shared:
+  - sequence-like structures such as `VisArray`, `VisStack`, `VisQueue`, `VisDeque`, `VisSet`, and default `VisHeap`
+  - mapping-like structures such as `VisMap`
+  - node-like structures such as `VisTreeNode`
+  - object-like panels for future user-defined helper classes
+
+### Planned Custom Object Panels
+
+The intended custom-class workflow is not free-form drawing. It is an object-like panel for LeetCode-style helper classes whose state is mostly built from other `VisXxx` values.
+
+Planned behavior:
+- a user-defined object gets its own top-level panel
+- plain attributes render inline
+- attributes that point at `VisXxx` values render as reference tokens to those child panels
+- the result should behave more like an object view or `VisMap`-style attribute table than a fully custom renderer
 
 ## Non-Goals For Now
 

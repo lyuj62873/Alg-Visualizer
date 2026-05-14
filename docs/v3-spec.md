@@ -58,6 +58,11 @@ AlgoLens v3 visualizes only explicitly tracked values.
 
 Current supported primitives:
 - `VisArray`
+- `VisStack`
+- `VisQueue`
+- `VisDeque`
+- `VisSet`
+- `VisHeap`
 - `VisMap`
 - `VisListNode`
 - `VisTreeNode`
@@ -69,6 +74,7 @@ Notes:
 - `VisBST` still exists in `dsviz.py`, but it is not the main user-facing path
 - normal Python containers are not visualized unless the user converts them
 - `delVis(value)` is an explicit user call that removes an existing visualization
+- `VisHeap` intentionally defaults to a sequence-like / priority-queue view rather than a tree-teaching view
 
 ## Scalar Tracking
 Scalar tracking uses:
@@ -229,10 +235,39 @@ Reference labeling direction:
 - preserve semantically meaningful user names such as `head` and `tail` whenever possible
 
 Current implementation status:
-- the reference-first model is now implemented for `VisMap`
+- the reference-first model is now implemented for `VisMap` and the sequence-style structures
 - map entries may render child `VisXxx` values as clickable reference tokens
 - clicking a token reuses the same bring-to-front and canvas-track behavior as a panel tab
 - `delVis(child)` degrades those map references into non-clickable summaries
+
+## Planned Shared `VisXxx` Contract
+
+Future structures should reuse one shared panel / reference contract even when their bodies render differently.
+
+Planned common behavior:
+- every `VisXxx` object owns a stable panel identity, title, type label, focus behavior, sizing hints, and reference behavior
+- nested `VisXxx` children should appear as reference tokens instead of inline expansions
+- plain scalar values may still render inline according to the parent structure's own body layout
+- render families may diverge above this shared contract:
+  - sequence-like panels such as `VisArray`, `VisStack`, `VisQueue`, `VisDeque`, `VisSet`, and default `VisHeap`
+  - mapping-like panels such as `VisMap`
+  - node-like panels such as `VisTreeNode`
+  - object-like panels for future user-defined helper classes
+
+`VisHeap` direction:
+- the default `VisHeap` view should be sequence-like rather than tree-like
+- this product is aimed at algorithm debugging in the style of LeetCode / priority-queue usage rather than at teaching heap topology
+- if a tree-style heap view ever exists, it should be secondary rather than the primary workflow
+
+## Planned Custom Object Panels
+
+Future user-defined helper classes should get an object-like panel instead of a free-form renderer.
+
+Planned behavior:
+- a user-defined object becomes its own top-level panel
+- plain attributes render inline
+- attributes that point at `VisXxx` values render as reference tokens to those child panels
+- the result should look closer to an object view or `VisMap`-style attribute table than to arbitrary custom drawing
 
 ## UI Model
 The current single-page workbench contains:
@@ -251,6 +286,11 @@ Current built-in `Guides`:
 - `VisArray`
 - `VisArray 2D/3D`
 - `VisMap`
+- `VisStack`
+- `VisQueue`
+- `VisDeque`
+- `VisSet`
+- `VisHeap`
 - `VisListNode`
 - `VisTreeNode`
 

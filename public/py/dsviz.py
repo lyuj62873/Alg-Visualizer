@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 from collections import OrderedDict
 from dataclasses import dataclass
+import heapq
 import inspect
 import linecache
 from typing import Any, Dict, List, Optional, Tuple
@@ -392,6 +393,79 @@ def _infer_constructor_target_name(frame, constructor_name: str) -> Optional[str
     return best_name
 
 
+def _resolve_visual_name(
+    explicit_name: Optional[str],
+    constructor_name: str,
+    fallback: str,
+) -> str:
+    if explicit_name:
+        return explicit_name
+
+    frame = inspect.currentframe()
+    try:
+        constructor_frame = frame.f_back if frame is not None else None
+        caller = constructor_frame.f_back if constructor_frame is not None else None
+        resolved_name = (
+            _infer_constructor_target_name(caller, constructor_name)
+            if caller is not None
+            else None
+        )
+    finally:
+        del frame
+
+    return resolved_name or fallback
+
+
+def _uses_default_panel_layout(
+    *,
+    panel_id: Optional[str],
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    scale: float,
+    default_x: float,
+    default_y: float,
+    default_width: float,
+    default_height: float,
+    default_scale: float,
+) -> bool:
+    return (
+        panel_id is None
+        and x == default_x
+        and y == default_y
+        and width == default_width
+        and height == default_height
+        and scale == default_scale
+    )
+
+
+def _resolve_panel_layout(
+    *,
+    uses_default_layout: bool,
+    preferred_x: float,
+    preferred_y: float,
+    width: float,
+    height: float,
+    scale: float,
+) -> _PanelLayout:
+    if uses_default_layout:
+        return _TRACE.suggest_panel_layout(
+            preferred_x=preferred_x,
+            preferred_y=preferred_y,
+            width=width,
+            height=height,
+            scale=scale,
+        )
+    return _PanelLayout(
+        x=preferred_x,
+        y=preferred_y,
+        width=width,
+        height=height,
+        scale=scale,
+    )
+
+
 class _VisObject:
     _id_counter = 0
 
@@ -421,6 +495,38 @@ class _VisObject:
     def _render_panel(self) -> Any:
         raise NotImplementedError
 
+    def _base_panel_payload(
+        self,
+        *,
+        kind: str,
+        width: float,
+        height: float,
+        min_width: Optional[float] = None,
+        min_height: Optional[float] = None,
+        max_width: Optional[float] = None,
+        max_height: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        payload = {
+            "id": self.id,
+            "kind": kind,
+            "title": _TRACE.resolve_object_label(self, self.title),
+            "typeLabel": self.type_label,
+            "x": self.layout.x,
+            "y": self.layout.y,
+            "width": width,
+            "height": height,
+            "scale": self.layout.scale,
+        }
+        if min_width is not None:
+            payload["minWidth"] = min_width
+        if min_height is not None:
+            payload["minHeight"] = min_height
+        if max_width is not None:
+            payload["maxWidth"] = max_width
+        if max_height is not None:
+            payload["maxHeight"] = max_height
+        return payload
+
 
 def _reference_cell(value: "_VisObject", cell_id: str) -> Dict[str, Any]:
     label = _TRACE.resolve_object_label(value, value.title)
@@ -442,6 +548,21 @@ def _value_cell(value: Any, cell_id: str) -> Dict[str, Any]:
         "kind": "value",
         "label": _safe_str(value),
     }
+
+
+def _sequence_cell(
+    value: Any,
+    cell_id: str,
+    *,
+    is_active: bool = False,
+    contains_active: bool = False,
+) -> Dict[str, Any]:
+    cell = _value_cell(value, cell_id)
+    if is_active:
+        cell["tone"] = "active"
+    if contains_active:
+        cell["containsActive"] = True
+    return cell
 
 
 class _NestedArray:
@@ -637,39 +758,28 @@ class VisArray(_VisObject):
         height: float = 16,
         scale: float = 1.0,
     ) -> None:
-        self._uses_default_layout = (
-            panel_id is None
-            and x == 8
-            and y == 12
-            and width == 42
-            and height == 16
-            and scale == 1.0
+        self._uses_default_layout = _uses_default_panel_layout(
+            panel_id=panel_id,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            scale=scale,
+            default_x=8,
+            default_y=12,
+            default_width=42,
+            default_height=16,
+            default_scale=1.0,
         )
-        resolved_name = name
-        if resolved_name is None:
-            frame = inspect.currentframe()
-            try:
-                caller = frame.f_back if frame is not None else None
-                resolved_name = (
-                    _infer_constructor_target_name(caller, "VisArray")
-                    if caller is not None
-                    else None
-                )
-            finally:
-                del frame
-            if not resolved_name:
-                resolved_name = "array"
-
-        if self._uses_default_layout:
-            layout = _TRACE.suggest_panel_layout(
-                preferred_x=x,
-                preferred_y=y,
-                width=width,
-                height=height,
-                scale=scale,
-            )
-        else:
-            layout = _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
+        resolved_name = _resolve_visual_name(name, "VisArray", "array")
+        layout = _resolve_panel_layout(
+            uses_default_layout=self._uses_default_layout,
+            preferred_x=x,
+            preferred_y=y,
+            width=width,
+            height=height,
+            scale=scale,
+        )
 
         super().__init__(
             title=resolved_name,
@@ -912,19 +1022,15 @@ class VisArray(_VisObject):
         )
 
         return {
-            "id": self.id,
-            "kind": "array",
-            "title": _TRACE.resolve_object_label(self, self.title),
-            "typeLabel": self.type_label,
-            "x": self.layout.x,
-            "y": self.layout.y,
-            "width": width,
-            "height": height,
-            "minWidth": min_width,
-            "minHeight": min_height,
-            "maxWidth": max_width,
-            "maxHeight": max_height,
-            "scale": self.layout.scale,
+            **self._base_panel_payload(
+                kind="array",
+                width=width,
+                height=height,
+                min_width=min_width,
+                min_height=min_height,
+                max_width=max_width,
+                max_height=max_height,
+            ),
             "layout": rendered_root["layout"],
             "dimensions": rendered_root["dimensions"],
             "cells": rendered_root["cells"],
@@ -944,39 +1050,28 @@ class VisMap(_VisObject):
         height: float = 24,
         scale: float = 1.0,
     ) -> None:
-        self._uses_default_layout = (
-            panel_id is None
-            and x == 8
-            and y == 12
-            and width == 40
-            and height == 24
-            and scale == 1.0
+        self._uses_default_layout = _uses_default_panel_layout(
+            panel_id=panel_id,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            scale=scale,
+            default_x=8,
+            default_y=12,
+            default_width=40,
+            default_height=24,
+            default_scale=1.0,
         )
-        resolved_name = name
-        if resolved_name is None:
-            frame = inspect.currentframe()
-            try:
-                caller = frame.f_back if frame is not None else None
-                resolved_name = (
-                    _infer_constructor_target_name(caller, "VisMap")
-                    if caller is not None
-                    else None
-                )
-            finally:
-                del frame
-            if not resolved_name:
-                resolved_name = "map"
-
-        if self._uses_default_layout:
-            layout = _TRACE.suggest_panel_layout(
-                preferred_x=x,
-                preferred_y=y,
-                width=width,
-                height=height,
-                scale=scale,
-            )
-        else:
-            layout = _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
+        resolved_name = _resolve_visual_name(name, "VisMap", "map")
+        layout = _resolve_panel_layout(
+            uses_default_layout=self._uses_default_layout,
+            preferred_x=x,
+            preferred_y=y,
+            width=width,
+            height=height,
+            scale=scale,
+        )
 
         super().__init__(
             title=resolved_name,
@@ -1081,20 +1176,425 @@ class VisMap(_VisObject):
             height = self.layout.height
 
         return {
-            "id": self.id,
-            "kind": "map",
-            "title": _TRACE.resolve_object_label(self, self.title),
-            "typeLabel": self.type_label,
-            "x": self.layout.x,
-            "y": self.layout.y,
-            "width": width,
-            "height": height,
-            "minWidth": 24.0,
-            "minHeight": 16.0,
-            "maxWidth": 72.0,
-            "scale": self.layout.scale,
+            **self._base_panel_payload(
+                kind="map",
+                width=width,
+                height=height,
+                min_width=24.0,
+                min_height=16.0,
+                max_width=72.0,
+            ),
             "entries": entries,
         }
+
+
+class _SequenceVisObject(_VisObject):
+    def __init__(
+        self,
+        *,
+        constructor_name: str,
+        fallback_name: str,
+        type_label: str,
+        values: List[Any],
+        name: Optional[str],
+        panel_id: Optional[str],
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        scale: float,
+    ) -> None:
+        self._uses_default_layout = _uses_default_panel_layout(
+            panel_id=panel_id,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            scale=scale,
+            default_x=8,
+            default_y=12,
+            default_width=42,
+            default_height=16,
+            default_scale=1.0,
+        )
+        resolved_name = _resolve_visual_name(name, constructor_name, fallback_name)
+        layout = _resolve_panel_layout(
+            uses_default_layout=self._uses_default_layout,
+            preferred_x=x,
+            preferred_y=y,
+            width=width,
+            height=height,
+            scale=scale,
+        )
+        super().__init__(
+            title=resolved_name,
+            type_label=type_label,
+            panel_id=panel_id,
+            layout=layout,
+            display_name=resolved_name,
+        )
+        self._values: List[Any] = list(values)
+        self._active_indexes: set[int] = set()
+
+    def __len__(self) -> int:
+        return len(self._values)
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def _set_values(self, values: List[Any]) -> None:
+        self._values = list(values)
+
+    def _mark_active(self, *indexes: int) -> None:
+        self._active_indexes = {idx for idx in indexes if 0 <= idx < len(self._values)}
+
+    def _contains_active(self, value: Any) -> bool:
+        return isinstance(value, _VisObject) and _TRACE.last_touched == value.id
+
+    def _emit_sequence_change(self, label: str, *active_indexes: int) -> None:
+        self._mark_active(*active_indexes)
+        if self._is_visualized:
+            _TRACE.emit(label=label)
+
+    def _sequence_measure_width(self) -> float:
+        if not self._values:
+            return 12.0
+        widths = []
+        for value in self._values:
+            if isinstance(value, _VisObject):
+                label = _TRACE.resolve_object_label(value, value.title)
+                widths.append(min(22.0, max(10.0, 8.0 + len(label) * 0.8)))
+            else:
+                widths.append(min(20.0, max(10.0, 6.0 + len(_safe_str(value)) * 0.9)))
+        return sum(widths) + max(0, len(widths) - 1) * 3.0 + 4.0
+
+    def _render_sequence_cells(self) -> List[Dict[str, Any]]:
+        cells = []
+        for idx, value in enumerate(self._values):
+            cells.append(
+                _sequence_cell(
+                    value,
+                    f"{self.id}_{idx}",
+                    is_active=idx in self._active_indexes,
+                    contains_active=self._contains_active(value),
+                )
+            )
+        return cells
+
+    def _render_panel(self) -> Dict[str, Any]:
+        min_width = 22.0
+        max_width = 58.0
+        min_height = 12.0
+        max_height = 28.0
+        preferred_width = min(max_width, max(min_width, 10.0 + self._sequence_measure_width() * 0.48))
+        width = preferred_width if self._uses_default_layout else max(self.layout.width, min_width)
+        height = (
+            min_height + 4.0
+            if self._uses_default_layout
+            else min(max_height, max(min_height, self.layout.height))
+        )
+        return {
+            **self._base_panel_payload(
+                kind="array",
+                width=width,
+                height=height,
+                min_width=min_width,
+                min_height=min_height,
+                max_width=max_width,
+                max_height=max_height,
+            ),
+            "layout": "row",
+            "dimensions": [len(self._values)],
+            "cells": self._render_sequence_cells(),
+        }
+
+
+class VisStack(_SequenceVisObject):
+    def __init__(
+        self,
+        values: Optional[List[Any]] = None,
+        name: Optional[str] = None,
+        *,
+        panel_id: Optional[str] = None,
+        x: float = 8,
+        y: float = 12,
+        width: float = 42,
+        height: float = 16,
+        scale: float = 1.0,
+    ) -> None:
+        super().__init__(
+            constructor_name="VisStack",
+            fallback_name="stack",
+            type_label="VisStack",
+            values=values or [],
+            name=name,
+            panel_id=panel_id,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            scale=scale,
+        )
+        _TRACE.emit(label=f"{self.title}: init")
+
+    def push(self, value: Any) -> None:
+        self._values.append(value)
+        self._emit_sequence_change(f"{self.title}.push({_safe_str(value)})", len(self._values) - 1)
+
+    def pop(self) -> Any:
+        if not self._values:
+            raise IndexError("pop from empty stack")
+        value = self._values.pop()
+        next_active = len(self._values) - 1 if self._values else -1
+        self._emit_sequence_change(f"{self.title}.pop()", next_active)
+        return value
+
+    def peek(self) -> Any:
+        if not self._values:
+            raise IndexError("peek from empty stack")
+        self._mark_active(len(self._values) - 1)
+        return self._values[-1]
+
+    def clear(self) -> None:
+        self._values.clear()
+        self._emit_sequence_change(f"{self.title}.clear()")
+
+
+class VisQueue(_SequenceVisObject):
+    def __init__(
+        self,
+        values: Optional[List[Any]] = None,
+        name: Optional[str] = None,
+        *,
+        panel_id: Optional[str] = None,
+        x: float = 8,
+        y: float = 12,
+        width: float = 42,
+        height: float = 16,
+        scale: float = 1.0,
+    ) -> None:
+        super().__init__(
+            constructor_name="VisQueue",
+            fallback_name="queue",
+            type_label="VisQueue",
+            values=values or [],
+            name=name,
+            panel_id=panel_id,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            scale=scale,
+        )
+        _TRACE.emit(label=f"{self.title}: init")
+
+    def enqueue(self, value: Any) -> None:
+        self._values.append(value)
+        self._emit_sequence_change(f"{self.title}.enqueue({_safe_str(value)})", len(self._values) - 1)
+
+    def dequeue(self) -> Any:
+        if not self._values:
+            raise IndexError("dequeue from empty queue")
+        value = self._values.pop(0)
+        self._emit_sequence_change(f"{self.title}.dequeue()", 0)
+        return value
+
+    def peek(self) -> Any:
+        if not self._values:
+            raise IndexError("peek from empty queue")
+        self._mark_active(0)
+        return self._values[0]
+
+    def clear(self) -> None:
+        self._values.clear()
+        self._emit_sequence_change(f"{self.title}.clear()")
+
+
+class VisDeque(_SequenceVisObject):
+    def __init__(
+        self,
+        values: Optional[List[Any]] = None,
+        name: Optional[str] = None,
+        *,
+        panel_id: Optional[str] = None,
+        x: float = 8,
+        y: float = 12,
+        width: float = 42,
+        height: float = 16,
+        scale: float = 1.0,
+    ) -> None:
+        super().__init__(
+            constructor_name="VisDeque",
+            fallback_name="deque",
+            type_label="VisDeque",
+            values=values or [],
+            name=name,
+            panel_id=panel_id,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            scale=scale,
+        )
+        _TRACE.emit(label=f"{self.title}: init")
+
+    def append_right(self, value: Any) -> None:
+        self._values.append(value)
+        self._emit_sequence_change(f"{self.title}.append_right({_safe_str(value)})", len(self._values) - 1)
+
+    def append_left(self, value: Any) -> None:
+        self._values.insert(0, value)
+        self._emit_sequence_change(f"{self.title}.append_left({_safe_str(value)})", 0)
+
+    def pop_right(self) -> Any:
+        if not self._values:
+            raise IndexError("pop_right from empty deque")
+        value = self._values.pop()
+        next_active = len(self._values) - 1 if self._values else -1
+        self._emit_sequence_change(f"{self.title}.pop_right()", next_active)
+        return value
+
+    def pop_left(self) -> Any:
+        if not self._values:
+            raise IndexError("pop_left from empty deque")
+        value = self._values.pop(0)
+        self._emit_sequence_change(f"{self.title}.pop_left()", 0)
+        return value
+
+    def clear(self) -> None:
+        self._values.clear()
+        self._emit_sequence_change(f"{self.title}.clear()")
+
+
+class VisSet(_SequenceVisObject):
+    def __init__(
+        self,
+        values: Optional[List[Any]] = None,
+        name: Optional[str] = None,
+        *,
+        panel_id: Optional[str] = None,
+        x: float = 8,
+        y: float = 12,
+        width: float = 42,
+        height: float = 16,
+        scale: float = 1.0,
+    ) -> None:
+        self._ordered_values: "OrderedDict[Any, None]" = OrderedDict()
+        incoming = values or []
+        for value in incoming:
+            self._ordered_values[value] = None
+        super().__init__(
+            constructor_name="VisSet",
+            fallback_name="set",
+            type_label="VisSet",
+            values=list(self._ordered_values.keys()),
+            name=name,
+            panel_id=panel_id,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            scale=scale,
+        )
+        _TRACE.emit(label=f"{self.title}: init")
+
+    def __contains__(self, value: Any) -> bool:
+        return value in self._ordered_values
+
+    def add(self, value: Any) -> None:
+        self._ordered_values[value] = None
+        self._set_values(list(self._ordered_values.keys()))
+        self._emit_sequence_change(f"{self.title}.add({_safe_str(value)})", len(self._values) - 1)
+
+    def discard(self, value: Any) -> None:
+        self._ordered_values.pop(value, None)
+        self._set_values(list(self._ordered_values.keys()))
+        self._emit_sequence_change(f"{self.title}.discard({_safe_str(value)})")
+
+    def remove(self, value: Any) -> None:
+        if value not in self._ordered_values:
+            raise KeyError(value)
+        del self._ordered_values[value]
+        self._set_values(list(self._ordered_values.keys()))
+        self._emit_sequence_change(f"{self.title}.remove({_safe_str(value)})")
+
+    def pop(self) -> Any:
+        if not self._ordered_values:
+            raise KeyError("pop from an empty VisSet")
+        value, _ = self._ordered_values.popitem(last=False)
+        self._set_values(list(self._ordered_values.keys()))
+        self._emit_sequence_change(f"{self.title}.pop()")
+        return value
+
+    def clear(self) -> None:
+        self._ordered_values.clear()
+        self._set_values([])
+        self._emit_sequence_change(f"{self.title}.clear()")
+
+
+class VisHeap(_SequenceVisObject):
+    def __init__(
+        self,
+        values: Optional[List[Any]] = None,
+        name: Optional[str] = None,
+        *,
+        panel_id: Optional[str] = None,
+        x: float = 8,
+        y: float = 12,
+        width: float = 42,
+        height: float = 16,
+        scale: float = 1.0,
+    ) -> None:
+        heap_values = list(values or [])
+        heapq.heapify(heap_values)
+        super().__init__(
+            constructor_name="VisHeap",
+            fallback_name="heap",
+            type_label="VisHeap",
+            values=heap_values,
+            name=name,
+            panel_id=panel_id,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            scale=scale,
+        )
+        _TRACE.emit(label=f"{self.title}: init")
+
+    def push(self, value: Any) -> None:
+        heapq.heappush(self._values, value)
+        self._emit_sequence_change(f"{self.title}.push({_safe_str(value)})", 0)
+
+    def pop(self) -> Any:
+        if not self._values:
+            raise IndexError("pop from empty heap")
+        value = heapq.heappop(self._values)
+        self._emit_sequence_change(f"{self.title}.pop()", 0)
+        return value
+
+    def peek(self) -> Any:
+        if not self._values:
+            raise IndexError("peek from empty heap")
+        self._mark_active(0)
+        return self._values[0]
+
+    def replace(self, value: Any) -> Any:
+        if not self._values:
+            raise IndexError("replace on empty heap")
+        removed = heapq.heapreplace(self._values, value)
+        self._emit_sequence_change(f"{self.title}.replace({_safe_str(value)})", 0)
+        return removed
+
+    def pushpop(self, value: Any) -> Any:
+        result = heapq.heappushpop(self._values, value)
+        self._emit_sequence_change(f"{self.title}.pushpop({_safe_str(value)})", 0)
+        return result
+
+    def heapify(self, values: List[Any]) -> None:
+        self._set_values(list(values))
+        heapq.heapify(self._values)
+        self._emit_sequence_change(f"{self.title}.heapify({_safe_str(values)})", 0)
 
 
 @dataclass(eq=False)

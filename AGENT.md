@@ -52,6 +52,11 @@ Only explicitly instrumented values are visualized.
 
 Current supported instrumentation:
 - `VisArray`
+- `VisStack`
+- `VisQueue`
+- `VisDeque`
+- `VisSet`
+- `VisHeap`
 - `VisMap`
 - `VisListNode`
 - `VisTreeNode`
@@ -96,6 +101,11 @@ Current built-in guides:
 - `VisArray`
 - `VisArray 2D/3D`
 - `VisMap`
+- `VisStack`
+- `VisQueue`
+- `VisDeque`
+- `VisSet`
+- `VisHeap`
 - `VisListNode`
 - `VisTreeNode`
 
@@ -113,7 +123,7 @@ Rendering split:
 - custom overlay panels handle variables and runtime output
 
 ## Current Visualization Standard
-`VisArray`, `VisMap`, `VisTreeNode`, and `VisListNode` now follow one shared interaction standard.
+`VisArray`, `VisMap`, `VisTreeNode`, `VisListNode`, and the new sequence-style structures now follow one shared interaction standard.
 
 Shared rules:
 - every structure renders in a floating panel on the canvas
@@ -178,9 +188,11 @@ Still out of scope for v3:
 
 ## Known v3 Gaps
 Known remaining gaps are narrower now:
-1. Future container structures should extend the current `VisMap` reference-first nesting model to `VisSet`, `VisQueue`, `VisStack`, and `VisHeap`.
-2. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
-3. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
+1. The shared panel / reference contract now covers `VisArray`, `VisMap`, and the new sequence-style structures, but still needs to be extended to the remaining visual families.
+2. Reference-first nesting should next be extended from `VisMap` and the sequence-style structures to the remaining structures and to future object-like custom panels.
+3. A user-facing object-like custom panel is still needed for LeetCode helper classes whose important state lives in attributes that may point at other `VisXxx` values.
+4. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
+5. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
 
 `delVis(...)` is no longer an open design question.
 - default runtime visibility is intentionally conservative
@@ -195,7 +207,8 @@ Nested `VisXxx` design direction is also decided:
 - clicking a reference token should reuse the same bring-to-front and track behavior as clicking a panel tab
 - plain Python containers are not automatically promoted into panels; this mechanism is reserved for explicit `VisXxx` objects
 - reference labels should prefer user variable names, with numeric suffixes added only when duplicate names must be disambiguated
-- this direction is now partially implemented through `VisMap`
+- this direction is now implemented through `VisMap` and the sequence-style structures
+- this shared reference behavior is intended to become the common contract for future sequence-like, mapping-like, node-like, and object-like `VisXxx` panels
 
 ## Collaboration Rules
 - Repo-facing docs should stay in English.
