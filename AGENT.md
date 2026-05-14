@@ -125,6 +125,7 @@ Shared rules:
 Array-specific rules:
 - defaults should be compact
 - long horizontal content should overflow inside the panel rather than forcing unlimited panel growth
+- taller 2D and higher-dimensional arrays should open with capped preview heights rather than stretching the outer panel excessively
 - array panel resize is non-proportional
 - array contents zoom with the mouse wheel
 - overflowed array content can be explored by dragging inside the panel body
@@ -136,11 +137,13 @@ Tree-specific rules:
 - tree panel resize remains proportional
 - tree layout should prefer readable fixed level spacing and avoid subtree overlap
 - detached tree components should remain visible while the algorithm is rebuilding or reconnecting them
+- outer panel tracking must stay inside the workbench canvas viewport and must not scroll the whole page
 
 List-specific rules:
 - list nodes are non-draggable
 - lists render as pill nodes with obvious arrow edges
 - the list viewport uses the same wheel zoom / background pan / manual fit model as trees
+- outer panel tracking must stay inside the workbench canvas viewport and must not scroll the whole page
 - detached list segments should remain visible during rewiring
 - shared-tail list states must not duplicate the same suffix visually
 

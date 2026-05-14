@@ -163,6 +163,7 @@ Shared zoom / resize rules:
 Current array behavior:
 - array cells use tight padding and compact gaps by default
 - panel width has a maximum bound so long arrays stop growing horizontally after a point
+- panel height is capped for 2D and higher-dimensional arrays so nested content opens in a preview-sized viewport
 - overflow is handled inside the panel instead of by infinite outer expansion
 - the user can drag inside the array panel to pan across overflowed content
 - the user can zoom array contents with the mouse wheel
@@ -186,6 +187,7 @@ Current tree behavior:
 - disconnected tree components remain visible when algorithms temporarily split the structure
 - `Fit` is manual
 - `Track` is default-on and follows the active node without hard recenters on every frame
+- outer panel tracking scrolls only the workbench canvas viewport, not the whole page
 
 Current tree layout rules:
 - vertical level spacing is fixed and readable
@@ -203,6 +205,7 @@ Current list behavior:
 - the user can zoom with the mouse wheel
 - `Fit` is manual
 - `Track` is default-on and follows the active node using bounded viewport movement
+- outer panel tracking scrolls only the workbench canvas viewport, not the whole page
 - disconnected list segments remain visible during rewiring
 - shared-tail list states render as one shared suffix rather than duplicated chains
 

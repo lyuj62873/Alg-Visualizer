@@ -169,6 +169,7 @@ Current behavior:
 - nested list mutations emit frames without requiring manual write-back through the outer array
 - cell padding and inter-cell gaps were tightened to keep the default presentation compact
 - panel width has a maximum bound; overflow is explored inside the panel rather than by unlimited outer growth
+- default panel height is capped for 2D and higher-dimensional arrays so larger nested content stays inside an internal scrollable viewport
 - array panel resize is non-proportional
 - array content zoom uses the mouse wheel
 - array overflow can be explored by dragging inside the panel body
@@ -191,6 +192,7 @@ Current behavior:
 - disconnected tree components remain visible during rebuild / detach operations
 - `Fit` is manual
 - `Track` is default-on and follows the active node without forcibly recentering every frame
+- outer panel tracking stays inside the workbench canvas viewport instead of scrolling the whole page
 
 Relevant files:
 - `public/py/dsviz.py`
@@ -207,6 +209,7 @@ Current behavior:
 - wheel zoom changes internal scale
 - `Fit` is manual
 - `Track` is default-on and follows the active node with bounded viewport shifts
+- outer panel tracking stays inside the workbench canvas viewport instead of scrolling the whole page
 - disconnected list segments remain visible during rewiring
 - shared-tail list states are rendered without duplicating the same suffix chain twice
 

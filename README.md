@@ -136,13 +136,14 @@ Shared rules:
 Array-specific behavior:
 - compact default spacing
 - non-proportional panel resize
+- default panel height is capped for 2D and higher-dimensional arrays
 - drag inside the panel body to pan overflowed content
 
 Tree/List-specific behavior:
 - internal panning by dragging empty space
 - wheel zoom inside the viewport
 - manual `Fit`
-- default-on `Track` for following the active node
+- default-on `Track` for following the active node within the canvas viewport
 
 ## Built-In Examples And Guides
 
