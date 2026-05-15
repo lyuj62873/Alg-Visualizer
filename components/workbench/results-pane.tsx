@@ -2,7 +2,6 @@
 
 import type {
   Dispatch,
-  MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
   SetStateAction,
 } from "react";
@@ -257,10 +256,6 @@ function getResizeCursor(resizeFrom: NonNullable<InteractionState["resizeFrom"]>
   }
   return "default";
 }
-
-type PanelDragStartEvent =
-  | ReactPointerEvent<HTMLElement>
-  | ReactMouseEvent<HTMLElement>;
 
 function ValueToken({ cell }: { cell: Extract<TraceContentCell, { kind: "value" }> }) {
   const isActive = cell.tone === "active";
@@ -899,7 +894,7 @@ function VisualizationPanel({
   }, [interaction, setPositions]);
 
   function startInteraction(
-    event: PanelDragStartEvent,
+    event: ReactPointerEvent<HTMLElement>,
     mode: InteractionState["mode"],
     resizeFrom?: NonNullable<InteractionState["resizeFrom"]>,
   ) {
@@ -912,14 +907,11 @@ function VisualizationPanel({
     const minSize = getEffectiveMinSize(panel);
     const maxSize = getEffectiveMaxSize(panel);
     const captureTarget = event.currentTarget;
-    const pointerId = "pointerId" in event ? event.pointerId : 1;
-    if ("pointerId" in event) {
-      captureTarget.setPointerCapture(event.pointerId);
-    }
+    captureTarget.setPointerCapture(event.pointerId);
     setInteraction({
       mode,
       panelId: panel.id,
-      pointerId,
+      pointerId: event.pointerId,
       startClientX: event.clientX,
       startClientY: event.clientY,
       panelStart: currentPanelPosition,
@@ -932,7 +924,49 @@ function VisualizationPanel({
     });
   }
 
-  const resizeHandles = [
+  const standardResizeHandles = [
+    {
+      key: "top",
+      className: "absolute left-3 right-3 top-0 z-20 h-3 cursor-ns-resize",
+      resizeFrom: { left: false, right: false, top: true, bottom: false },
+    },
+    {
+      key: "bottom",
+      className: "absolute bottom-0 left-3 right-3 z-20 h-3 cursor-ns-resize",
+      resizeFrom: { left: false, right: false, top: false, bottom: true },
+    },
+    {
+      key: "left",
+      className: "absolute bottom-3 left-0 top-3 z-20 w-3 cursor-ew-resize",
+      resizeFrom: { left: true, right: false, top: false, bottom: false },
+    },
+    {
+      key: "right",
+      className: "absolute bottom-3 right-0 top-3 z-20 w-3 cursor-ew-resize",
+      resizeFrom: { left: false, right: true, top: false, bottom: false },
+    },
+    {
+      key: "top-left",
+      className: "absolute left-0 top-0 z-30 h-5 w-5 cursor-nwse-resize",
+      resizeFrom: { left: true, right: false, top: true, bottom: false },
+    },
+    {
+      key: "top-right",
+      className: "absolute right-0 top-0 z-30 h-5 w-5 cursor-nesw-resize",
+      resizeFrom: { left: false, right: true, top: true, bottom: false },
+    },
+    {
+      key: "bottom-left",
+      className: "absolute bottom-0 left-0 z-30 h-5 w-5 cursor-nesw-resize",
+      resizeFrom: { left: true, right: false, top: false, bottom: true },
+    },
+    {
+      key: "bottom-right",
+      className: "absolute bottom-0 right-0 z-30 h-5 w-5 cursor-nwse-resize",
+      resizeFrom: { left: false, right: true, top: false, bottom: true },
+    },
+  ] as const;
+  const nodeResizeHandles = [
     {
       key: "top",
       className: "absolute left-4 right-4 top-0 z-40 h-4 cursor-ns-resize pointer-events-auto",
@@ -974,6 +1008,7 @@ function VisualizationPanel({
       resizeFrom: { left: false, right: true, top: false, bottom: true },
     },
   ] as const;
+  const resizeHandles = isNodeFlowKind(panel) ? nodeResizeHandles : standardResizeHandles;
   const isResizing = interaction?.mode === "resize";
 
   return (
@@ -1071,7 +1106,7 @@ function VisualizationPanel({
         </div>
       </div>
       <div
-        className={`h-[calc(100%-37px)] overflow-hidden ${
+        className={`relative h-[calc(100%-37px)] overflow-hidden ${
           panel.kind === "bst"
             ? "bg-[radial-gradient(circle_at_top,#fff7ed,transparent_35%),linear-gradient(#ffffff,#fcfcfd)]"
             : "bg-[#fcfcfd]"
@@ -1103,16 +1138,27 @@ function VisualizationPanel({
             isResizing={!!isResizing}
           />
         )}
+        {!isNodeFlowKind(panel)
+          ? resizeHandles.map((handle) => (
+              <div
+                key={handle.key}
+                onPointerDown={(event) => startInteraction(event, "resize", handle.resizeFrom)}
+                style={{ touchAction: "none" }}
+                className={handle.className}
+              />
+            ))
+          : null}
       </div>
-      {resizeHandles.map((handle) => (
-        <div
-          key={handle.key}
-          onPointerDown={(event) => startInteraction(event, "resize", handle.resizeFrom)}
-          onMouseDown={(event) => startInteraction(event, "resize", handle.resizeFrom)}
-          style={{ touchAction: "none" }}
-          className={handle.className}
-        />
-      ))}
+      {isNodeFlowKind(panel)
+        ? resizeHandles.map((handle) => (
+            <div
+              key={handle.key}
+              onPointerDown={(event) => startInteraction(event, "resize", handle.resizeFrom)}
+              style={{ touchAction: "none" }}
+              className={handle.className}
+            />
+          ))
+        : null}
     </article>
   );
 }
