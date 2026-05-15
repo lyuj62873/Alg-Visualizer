@@ -71,7 +71,6 @@ Current supported primitives:
 
 Notes:
 - `VisTreeNode` is the primary tree abstraction for LeetCode-style usage
-- `VisBST` still exists in `dsviz.py`, but it is not the main user-facing path
 - normal Python containers are not visualized unless the user converts them
 - `delVis(value)` is an explicit user call that removes an existing visualization
 - `VisHeap` intentionally defaults to a sequence-like / priority-queue view rather than a tree-teaching view

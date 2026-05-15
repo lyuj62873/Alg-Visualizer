@@ -48,12 +48,9 @@ Current reality:
 - this is closer to the intended LeetCode-style workflow and less intrusive
 
 ### Tree abstraction
-Earlier drafts emphasized `VisBST`.
-
 Current reality:
-- `VisTreeNode` is the primary tree abstraction for users
+- `VisTreeNode` is the tree abstraction for users
 - this better matches LeetCode-style `TreeNode` problems
-- `VisBST` still exists in `public/py/dsviz.py`, but it is not the main path
 
 ### Navigation content
 Earlier UI drafts used `Trace` plus `Examples`.

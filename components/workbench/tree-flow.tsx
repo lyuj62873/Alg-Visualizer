@@ -50,7 +50,7 @@ function TreeNode({ data }: NodeProps<TreeNodeModel>) {
   const isClickable = data.clickable !== false && !!data.targetPanelId && !!data.onReferenceClick;
   return (
     <div
-      className={`relative flex items-center justify-center border text-[11px] font-semibold shadow-sm ${
+      className={`nodrag nopan relative flex items-center justify-center border text-[11px] font-semibold shadow-sm ${
         isListNode ? "h-11 min-w-[56px] rounded-2xl px-4" : "h-10 w-10 rounded-full"
       } ${
         active
@@ -70,12 +70,16 @@ function TreeNode({ data }: NodeProps<TreeNodeModel>) {
       {isClickable ? (
         <button
           type="button"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
             data.onReferenceClick?.(data.targetPanelId!);
           }}
-          className="select-none whitespace-nowrap rounded px-1 hover:underline"
+          className="nodrag nopan select-none whitespace-nowrap rounded px-1 hover:underline"
         >
           {data.label}
         </button>
@@ -257,6 +261,9 @@ export function NodeFlowViewport({
         clickable: item.clickable,
         onReferenceClick,
       },
+      style: {
+        pointerEvents: "all",
+      },
       sourcePosition: item.shape === "pill" ? Position.Right : Position.Bottom,
       targetPosition: item.shape === "pill" ? Position.Left : Position.Top,
     }));
@@ -351,7 +358,7 @@ export function NodeFlowViewport({
           nodesDraggable={false}
           nodesConnectable={false}
           elementsSelectable={false}
-          panOnDrag
+          panOnDrag={false}
           selectionOnDrag={false}
           zoomOnScroll
           zoomOnPinch={false}

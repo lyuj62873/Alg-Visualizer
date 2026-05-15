@@ -1,6 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
+import runpy
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -159,6 +160,15 @@ class SequenceVisualTests(unittest.TestCase):
         self.assertTrue(head_entry["value"]["targetPanelId"].startswith("list_panel_"))
         self.assertEqual(head_item["label"], "inner")
         self.assertEqual(head_item["targetPanelId"], inner.id)
+
+    def test_nested_reference_example_runs(self):
+        module = runpy.run_path(str(ROOT / "public" / "examples" / "nested-reference-example.py"))
+        self.assertEqual(module["run_case"](), 10)
+
+    def test_vis_bst_is_not_exported(self):
+        import dsviz  # noqa: WPS433
+
+        self.assertFalse(hasattr(dsviz, "VisBST"))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,5 @@
 from dsviz import (
     VisArray,
-    VisBST,
     VisDeque,
     VisHeap,
     VisListNode,
@@ -35,12 +34,11 @@ class Solution:
         mirror_deque = VisDeque([mirror_set], name="mirror_deque")
         mirror_set.add(mirror_deque)
 
-        heap_child_bst = VisBST("heap_child_bst")
-        heap_child_bst.insert(7)
-        mirror_heap = VisHeap([heap_child_bst], name="mirror_heap")
-        bst_child_heap = VisHeap([3], name="bst_child_heap")
-        mirror_bst = VisBST("mirror_bst")
-        mirror_bst.insert(bst_child_heap)
+        heap_child_tree = VisTreeNode(7)
+        mirror_heap = VisHeap([heap_child_tree], name="mirror_heap")
+        tree_child_heap = VisHeap([3], name="tree_child_heap")
+        mirror_tree = VisTreeNode(tree_child_heap)
+        mirror_tree.left = VisTreeNode("leaf")
 
         # 2) A cycle: Map -> List -> Map, with the list looping back to the outer map.
         cycle_outer = VisMap({"kind": "outer"}, name="cycle_outer")

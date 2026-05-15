@@ -927,42 +927,42 @@ function VisualizationPanel({
   const resizeHandles = [
     {
       key: "top",
-      className: "absolute left-3 right-3 top-0 z-20 h-3 cursor-ns-resize",
+      className: "absolute left-4 right-4 top-0 z-30 h-4 cursor-ns-resize",
       resizeFrom: { left: false, right: false, top: true, bottom: false },
     },
     {
       key: "bottom",
-      className: "absolute bottom-0 left-3 right-3 z-20 h-3 cursor-ns-resize",
+      className: "absolute bottom-0 left-4 right-4 z-30 h-4 cursor-ns-resize",
       resizeFrom: { left: false, right: false, top: false, bottom: true },
     },
     {
       key: "left",
-      className: "absolute bottom-3 left-0 top-3 z-20 w-3 cursor-ew-resize",
+      className: "absolute bottom-4 left-0 top-4 z-30 w-4 cursor-ew-resize",
       resizeFrom: { left: true, right: false, top: false, bottom: false },
     },
     {
       key: "right",
-      className: "absolute bottom-3 right-0 top-3 z-20 w-3 cursor-ew-resize",
+      className: "absolute bottom-4 right-0 top-4 z-30 w-4 cursor-ew-resize",
       resizeFrom: { left: false, right: true, top: false, bottom: false },
     },
     {
       key: "top-left",
-      className: "absolute left-0 top-0 z-30 h-5 w-5 cursor-nwse-resize",
+      className: "absolute left-0 top-0 z-40 h-6 w-6 cursor-nwse-resize",
       resizeFrom: { left: true, right: false, top: true, bottom: false },
     },
     {
       key: "top-right",
-      className: "absolute right-0 top-0 z-30 h-5 w-5 cursor-nesw-resize",
+      className: "absolute right-0 top-0 z-40 h-6 w-6 cursor-nesw-resize",
       resizeFrom: { left: false, right: true, top: true, bottom: false },
     },
     {
       key: "bottom-left",
-      className: "absolute bottom-0 left-0 z-30 h-5 w-5 cursor-nesw-resize",
+      className: "absolute bottom-0 left-0 z-40 h-6 w-6 cursor-nesw-resize",
       resizeFrom: { left: true, right: false, top: false, bottom: true },
     },
     {
       key: "bottom-right",
-      className: "absolute bottom-0 right-0 z-30 h-5 w-5 cursor-nwse-resize",
+      className: "absolute bottom-0 right-0 z-40 h-6 w-6 cursor-nwse-resize",
       resizeFrom: { left: false, right: true, top: false, bottom: true },
     },
   ] as const;
@@ -1149,6 +1149,15 @@ export function ResultsPane({
   }
 
   function focusAndTrackPanel(panelId: string) {
+    setPanelVisibilityModes((current) => {
+      if ((current[panelId] ?? "open") === "open") {
+        return current;
+      }
+      return {
+        ...current,
+        [panelId]: "open",
+      };
+    });
     focusPanel(panelId);
     focusRequestCounterRef.current += 1;
     setFocusRequest({
