@@ -13,6 +13,7 @@ from dsviz import (  # noqa: E402
     VisHeap,
     VisListNode,
     VisMap,
+    VisObject,
     VisQueue,
     VisSet,
     VisStack,
@@ -169,6 +170,34 @@ class SequenceVisualTests(unittest.TestCase):
         import dsviz  # noqa: WPS433
 
         self.assertFalse(hasattr(dsviz, "VisBST"))
+
+    def test_vis_object_renders_scalar_and_reference_attributes(self):
+        class MyQueue:
+            def __init__(self):
+                self.in_stack = VisStack([1], name="in_stack")
+                self.out_stack = VisStack([], name="out_stack")
+                self.size = 1
+                self._hidden = "skip"
+
+        queue = MyQueue()
+        queue_view = VisObject(queue, name="queue_view")
+        panel = next(
+            panel
+            for panel in export_trace()["frames"][-1]["panels"]
+            if panel["title"] == "queue_view"
+        )
+
+        labels = [entry["key"]["label"] for entry in panel["entries"]]
+        self.assertEqual(labels, ["in_stack", "out_stack", "size"])
+        in_entry = next(entry for entry in panel["entries"] if entry["key"]["label"] == "in_stack")
+        size_entry = next(entry for entry in panel["entries"] if entry["key"]["label"] == "size")
+        self.assertEqual(in_entry["value"]["kind"], "ref")
+        self.assertEqual(in_entry["value"]["targetPanelId"], queue.in_stack.id)
+        self.assertEqual(size_entry["value"]["label"], "1")
+
+    def test_vis_object_example_runs(self):
+        module = runpy.run_path(str(ROOT / "public" / "examples" / "vis-object-example.py"))
+        self.assertEqual(module["run_case"](), 1)
 
 
 if __name__ == "__main__":

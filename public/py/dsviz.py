@@ -1239,6 +1239,117 @@ class VisMap(_VisObject):
         }
 
 
+class VisObject(_VisObject):
+    def __init__(
+        self,
+        target: Any,
+        name: Optional[str] = None,
+        *,
+        fields: Optional[List[str]] = None,
+        labels: Optional[Dict[str, str]] = None,
+        panel_id: Optional[str] = None,
+        x: float = 8,
+        y: float = 12,
+        width: float = 40,
+        height: float = 24,
+        scale: float = 1.0,
+    ) -> None:
+        self._uses_default_layout = _uses_default_panel_layout(
+            panel_id=panel_id,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            scale=scale,
+            default_x=8,
+            default_y=12,
+            default_width=40,
+            default_height=24,
+            default_scale=1.0,
+        )
+        fallback_name = (
+            target.__class__.__name__[0].lower() + target.__class__.__name__[1:]
+            if getattr(target.__class__, "__name__", "")
+            else "object"
+        )
+        resolved_name = _resolve_visual_name(name, "VisObject", fallback_name)
+        layout = _resolve_panel_layout(
+            uses_default_layout=self._uses_default_layout,
+            preferred_x=x,
+            preferred_y=y,
+            width=width,
+            height=height,
+            scale=scale,
+        )
+
+        super().__init__(
+            title=resolved_name,
+            type_label=getattr(target.__class__, "__name__", "Object"),
+            panel_id=panel_id,
+            layout=layout,
+            display_name=resolved_name,
+        )
+        self._target = target
+        self._fields = list(fields) if fields is not None else None
+        self._labels = dict(labels or {})
+        _TRACE.emit(label=f"{resolved_name}: init")
+
+    def _iter_attribute_entries(self) -> List[Tuple[str, str, Any]]:
+        attribute_names = self._fields
+        if attribute_names is None:
+            target_dict = getattr(self._target, "__dict__", {})
+            attribute_names = [
+                key
+                for key in target_dict.keys()
+                if not str(key).startswith("_")
+            ]
+
+        entries: List[Tuple[str, str, Any]] = []
+        for attr_name in attribute_names:
+            if not hasattr(self._target, attr_name):
+                continue
+            try:
+                value = getattr(self._target, attr_name)
+            except Exception:
+                continue
+            label = self._labels.get(attr_name, attr_name)
+            entries.append((attr_name, label, value))
+        return entries
+
+    def _render_panel(self) -> Dict[str, Any]:
+        entries: List[Dict[str, Any]] = []
+        for index, (attr_name, label, value) in enumerate(self._iter_attribute_entries()):
+            key_cell = _value_cell(label, f"{self.id}_k_{index}")
+            value_cell = _value_cell(value, f"{self.id}_v_{index}")
+            entries.append(
+                {
+                    "id": f"{self.id}_entry_{index}",
+                    "key": key_cell,
+                    "value": value_cell,
+                    "tone": "default",
+                    "containsActive": _value_contains_active(value),
+                    "fieldName": attr_name,
+                }
+            )
+
+        width = 40.0 if self._uses_default_layout else self.layout.width
+        height = max(18.0, min(74.0, 10.0 + (len(entries) * 8.2)))
+        if not self._uses_default_layout:
+            height = self.layout.height
+
+        return {
+            **self._base_panel_payload(
+                kind="map",
+                width=width,
+                height=height,
+                min_width=24.0,
+                min_height=16.0,
+                max_width=72.0,
+            ),
+            "entries": entries,
+        }
+
+
 class _SequenceVisObject(_VisObject):
     def __init__(
         self,
@@ -2540,6 +2651,7 @@ def _ensure_list_panel() -> _ListPanel:
 __all__ = [
     "delVis",
     "VisArray",
+    "VisObject",
     "VisListNode",
     "VisTreeNode",
     "emit",

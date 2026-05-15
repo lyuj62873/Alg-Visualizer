@@ -118,6 +118,20 @@ Current map-like operations include:
 - `values`
 - `items`
 
+### `VisObject`
+
+Currently supports:
+- wrapping an ordinary user-defined class instance
+- reading public `__dict__` attributes into one top-level panel
+- inline scalar attributes
+- `VisXxx` attribute references to child panels
+
+Current object-like behavior:
+- `VisObject(obj)` reuses the map-style panel family rather than a custom free-form renderer
+- panel title can be inferred from the assigned variable name
+- panel type label shows the wrapped class name
+- private attributes are skipped by default
+
 ### `VisListNode`
 
 Currently supports:
@@ -185,6 +199,7 @@ Current `Guides`:
 - `VisArray`
 - `VisArray 2D/3D`
 - `VisMap`
+- `VisObject`
 - `VisStack`
 - `VisQueue`
 - `VisDeque`
@@ -245,6 +260,7 @@ The current prototype is already usable, but several follow-up areas remain:
 - continue extending the shared panel / reference contract from `VisArray`, `VisMap`, and the new sequence-style structures to the remaining visual families
 - expand the reference-first nested container model from `VisMap` and the new sequence-style structures to the remaining structures after that shared contract is in place
 - add an object-like custom visualization panel for user-defined LeetCode helper classes whose attributes may point at other `VisXxx` panels
+- extend the minimal `VisObject` wrapper into a richer object-panel API with optional field ordering, relabeling, and hiding controls
 - keep tuning compact layout defaults for large or unusual traces
 - extend the same interaction model to future structures
 - rewrite the user guide so panel controls, examples, `watch(...)`, `delVis(...)`, and each public `VisXxx` API are all documented in one coherent flow
@@ -253,7 +269,7 @@ The current prototype is already usable, but several follow-up areas remain:
 
 ### Planned Nested Container Rule
 
-For future container-style structures such as `VisMap`, `VisSet`, `VisQueue`, `VisStack`, `VisDeque`, `VisHeap`, and future object-like custom panels, nested visualization should default to references rather than duplicated inline rendering.
+For container-style structures such as `VisMap`, `VisSet`, `VisQueue`, `VisStack`, `VisDeque`, `VisHeap`, and `VisObject`, nested visualization should default to references rather than duplicated inline rendering.
 
 Planned behavior:
 - each `VisXxx` object still owns its own floating panel
@@ -279,17 +295,17 @@ Planned shared behavior:
   - sequence-like structures such as `VisArray`, `VisStack`, `VisQueue`, `VisDeque`, `VisSet`, and default `VisHeap`
   - mapping-like structures such as `VisMap`
   - node-like structures such as `VisTreeNode`
-  - object-like panels for future user-defined helper classes
+  - object-like panels such as `VisObject`
 
-### Planned Custom Object Panels
+### Current Custom Object Panels
 
-The intended custom-class workflow is not free-form drawing. It is an object-like panel for LeetCode-style helper classes whose state is mostly built from other `VisXxx` values.
+The intended custom-class workflow is now live in minimal form through `VisObject(...)`.
 
-Planned behavior:
+Current behavior:
 - a user-defined object gets its own top-level panel
 - plain attributes render inline
 - attributes that point at `VisXxx` values render as reference tokens to those child panels
-- the result should behave more like an object view or `VisMap`-style attribute table than a fully custom renderer
+- the result behaves like an object view or `VisMap`-style attribute table, not a free-form renderer
 
 ## Non-Goals For Now
 

@@ -64,6 +64,7 @@ Current supported primitives:
 - `VisSet`
 - `VisHeap`
 - `VisMap`
+- `VisObject`
 - `VisListNode`
 - `VisTreeNode`
 - `delVis(value)`
@@ -255,22 +256,25 @@ Planned common behavior:
   - sequence-like panels such as `VisArray`, `VisStack`, `VisQueue`, `VisDeque`, `VisSet`, and default `VisHeap`
   - mapping-like panels such as `VisMap`
   - node-like panels such as `VisTreeNode`
-  - object-like panels for future user-defined helper classes
+  - object-like panels such as `VisObject`
 
 `VisHeap` direction:
 - the default `VisHeap` view should be sequence-like rather than tree-like
 - this product is aimed at algorithm debugging in the style of LeetCode / priority-queue usage rather than at teaching heap topology
 - if a tree-style heap view ever exists, it should be secondary rather than the primary workflow
 
-## Planned Custom Object Panels
+## Current Custom Object Panels
 
-Future user-defined helper classes should get an object-like panel instead of a free-form renderer.
+`VisObject` is the current minimal object-like wrapper for user-defined helper classes.
 
-Planned behavior:
-- a user-defined object becomes its own top-level panel
-- plain attributes render inline
+Current behavior:
+- `VisObject(obj)` creates a top-level panel for that object
+- public attributes render inline in a map-style attribute table
 - attributes that point at `VisXxx` values render as reference tokens to those child panels
-- the result should look closer to an object view or `VisMap`-style attribute table than to arbitrary custom drawing
+- this is intended for LeetCode-style helper classes that internally hold one or more visualized structures
+
+Remaining follow-up:
+- extend `VisObject` with richer field ordering, relabeling, and field-hiding controls
 
 ## UI Model
 The current single-page workbench contains:

@@ -123,6 +123,11 @@ export function Workbench() {
       description: "priority-queue style heap operations in a sequence-like panel",
       path: "/examples/vis-heap-example.py",
     },
+    {
+      label: "VisObject",
+      description: "custom-class wrapper panels with inline attributes and child VisXxx references",
+      path: "/examples/vis-object-example.py",
+    },
   ];
 
   async function loadExample(path: string) {

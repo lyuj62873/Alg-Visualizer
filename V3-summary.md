@@ -161,6 +161,12 @@ Current sequence-style behavior:
 - nested `_VisObject` children render as reference tokens
 - `VisHeap` intentionally stays sequence-like by default to match LeetCode / priority-queue debugging workflows
 
+`VisObject` now provides the first object-like panel:
+- `VisObject(custom_instance)` wraps a user-defined helper object as its own top-level panel
+- public scalar attributes render inline in a map-style attribute table
+- attributes that point at `VisXxx` values render as clickable references to those child panels
+- this is the intended minimal LeetCode flow for helper classes such as `MyQueue`, `LRUCache`, or `MedianFinder`
+
 Relevant file:
 - `public/py/dsviz.py`
 
@@ -371,7 +377,7 @@ The old drag / resize blockers are no longer the main TODOs. Remaining work is n
 Current unfinished TODOs:
 1. extend the shared panel / reference contract from `VisArray`, `VisMap`, and the sequence-style structures to the remaining visual families
 2. extend the reference-first nesting model from `VisMap` and the sequence-style structures to those remaining structures
-3. add an object-like custom panel for user-defined helper classes whose attributes may point at other `VisXxx` panels
+3. extend the minimal `VisObject` wrapper with richer field ordering, relabeling, and field-hiding controls
 4. rewrite the user guide so panel controls, instrumentation methods, and every shipped `VisXxx` type are documented together
 5. further tune compact layout defaults for extreme traces, long labels, and unusual density
 6. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired

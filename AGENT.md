@@ -58,6 +58,7 @@ Current supported instrumentation:
 - `VisSet`
 - `VisHeap`
 - `VisMap`
+- `VisObject`
 - `VisListNode`
 - `VisTreeNode`
 - `delVis(value)`
@@ -103,6 +104,7 @@ Current built-in guides:
 - `VisArray`
 - `VisArray 2D/3D`
 - `VisMap`
+- `VisObject`
 - `VisStack`
 - `VisQueue`
 - `VisDeque`
@@ -193,7 +195,7 @@ Still out of scope for v3:
 Known remaining gaps are narrower now:
 1. The shared panel / reference contract now covers `VisArray`, `VisMap`, and the new sequence-style structures, but still needs to be extended to the remaining visual families.
 2. Reference-first nesting should next be extended from `VisMap` and the sequence-style structures to the remaining structures and to future object-like custom panels.
-3. A user-facing object-like custom panel is still needed for LeetCode helper classes whose important state lives in attributes that may point at other `VisXxx` values.
+3. `VisObject` now covers the minimal user-facing object-panel flow, but still needs richer controls for field ordering, relabeling, and hiding.
 4. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
 5. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
 
