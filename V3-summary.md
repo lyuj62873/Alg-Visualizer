@@ -166,6 +166,7 @@ Current sequence-style behavior:
 - public scalar attributes render inline in a map-style attribute table
 - attributes that point at `VisXxx` values render as clickable references to those child panels
 - this is the intended minimal LeetCode flow for helper classes such as `MyQueue`, `LRUCache`, or `MedianFinder`
+- the expected workflow is: keep the class ordinary, replace only the fields you want to inspect with `VisXxx`, then wrap the instance once with `VisObject(...)`
 
 Relevant file:
 - `public/py/dsviz.py`

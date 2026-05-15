@@ -68,6 +68,7 @@ Notes:
 - `VisTreeNode` is the tree abstraction. `VisBST` has been removed from the public surface.
 - `watch()` is still explicit. There is no automatic general-purpose local-variable tracing.
 - `delVis(value)` is explicit user-controlled removal of an existing visualization and is now part of the public instrumentation surface.
+- `VisObject(obj)` is the minimal custom-class workflow: users keep a normal helper class, swap selected fields to `VisXxx`, then wrap the instance once to get an object panel with child references.
 
 ## Current Frontend Structure
 The workbench is a single-page split layout with:

@@ -132,6 +132,15 @@ Current object-like behavior:
 - panel type label shows the wrapped class name
 - private attributes are skipped by default
 
+Recommended LeetCode-style flow:
+1. write the helper class normally
+2. replace the internal structures you want to inspect with `VisXxx` values
+3. wrap the helper instance with `VisObject(...)` in the driver code
+4. inspect one object panel whose child `VisXxx` attributes appear as references to their own panels
+
+Example:
+- `public/examples/vis-object-example.py` shows `MyQueue` implemented with two `VisStack` objects and one wrapping `VisObject(queue)`
+
 ### `VisListNode`
 
 Currently supports:

@@ -272,6 +272,7 @@ Current behavior:
 - public attributes render inline in a map-style attribute table
 - attributes that point at `VisXxx` values render as reference tokens to those child panels
 - this is intended for LeetCode-style helper classes that internally hold one or more visualized structures
+- the intended user flow is: write the helper class normally, convert selected internal fields to `VisXxx`, then wrap the instance once with `VisObject(...)`
 
 Remaining follow-up:
 - extend `VisObject` with richer field ordering, relabeling, and field-hiding controls
