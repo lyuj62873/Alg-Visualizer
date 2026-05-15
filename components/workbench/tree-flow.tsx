@@ -358,7 +358,7 @@ export function NodeFlowViewport({
           nodesDraggable={false}
           nodesConnectable={false}
           elementsSelectable={false}
-          panOnDrag={false}
+          panOnDrag
           selectionOnDrag={false}
           zoomOnScroll
           zoomOnPinch={false}

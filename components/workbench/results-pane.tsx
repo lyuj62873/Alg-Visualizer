@@ -2,6 +2,7 @@
 
 import type {
   Dispatch,
+  MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
   SetStateAction,
 } from "react";
@@ -256,6 +257,10 @@ function getResizeCursor(resizeFrom: NonNullable<InteractionState["resizeFrom"]>
   }
   return "default";
 }
+
+type PanelDragStartEvent =
+  | ReactPointerEvent<HTMLElement>
+  | ReactMouseEvent<HTMLElement>;
 
 function ValueToken({ cell }: { cell: Extract<TraceContentCell, { kind: "value" }> }) {
   const isActive = cell.tone === "active";
@@ -894,7 +899,7 @@ function VisualizationPanel({
   }, [interaction, setPositions]);
 
   function startInteraction(
-    event: ReactPointerEvent<HTMLElement>,
+    event: PanelDragStartEvent,
     mode: InteractionState["mode"],
     resizeFrom?: NonNullable<InteractionState["resizeFrom"]>,
   ) {
@@ -907,11 +912,14 @@ function VisualizationPanel({
     const minSize = getEffectiveMinSize(panel);
     const maxSize = getEffectiveMaxSize(panel);
     const captureTarget = event.currentTarget;
-    captureTarget.setPointerCapture(event.pointerId);
+    const pointerId = "pointerId" in event ? event.pointerId : 1;
+    if ("pointerId" in event) {
+      captureTarget.setPointerCapture(event.pointerId);
+    }
     setInteraction({
       mode,
       panelId: panel.id,
-      pointerId: event.pointerId,
+      pointerId,
       startClientX: event.clientX,
       startClientY: event.clientY,
       panelStart: currentPanelPosition,
@@ -927,42 +935,42 @@ function VisualizationPanel({
   const resizeHandles = [
     {
       key: "top",
-      className: "absolute left-4 right-4 top-0 z-30 h-4 cursor-ns-resize",
+      className: "absolute left-4 right-4 top-0 z-40 h-4 cursor-ns-resize pointer-events-auto",
       resizeFrom: { left: false, right: false, top: true, bottom: false },
     },
     {
       key: "bottom",
-      className: "absolute bottom-0 left-4 right-4 z-30 h-4 cursor-ns-resize",
+      className: "absolute bottom-0 left-4 right-4 z-40 h-5 cursor-ns-resize pointer-events-auto",
       resizeFrom: { left: false, right: false, top: false, bottom: true },
     },
     {
       key: "left",
-      className: "absolute bottom-4 left-0 top-4 z-30 w-4 cursor-ew-resize",
+      className: "absolute bottom-4 left-0 top-4 z-40 w-4 cursor-ew-resize pointer-events-auto",
       resizeFrom: { left: true, right: false, top: false, bottom: false },
     },
     {
       key: "right",
-      className: "absolute bottom-4 right-0 top-4 z-30 w-4 cursor-ew-resize",
+      className: "absolute bottom-4 right-0 top-4 z-40 w-4 cursor-ew-resize pointer-events-auto",
       resizeFrom: { left: false, right: true, top: false, bottom: false },
     },
     {
       key: "top-left",
-      className: "absolute left-0 top-0 z-40 h-6 w-6 cursor-nwse-resize",
+      className: "absolute left-0 top-0 z-50 h-6 w-6 cursor-nwse-resize pointer-events-auto",
       resizeFrom: { left: true, right: false, top: true, bottom: false },
     },
     {
       key: "top-right",
-      className: "absolute right-0 top-0 z-40 h-6 w-6 cursor-nesw-resize",
+      className: "absolute right-0 top-0 z-50 h-6 w-6 cursor-nesw-resize pointer-events-auto",
       resizeFrom: { left: false, right: true, top: true, bottom: false },
     },
     {
       key: "bottom-left",
-      className: "absolute bottom-0 left-0 z-40 h-6 w-6 cursor-nesw-resize",
+      className: "absolute bottom-0 left-0 z-50 h-6 w-6 cursor-nesw-resize pointer-events-auto",
       resizeFrom: { left: true, right: false, top: false, bottom: true },
     },
     {
       key: "bottom-right",
-      className: "absolute bottom-0 right-0 z-40 h-6 w-6 cursor-nwse-resize",
+      className: "absolute bottom-0 right-0 z-50 h-6 w-6 cursor-nwse-resize pointer-events-auto",
       resizeFrom: { left: false, right: true, top: false, bottom: true },
     },
   ] as const;
@@ -1063,7 +1071,7 @@ function VisualizationPanel({
         </div>
       </div>
       <div
-        className={`relative h-[calc(100%-37px)] overflow-hidden ${
+        className={`h-[calc(100%-37px)] overflow-hidden ${
           panel.kind === "bst"
             ? "bg-[radial-gradient(circle_at_top,#fff7ed,transparent_35%),linear-gradient(#ffffff,#fcfcfd)]"
             : "bg-[#fcfcfd]"
@@ -1095,15 +1103,16 @@ function VisualizationPanel({
             isResizing={!!isResizing}
           />
         )}
-        {resizeHandles.map((handle) => (
-          <div
-            key={handle.key}
-            onPointerDown={(event) => startInteraction(event, "resize", handle.resizeFrom)}
-            style={{ touchAction: "none" }}
-            className={handle.className}
-          />
-        ))}
       </div>
+      {resizeHandles.map((handle) => (
+        <div
+          key={handle.key}
+          onPointerDown={(event) => startInteraction(event, "resize", handle.resizeFrom)}
+          onMouseDown={(event) => startInteraction(event, "resize", handle.resizeFrom)}
+          style={{ touchAction: "none" }}
+          className={handle.className}
+        />
+      ))}
     </article>
   );
 }
