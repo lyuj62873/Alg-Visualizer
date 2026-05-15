@@ -64,7 +64,7 @@ Current supported instrumentation:
 - `watch("name", value)`
 
 Notes:
-- `VisTreeNode` is the main tree abstraction now. Earlier references to `VisBST` are outdated for the primary user workflow.
+- `VisTreeNode` is the tree abstraction. `VisBST` has been removed from the public surface.
 - `watch()` is still explicit. There is no automatic general-purpose local-variable tracing.
 - `delVis(value)` is explicit user-controlled removal of an existing visualization and is now part of the public instrumentation surface.
 
@@ -96,6 +96,8 @@ Current built-in examples:
 - `Multi Panel`
   - build two independent trees and two independent linked lists
   - verify that each disconnected structure renders in its own panel
+- `Nested References`
+  - exercise cross-visual nesting, a `Map -> List -> Map` cycle, and a `Map -> List -> Set` chain
 
 Current built-in guides:
 - `VisArray`
@@ -144,10 +146,11 @@ Tree-specific rules:
 - nodes are non-draggable
 - the tree viewport pans by dragging empty space
 - the tree zooms with the mouse wheel
-- tree panel resize remains proportional
+- tree panel resize changes the outer viewport only and does not rescale the internal content
 - tree layout should prefer readable fixed level spacing and avoid subtree overlap
 - detached tree components should remain visible while the algorithm is rebuilding or reconnecting them
 - outer panel tracking must stay inside the workbench canvas viewport and must not scroll the whole page
+- clicking a tree/list reference token must reopen a minimized or closed target panel before focus / track
 
 List-specific rules:
 - list nodes are non-draggable

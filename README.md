@@ -171,6 +171,7 @@ Tree/List-specific behavior:
 - wheel zoom inside the viewport
 - manual `Fit`
 - default-on `Track` for following the active node within the canvas viewport
+- clicking a reference reopens a minimized or closed target panel before bringing it forward
 
 ## Built-In Examples And Guides
 
@@ -178,6 +179,7 @@ Current `Examples`:
 - `Balanced Rebuild`
 - `Delete Duplicates`
 - `Multi Panel`
+- `Nested References`
 
 Current `Guides`:
 - `VisArray`

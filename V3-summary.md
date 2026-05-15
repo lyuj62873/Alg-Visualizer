@@ -205,13 +205,14 @@ Current behavior:
 - tree nodes are compact and non-draggable
 - the user pans by dragging empty space inside the panel
 - the user zooms with the mouse wheel
-- tree panel resize stays proportional
+- tree panel resize changes only the outer viewport and does not rescale the internal content
 - vertical level spacing is fixed and readable
 - horizontal layout uses full-level binary tree slots to avoid overlap in deeper levels
 - disconnected tree components remain visible during rebuild / detach operations
 - `Fit` is manual
 - `Track` is default-on and follows the active node without forcibly recentering every frame
 - outer panel tracking stays inside the workbench canvas viewport instead of scrolling the whole page
+- clicking a reference reopens a minimized or closed target panel before bring-to-front / track
 
 Relevant files:
 - `public/py/dsviz.py`

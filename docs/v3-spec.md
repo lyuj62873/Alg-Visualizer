@@ -188,7 +188,7 @@ Current tree behavior:
 - edges are derived from the traced tree structure and stay attached automatically
 - the user can pan the tree viewport by dragging empty space inside the panel
 - the user can zoom the tree with the mouse wheel
-- tree panel resize remains proportional so the viewport grows and shrinks as one surface
+- tree panel resize changes only the outer viewport and does not rescale the internal content
 - disconnected tree components remain visible when algorithms temporarily split the structure
 - `Fit` is manual
 - `Track` is default-on and follows the active node without hard recenters on every frame
@@ -240,6 +240,7 @@ Current implementation status:
 - tree/list node values may render child `VisXxx` values as clickable references
 - map entries may render child `VisXxx` values as clickable reference tokens
 - clicking a token reuses the same bring-to-front and canvas-track behavior as a panel tab
+- clicking a token also reopens a minimized or closed target panel before focus / track
 - `delVis(child)` degrades those map references into non-clickable summaries
 
 ## Planned Shared `VisXxx` Contract
