@@ -32,6 +32,15 @@ class MyQueue:
 
 class Solution:
     def solve(self):
+        # What it wraps:
+        # - a user-defined class instance
+        #
+        # Important limitation:
+        # - VisObject does not recursively convert ordinary inner containers
+        # - only fields you manually rewrite to VisXxx become child references
+        #
+        # In this example, in_stack and out_stack are manually rewritten to
+        # VisStack, so the VisObject panel can point to them as child panels.
         queue = MyQueue()
         queue_panel = VisObject(queue)
 

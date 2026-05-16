@@ -1,23 +1,17 @@
-export const codeSample = `class Solution:
-    def solve(self, root):
-        max_val = 0
-        watch("max_val", max_val)
+export const codeSample = `# Paste your LeetCode-style Python code here.
+# Put your algorithm inside class Solution.
+# Use run_case() to build inputs and return the final result.
+# User Guide explains the workflow and page features.
+# Examples shows complete problem-based demos.
+# Vis API lists each visualization class and its Python-style usage.
 
-        # Example mutation: attach a new node during execution.
-        if root.right is not None:
-            root.right.right = VisTreeNode(9)
-            watch("added", 9)
+class Solution:
+    def solve(self):
+        return None
 
-        return root.val
 
 def run_case():
-    # Define your test input here (LeetCode-style node objects).
-    root = VisTreeNode(5)
-    root.left = VisTreeNode(3)
-    root.right = VisTreeNode(8)
-    root.left.right = VisTreeNode(4)
-    sol = Solution()
-    return sol.solve(root)`;
+    return Solution().solve()`;
 
 export type TraceContentCell =
   | {

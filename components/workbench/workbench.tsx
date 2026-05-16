@@ -26,7 +26,7 @@ const emptyTraceFrame: TraceFrame = {
   line: null,
   panels: [],
   variables: [],
-  status: "Select an example or click Run Trace.",
+  status: "Open User Guide, Examples, or Vis API, then click Run Trace.",
   stdout: "",
 };
 
@@ -39,9 +39,10 @@ export function Workbench() {
   const [leftPaneWidth, setLeftPaneWidth] = useState(33.333);
   const [isResizing, setIsResizing] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
-  const [guidesOpen, setGuidesOpen] = useState(false);
+  const [visApiOpen, setVisApiOpen] = useState(false);
   const [runError, setRunError] = useState<RunErrorDetail | null>(null);
   const activeFrame = frames[activeFrameIndex] ?? frames[0];
+  const userGuidePath = "/examples/user-guide-example.py";
 
   function cancelActiveRun(nextPhase: "idle" | "error" = "idle") {
     runIdRef.current += 1;
@@ -51,31 +52,31 @@ export function Workbench() {
 
   const exampleItems = [
     {
-      label: "Balanced Rebuild",
-      description: "inorder collect from an unbalanced BST, then build a second balanced BST",
-      path: "/examples/balanced-rebuild-example.py",
+      label: "LCS",
+      description: "2D dynamic programming with a VisArray table and a few watched values",
+      path: "/examples/lcs-example.py",
     },
     {
-      label: "Delete Duplicates",
-      description: "rewire a sorted linked list and delVis(...) each detached duplicate node",
-      path: "/examples/delete-duplicates-example.py",
+      label: "Group Anagrams",
+      description: "nested map-to-list references built from grouped string signatures",
+      path: "/examples/group-anagrams-example.py",
     },
     {
-      label: "Multi Panel",
-      description: "independent trees and lists render in separate visualization panels",
-      path: "/examples/multi-panel-example.py",
+      label: "Path Sum III",
+      description: "tree recursion with prefix sums, backtracking, and watched state",
+      path: "/examples/path-sum-iii-example.py",
     },
     {
-      label: "Nested References",
-      description: "cross-visual nesting, a Map -> List -> Map cycle, and a Map -> List -> Set chain",
-      path: "/examples/nested-reference-example.py",
+      label: "LRU Cache",
+      description: "a custom class panel with child references to its internal visualized state",
+      path: "/examples/lru-cache-example.py",
     },
   ];
 
-  const guideItems = [
+  const visApiItems = [
     {
       label: "VisArray",
-      description: "array init, append, insert, get/set, delete, reverse",
+      description: "list-style arrays, including append/pop/insert/sort and nested dimensions",
       path: "/examples/vis-array-example.py",
     },
     {
@@ -105,12 +106,12 @@ export function Workbench() {
     },
     {
       label: "VisQueue",
-      description: "enqueue, dequeue, and front-of-queue inspection",
+      description: "deque-style queue usage with append, popleft, and peek",
       path: "/examples/vis-queue-example.py",
     },
     {
       label: "VisDeque",
-      description: "append/pop on both ends with the same sequence panel model",
+      description: "deque-style append/appendleft/pop/popleft with one sequence panel",
       path: "/examples/vis-deque-example.py",
     },
     {
@@ -125,8 +126,18 @@ export function Workbench() {
     },
     {
       label: "VisObject",
-      description: "custom-class wrapper panels with inline attributes and child VisXxx references",
+      description: "custom-class panels whose manually rewritten VisXxx fields become references",
       path: "/examples/vis-object-example.py",
+    },
+    {
+      label: "watch(...)",
+      description: "explicit scalar tracking for values that should appear in Variables",
+      path: "/examples/vis-watch-example.py",
+    },
+    {
+      label: "delVis(...)",
+      description: "explicitly remove visual noise when a detached node or panel is no longer useful",
+      path: "/examples/vis-delvis-example.py",
     },
   ];
 
@@ -143,7 +154,7 @@ export function Workbench() {
     setPhase("idle");
     setRunError(null);
     setExamplesOpen(false);
-    setGuidesOpen(false);
+    setVisApiOpen(false);
   }
 
   async function handleRunTrace() {
@@ -276,6 +287,15 @@ export function Workbench() {
               AlgoLens
             </div>
             <nav className="hidden items-center gap-5 text-sm text-[#6b7280] md:flex">
+              <button
+                type="button"
+                className="font-medium text-[#111827]"
+                onClick={() => {
+                  void loadExample(userGuidePath);
+                }}
+              >
+                User Guide
+              </button>
               <div
                 className="relative"
                 onMouseEnter={() => setExamplesOpen(true)}
@@ -314,21 +334,21 @@ export function Workbench() {
               </div>
               <div
                 className="relative"
-                onMouseEnter={() => setGuidesOpen(true)}
-                onMouseLeave={() => setGuidesOpen(false)}
+                onMouseEnter={() => setVisApiOpen(true)}
+                onMouseLeave={() => setVisApiOpen(false)}
               >
                 <button
                   type="button"
                   className="font-medium text-[#111827]"
                 >
-                  Guides
+                  Vis API
                 </button>
-                {guidesOpen ? (
+                {visApiOpen ? (
                   <div
                     className="absolute left-0 top-full z-30 w-80 overflow-hidden rounded-xl border border-[#e5e7eb] bg-white shadow-lg"
-                    onMouseEnter={() => setGuidesOpen(true)}
+                    onMouseEnter={() => setVisApiOpen(true)}
                   >
-                    {guideItems.map((item) => (
+                    {visApiItems.map((item) => (
                       <button
                         key={item.path}
                         type="button"

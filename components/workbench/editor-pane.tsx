@@ -105,6 +105,7 @@ export function EditorPane({
             type="button"
             onClick={onResetCode}
             className="rounded-md border border-white/10 bg-[#232323] px-2 py-1 text-xs text-[#d1d5db] hover:bg-[#2b2b2b]"
+            title="Reset to the default Solution / run_case() template"
           >
             Reset
           </button>
