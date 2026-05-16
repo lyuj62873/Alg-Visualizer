@@ -133,6 +133,7 @@ Current sequence-style behavior:
 - `VisStack`, `VisQueue`, `VisDeque`, `VisSet`, and `VisHeap` all render through the shared sequence-style panel contract
 - `VisArray`, `VisTreeNode`, and `VisListNode` now also treat object-valued entries as references instead of degrading them to plain labels
 - `VisHeap` intentionally remains sequence-like by default to match LeetCode / priority-queue debugging workflows
+- `VisQueue` and `VisDeque` are now aligned to `collections.deque`-style construction and method names, `VisSet` aligns to `set`, and `VisHeap` keeps a `list` container with `heapq`-style operations
 
 `delVis(value)` currently supports:
 - `VisArray`
@@ -160,6 +161,7 @@ Current sequence-style behavior:
 - all five render through the same array-like sequence panel contract
 - nested `_VisObject` children render as reference tokens
 - `VisHeap` intentionally stays sequence-like by default to match LeetCode / priority-queue debugging workflows
+- user-facing APIs are now aligned to common Python container habits: `VisQueue` / `VisDeque` expect deque-style usage, `VisSet` expects set-style usage, and `VisHeap` expects list-plus-heapq usage
 
 `VisObject` now provides the first object-like panel:
 - `VisObject(custom_instance)` wraps a user-defined helper object as its own top-level panel
@@ -379,10 +381,11 @@ Current unfinished TODOs:
 1. extend the shared panel / reference contract from `VisArray`, `VisMap`, and the sequence-style structures to the remaining visual families
 2. extend the reference-first nesting model from `VisMap` and the sequence-style structures to those remaining structures
 3. extend the minimal `VisObject` wrapper with richer field ordering, relabeling, and field-hiding controls
-4. rewrite the user guide so panel controls, instrumentation methods, and every shipped `VisXxx` type are documented together
-5. further tune compact layout defaults for extreme traces, long labels, and unusual density
-6. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
-7. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
+4. discuss feasibility with the user first, then consider an editor gutter "eye" workflow that lets users click an assignment line number to auto-rewrite that line into a matching `VisXxx` construction or append `watch(...)` for primitive tracking; this should be limited to variable definition / assignment forms and ignored elsewhere because Python / LeetCode type inference may be ambiguous
+5. rewrite the user guide so panel controls, instrumentation methods, and every shipped `VisXxx` type are documented together
+6. further tune compact layout defaults for extreme traces, long labels, and unusual density
+7. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
+8. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
 
 These TODOs are the right next-agent starting point before any new broad feature branch.
 

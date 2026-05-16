@@ -69,6 +69,7 @@ Notes:
 - `watch()` is still explicit. There is no automatic general-purpose local-variable tracing.
 - `delVis(value)` is explicit user-controlled removal of an existing visualization and is now part of the public instrumentation surface.
 - `VisObject(obj)` is the minimal custom-class workflow: users keep a normal helper class, swap selected fields to `VisXxx`, then wrap the instance once to get an object panel with child references.
+- `VisQueue` and `VisDeque` are intended to follow `collections.deque`-style usage, `VisSet` follows `set`, and `VisHeap` follows `list` plus `heapq`-style operations.
 
 ## Current Frontend Structure
 The workbench is a single-page split layout with:
@@ -197,8 +198,9 @@ Known remaining gaps are narrower now:
 1. The shared panel / reference contract now covers `VisArray`, `VisMap`, and the new sequence-style structures, but still needs to be extended to the remaining visual families.
 2. Reference-first nesting should next be extended from `VisMap` and the sequence-style structures to the remaining structures and to future object-like custom panels.
 3. `VisObject` now covers the minimal user-facing object-panel flow, but still needs richer controls for field ordering, relabeling, and hiding.
-4. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
-5. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
+4. Before rewriting the guide, discuss the feasibility of an editor gutter "eye" workflow that would let users click an assignment line number to auto-rewrite that line into a matching `VisXxx` construction or insert `watch(...)` for primitive tracking; this should only target definition / assignment forms and may be hard to infer reliably in Python / LeetCode code.
+5. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
+6. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
 
 `delVis(...)` is no longer an open design question.
 - default runtime visibility is intentionally conservative
