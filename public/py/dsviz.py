@@ -752,6 +752,22 @@ class _NestedArray:
             active_path=active_path,
         )
 
+    def sort(self, *, key=None, reverse: bool = False) -> None:
+        self._values.sort(key=key, reverse=reverse)
+        self._reindex_descendants()
+
+        label_parts = []
+        if key is not None:
+            label_parts.append(f"key={_safe_str(key)}")
+        if reverse:
+            label_parts.append("reverse=True")
+        args = "" if not label_parts else ", ".join(label_parts)
+        suffix = "" if not args else args
+        self._root._emit_array_change(
+            f"{self._path_expr()}.sort({suffix})",
+            active_path=None,
+        )
+
     def to_plain_list(self) -> List[Any]:
         return [self._root._plain_array_value(value) for value in self._values]
 
@@ -880,6 +896,9 @@ class VisArray(_VisObject):
 
     def extend(self, values: List[Any]) -> None:
         self._root_array.extend(values)
+
+    def sort(self, *, key=None, reverse: bool = False) -> None:
+        self._root_array.sort(key=key, reverse=reverse)
 
     def _path_expr(self, path: Tuple[int, ...]) -> str:
         result = self.title

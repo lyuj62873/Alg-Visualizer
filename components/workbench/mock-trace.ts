@@ -1,6 +1,4 @@
-export const codeSample = `from dsviz import VisArray, VisTreeNode, watch
-
-class Solution:
+export const codeSample = `class Solution:
     def solve(self, root):
         max_val = 0
         watch("max_val", max_val)

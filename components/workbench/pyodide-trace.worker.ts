@@ -101,6 +101,8 @@ import types
 import json
 import linecache
 import traceback
+import heapq
+from collections import Counter, defaultdict, deque
 
 _dsviz_src = r\"\"\"${escapePyString(dsviz)}\"\"\"
 _mod = types.ModuleType("dsviz")
@@ -108,6 +110,20 @@ sys.modules["dsviz"] = _mod
 exec(_dsviz_src, _mod.__dict__)
 
 import dsviz
+from dsviz import (
+    VisArray,
+    VisDeque,
+    VisHeap,
+    VisListNode,
+    VisMap,
+    VisObject,
+    VisQueue,
+    VisSet,
+    VisStack,
+    VisTreeNode,
+    delVis,
+    watch,
+)
 dsviz.reset_trace()
 
 _user_src = r\"\"\"${userCode}\"\"\"

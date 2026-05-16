@@ -54,6 +54,27 @@ class SequenceVisualTests(unittest.TestCase):
         self.assertEqual(panel["cells"][0]["targetPanelId"], child_stack.id)
         self.assertEqual(panel["cells"][1]["label"], "ok")
 
+    def test_array_sort_supports_key_and_reverse(self):
+        array = VisArray(
+            [
+                {"word": "bbb", "score": 2},
+                {"word": "a", "score": 3},
+                {"word": "cc", "score": 1},
+            ],
+            name="array",
+        )
+        array.sort(key=lambda item: (item["score"], len(item["word"])), reverse=True)
+
+        panel = next(
+            panel
+            for panel in export_trace()["frames"][-1]["panels"]
+            if panel["typeLabel"] == "VisArray" and panel["title"] == "array"
+        )
+        labels = [cell["label"] for cell in panel["cells"]]
+
+        self.assertEqual(labels, ["{'word': 'a', 'score': 3}", "{'word': 'bbb', 'score': 2}", "{'word': 'cc', 'score': 1}"])
+        self.assertTrue(export_trace()["frames"][-1]["label"].startswith("array.sort("))
+
     def test_queue_and_deque_emit_expected_labels(self):
         queue = VisQueue(deque([1]), name="queue")
         queue.append(2)
