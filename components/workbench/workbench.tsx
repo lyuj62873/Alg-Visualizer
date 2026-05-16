@@ -374,9 +374,16 @@ export function Workbench() {
             <button
               onClick={handleRunTrace}
               disabled={phase === "running"}
-              className="rounded-lg bg-[#ffa116] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#16a34a] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#15803d] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {phase === "running" ? "Running..." : "Run Trace"}
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 16 16"
+                className="h-3.5 w-3.5 fill-current"
+              >
+                <path d="M4 3.25c0-.63.69-1.01 1.22-.67l6.5 4.08a.8.8 0 0 1 0 1.34l-6.5 4.08A.8.8 0 0 1 4 11.42V3.25Z" />
+              </svg>
+              {phase === "running" ? "Running..." : "Run"}
             </button>
           </div>
         </div>

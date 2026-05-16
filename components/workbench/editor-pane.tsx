@@ -104,9 +104,22 @@ export function EditorPane({
           <button
             type="button"
             onClick={onResetCode}
-            className="rounded-md border border-white/10 bg-[#232323] px-2 py-1 text-xs text-[#d1d5db] hover:bg-[#2b2b2b]"
+            className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-[#232323] px-2 py-1 text-xs text-[#d1d5db] hover:bg-[#2b2b2b]"
             title="Reset to the default Solution / run_case() template"
           >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 16 16"
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M13 3v4H9" />
+              <path d="M13 7a5 5 0 1 1-1.46-3.54L13 5" />
+            </svg>
             Reset
           </button>
         </div>

@@ -1084,9 +1084,20 @@ function VisualizationPanel({
               event.stopPropagation();
               onMinimizePanel(panel.id);
             }}
-            className="rounded-md border border-[#e5e7eb] bg-white px-2 py-1 text-[10px] text-[#4b5563] hover:bg-[#f9fafb]"
+            title="Minimize panel"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[#e5e7eb] bg-white text-[#4b5563] hover:bg-[#f9fafb]"
           >
-            Minimize
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 12 12"
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            >
+              <path d="M2.25 6h7.5" />
+            </svg>
           </button>
           <button
             type="button"
@@ -1099,9 +1110,21 @@ function VisualizationPanel({
               event.stopPropagation();
               onClosePanel(panel.id);
             }}
-            className="rounded-md border border-[#fecaca] bg-[#fff1f2] px-2 py-1 text-[10px] text-[#b91c1c] hover:bg-[#ffe4e6]"
+            title="Close panel"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[#fecaca] bg-[#fff1f2] text-[#b91c1c] hover:bg-[#ffe4e6]"
           >
-            Close
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 12 12"
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            >
+              <path d="M2.5 2.5 9.5 9.5" />
+              <path d="M9.5 2.5 2.5 9.5" />
+            </svg>
           </button>
         </div>
       </div>
@@ -1185,7 +1208,7 @@ export function ResultsPane({
   const [panelVisibilityModes, setPanelVisibilityModes] = useState<
     Record<string, PanelVisibilityMode>
   >({});
-  const [canvasZoom, setCanvasZoom] = useState(1);
+  const [canvasZoom, setCanvasZoom] = useState(0.8);
   const [focusRequest, setFocusRequest] = useState<PanelFocusRequest | null>(null);
   const canvasViewportRef = useRef<HTMLDivElement | null>(null);
   const panelSignatureRef = useRef<Record<string, string>>({});
@@ -1489,7 +1512,7 @@ export function ResultsPane({
               </button>
               <button
                 type="button"
-                onClick={() => setCanvasZoom(1)}
+                onClick={() => setCanvasZoom(0.8)}
                 className="rounded-md px-2 py-1 text-xs font-medium text-[#4b5563] hover:bg-white"
               >
                 {Math.round(canvasZoom * 100)}%
@@ -1505,16 +1528,18 @@ export function ResultsPane({
             <button
               onClick={onPrev}
               disabled={phase === "running" || frame.index === 0}
-              className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
             >
+              <span aria-hidden="true">←</span>
               Prev
             </button>
             <button
               onClick={onNext}
               disabled={phase === "running" || frame.index === totalFrames - 1}
-              className="rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#374151] disabled:cursor-not-allowed disabled:opacity-40"
             >
               Next
+              <span aria-hidden="true">→</span>
             </button>
             <div className="rounded-md bg-[#f3f4f6] px-3 py-2 text-sm text-[#4b5563]">
               {frame.index + 1} / {totalFrames}
