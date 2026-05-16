@@ -169,6 +169,7 @@ Current sequence-style behavior:
 - attributes that point at `VisXxx` values render as clickable references to those child panels
 - this is the intended minimal LeetCode flow for helper classes such as `MyQueue`, `LRUCache`, or `MedianFinder`
 - the expected workflow is: keep the class ordinary, replace only the fields you want to inspect with `VisXxx`, then wrap the instance once with `VisObject(...)`
+- `VisObject` does not recursively upgrade ordinary inner containers, so users must still decide and rewrite which internal fields become `VisXxx`
 
 Relevant file:
 - `public/py/dsviz.py`
@@ -385,10 +386,18 @@ Current unfinished TODOs:
 5. the strongest future direction discussed so far is a two-pass runtime-assisted rewrite: run the original code first to learn runtime types on marked lines, then rewrite only those marked assignments into `VisXxx` constructions or `VisObject(...)` wrappers for a second run
 6. that direction is intentionally deferred for now because the product visualizes explicit object instances rather than variable names, and variable rebinding or later type changes could make the rewritten run diverge from what users think they marked
 7. if revisited later, the feature should stay opt-in, limited to narrow assignment forms, and conservative around ambiguous Python containers such as `list` and `deque`
-8. rewrite the user guide so panel controls, instrumentation methods, and every shipped `VisXxx` type are documented together
-9. further tune compact layout defaults for extreme traces, long labels, and unusual density
-10. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
-11. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
+8. replace the current test-oriented in-page learning content with four clearer surfaces:
+   - a minimal default editor template that explains `class Solution`, `def run_case()`, and points to `User Guide`, `Examples`, and `Vis API`
+   - a workflow-oriented `User Guide`
+   - problem-oriented `Examples`
+   - a renamed `Vis API` menu that replaces `Guides`
+9. the agreed example targets for that pass are `LCS`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`
+10. the `User Guide` quick-start should use `Longest Substring Without Repeating Characters`, and the `VisObject` material should explicitly state that inner fields are only visualized when users rewrite them into `VisXxx`
+11. add a fixed preinjected runtime namespace so all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq` are available without manual imports
+12. extend `VisArray` with a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support
+13. further tune compact layout defaults for extreme traces, long labels, and unusual density
+14. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
+15. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
 
 These TODOs are the right next-agent starting point before any new broad feature branch.
 

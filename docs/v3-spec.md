@@ -274,12 +274,17 @@ Current behavior:
 - attributes that point at `VisXxx` values render as reference tokens to those child panels
 - this is intended for LeetCode-style helper classes that internally hold one or more visualized structures
 - the intended user flow is: write the helper class normally, convert selected internal fields to `VisXxx`, then wrap the instance once with `VisObject(...)`
+- `VisObject` does not recursively convert ordinary inner containers, so users must explicitly rewrite whichever internal fields should become `VisXxx`
 
 Remaining follow-up:
 - extend `VisObject` with richer field ordering, relabeling, and field-hiding controls
 - discuss feasibility with the user before attempting an editor gutter "eye" workflow that requests assisted visualization insertion from the editor gutter
 - the most promising version discussed so far is a two-pass runtime-assisted rewrite: execute the original code once to capture runtime types on marked lines, then rewrite only those marked assignments into `VisXxx` constructions or `VisObject(...)` wrappers for a second run
 - this is intentionally deferred because the runtime currently visualizes explicit object instances rather than variable names, so variable rebinding and later type changes could make the rewritten run diverge from the user's mental model
+- the next in-page learning pass should replace the current test-oriented menu content with a minimal default editor template, a workflow-oriented `User Guide`, problem-oriented `Examples`, and a renamed `Vis API` menu in place of `Guides`
+- the agreed first-wave example targets for that pass are `LCS`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`
+- the runtime namespace should be fixed and preinjected with all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq`
+- `VisArray` should gain a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support
 
 ## UI Model
 The current single-page workbench contains:

@@ -69,6 +69,7 @@ Notes:
 - `watch()` is still explicit. There is no automatic general-purpose local-variable tracing.
 - `delVis(value)` is explicit user-controlled removal of an existing visualization and is now part of the public instrumentation surface.
 - `VisObject(obj)` is the minimal custom-class workflow: users keep a normal helper class, swap selected fields to `VisXxx`, then wrap the instance once to get an object panel with child references.
+- `VisObject` does not recursively convert ordinary Python containers inside that object; users still have to choose which internal fields to rewrite into `VisXxx`.
 - `VisQueue` and `VisDeque` are intended to follow `collections.deque`-style usage, `VisSet` follows `set`, and `VisHeap` follows `list` plus `heapq`-style operations.
 
 ## Current Frontend Structure
@@ -201,8 +202,12 @@ Known remaining gaps are narrower now:
 4. Before rewriting the guide, discuss the feasibility of an editor gutter "eye" workflow that would let users click an assignment line number to request assisted visualization insertion.
    The strongest candidate discussed so far is a two-pass runtime-assisted rewrite: run the original code once to capture runtime types on marked lines, then rewrite only those marked assignments into `VisXxx` constructions or `VisObject(...)` wrappers for a second run.
    This is still deferred because the system visualizes explicit object instances rather than variable names, so variable rebinding and later type changes could make the rewritten run diverge from the user's mental model.
-5. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
-6. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
+5. The next in-page learning pass should replace the current test-oriented menu content with four clearer surfaces: a minimal default editor template, a workflow-oriented `User Guide`, problem-oriented `Examples`, and a renamed `Vis API` menu for per-class usage reference.
+6. The agreed example targets for that pass are `LCS`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`; the `VisObject` material must explicitly state that inner fields are only visualized when users rewrite them to `VisXxx`.
+7. Before or alongside that content pass, the runtime should preinject all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq`, so users do not have to manage those imports manually.
+8. `VisArray` should gain a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support for custom ordering examples.
+9. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
+10. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
 
 `delVis(...)` is no longer an open design question.
 - default runtime visibility is intentionally conservative
