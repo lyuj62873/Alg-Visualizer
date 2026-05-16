@@ -345,7 +345,7 @@ export function Workbench() {
                 </button>
                 {visApiOpen ? (
                   <div
-                    className="absolute left-0 top-full z-30 w-80 overflow-hidden rounded-xl border border-[#e5e7eb] bg-white shadow-lg"
+                    className="absolute left-0 top-full z-30 max-h-[70vh] w-80 overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white shadow-lg"
                     onMouseEnter={() => setVisApiOpen(true)}
                   >
                     {visApiItems.map((item) => (
