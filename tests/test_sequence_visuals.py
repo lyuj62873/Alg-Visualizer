@@ -244,6 +244,10 @@ class SequenceVisualTests(unittest.TestCase):
         module = runpy.run_path(str(ROOT / "public" / "examples" / "vis-object-example.py"))
         self.assertEqual(module["run_case"](), 1)
 
+    def test_lru_cache_example_runs(self):
+        module = runpy.run_path(str(ROOT / "public" / "examples" / "lru-cache-example.py"))
+        self.assertEqual(module["run_case"](), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
