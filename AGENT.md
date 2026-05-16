@@ -198,7 +198,9 @@ Known remaining gaps are narrower now:
 1. The shared panel / reference contract now covers `VisArray`, `VisMap`, and the new sequence-style structures, but still needs to be extended to the remaining visual families.
 2. Reference-first nesting should next be extended from `VisMap` and the sequence-style structures to the remaining structures and to future object-like custom panels.
 3. `VisObject` now covers the minimal user-facing object-panel flow, but still needs richer controls for field ordering, relabeling, and hiding.
-4. Before rewriting the guide, discuss the feasibility of an editor gutter "eye" workflow that would let users click an assignment line number to auto-rewrite that line into a matching `VisXxx` construction or insert `watch(...)` for primitive tracking; this should only target definition / assignment forms and may be hard to infer reliably in Python / LeetCode code.
+4. Before rewriting the guide, discuss the feasibility of an editor gutter "eye" workflow that would let users click an assignment line number to request assisted visualization insertion.
+   The strongest candidate discussed so far is a two-pass runtime-assisted rewrite: run the original code once to capture runtime types on marked lines, then rewrite only those marked assignments into `VisXxx` constructions or `VisObject(...)` wrappers for a second run.
+   This is still deferred because the system visualizes explicit object instances rather than variable names, so variable rebinding and later type changes could make the rewritten run diverge from the user's mental model.
 5. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
 6. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
 

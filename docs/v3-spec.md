@@ -277,7 +277,9 @@ Current behavior:
 
 Remaining follow-up:
 - extend `VisObject` with richer field ordering, relabeling, and field-hiding controls
-- discuss feasibility with the user before attempting an editor gutter "eye" workflow that auto-rewrites assignment lines into `VisXxx` constructions or inserts `watch(...)` for primitive tracking; this should only target definition / assignment forms because Python / LeetCode type inference may be ambiguous
+- discuss feasibility with the user before attempting an editor gutter "eye" workflow that requests assisted visualization insertion from the editor gutter
+- the most promising version discussed so far is a two-pass runtime-assisted rewrite: execute the original code once to capture runtime types on marked lines, then rewrite only those marked assignments into `VisXxx` constructions or `VisObject(...)` wrappers for a second run
+- this is intentionally deferred because the runtime currently visualizes explicit object instances rather than variable names, so variable rebinding and later type changes could make the rewritten run diverge from the user's mental model
 
 ## UI Model
 The current single-page workbench contains:

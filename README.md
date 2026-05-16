@@ -278,7 +278,10 @@ The current prototype is already usable, but several follow-up areas remain:
 - extend the minimal `VisObject` wrapper into a richer object-panel API with optional field ordering, relabeling, and hiding controls
 - keep tuning compact layout defaults for large or unusual traces
 - extend the same interaction model to future structures
-- discuss feasibility first, then consider an editor gutter "eye" workflow that lets users click an assignment line number to auto-rewrite that line into a matching `VisXxx` construction or insert `watch(...)` for primitive tracking; this should be limited to variable definition / assignment forms and ignored elsewhere because Python / LeetCode type inference may be ambiguous
+- discuss feasibility first, then consider an editor gutter "eye" workflow that lets users click an assignment line number to request assisted visualization insertion
+- the most promising version discussed so far is a two-pass flow: first run the original code to learn runtime types on marked lines, then rewrite only those marked assignments into `VisXxx` constructions or `VisObject(...)` wrappers for a second run
+- this is intentionally deferred for now because the product currently visualizes explicit object instances rather than variable names, and variable rebinding or later type changes could make an auto-rewritten second run diverge from what users think they marked
+- if revisited later, the feature should remain opt-in, limited to narrow assignment forms, and explicit about conservative fallbacks for ambiguous Python containers such as `list` and `deque`
 - rewrite the user guide so panel controls, examples, `watch(...)`, `delVis(...)`, and each public `VisXxx` API are all documented in one coherent flow
 - consider editor-assisted help for inserting `watch(...)`
 - consider whether the fixed 1000-frame cap and 30-second timeout should become configurable

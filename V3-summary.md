@@ -381,11 +381,14 @@ Current unfinished TODOs:
 1. extend the shared panel / reference contract from `VisArray`, `VisMap`, and the sequence-style structures to the remaining visual families
 2. extend the reference-first nesting model from `VisMap` and the sequence-style structures to those remaining structures
 3. extend the minimal `VisObject` wrapper with richer field ordering, relabeling, and field-hiding controls
-4. discuss feasibility with the user first, then consider an editor gutter "eye" workflow that lets users click an assignment line number to auto-rewrite that line into a matching `VisXxx` construction or append `watch(...)` for primitive tracking; this should be limited to variable definition / assignment forms and ignored elsewhere because Python / LeetCode type inference may be ambiguous
-5. rewrite the user guide so panel controls, instrumentation methods, and every shipped `VisXxx` type are documented together
-6. further tune compact layout defaults for extreme traces, long labels, and unusual density
-7. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
-8. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
+4. discuss feasibility with the user first, then consider an editor gutter "eye" workflow that lets users click an assignment line number to request assisted visualization insertion
+5. the strongest future direction discussed so far is a two-pass runtime-assisted rewrite: run the original code first to learn runtime types on marked lines, then rewrite only those marked assignments into `VisXxx` constructions or `VisObject(...)` wrappers for a second run
+6. that direction is intentionally deferred for now because the product visualizes explicit object instances rather than variable names, and variable rebinding or later type changes could make the rewritten run diverge from what users think they marked
+7. if revisited later, the feature should stay opt-in, limited to narrow assignment forms, and conservative around ambiguous Python containers such as `list` and `deque`
+8. rewrite the user guide so panel controls, instrumentation methods, and every shipped `VisXxx` type are documented together
+9. further tune compact layout defaults for extreme traces, long labels, and unusual density
+10. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
+11. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
 
 These TODOs are the right next-agent starting point before any new broad feature branch.
 
