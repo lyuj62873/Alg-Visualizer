@@ -1,3 +1,5 @@
+from collections import deque
+
 from dsviz import (
     VisArray,
     VisDeque,
@@ -25,13 +27,13 @@ class Solution:
         mirror_head.right = VisListNode("tail")
         mirror_stack.push(mirror_head)
 
-        mirror_queue = VisQueue([], name="mirror_queue")
+        mirror_queue = VisQueue(deque(), name="mirror_queue")
         mirror_root = VisTreeNode(mirror_queue)
         mirror_root.left = VisTreeNode("leaf")
-        mirror_queue.enqueue(mirror_root)
+        mirror_queue.append(mirror_root)
 
-        mirror_set = VisSet([], name="mirror_set")
-        mirror_deque = VisDeque([mirror_set], name="mirror_deque")
+        mirror_set = VisSet(set(), name="mirror_set")
+        mirror_deque = VisDeque(deque([mirror_set]), name="mirror_deque")
         mirror_set.add(mirror_deque)
 
         heap_child_tree = VisTreeNode(7)
@@ -50,7 +52,7 @@ class Solution:
 
         # 3) A deeper chain: Map -> List -> Set, then continue one step further.
         chain_heap = VisHeap([6], name="chain_heap")
-        chain_set = VisSet([chain_heap], name="chain_set")
+        chain_set = VisSet({chain_heap}, name="chain_set")
         chain_head = VisListNode(chain_set)
         chain_head.right = VisListNode(VisArray(["leaf"], name="chain_array"))
         chain_map = VisMap({"chain": chain_head}, name="chain_map")
@@ -60,7 +62,7 @@ class Solution:
         mirror_map["array"]
         mirror_stack.peek()
         mirror_queue.peek()
-        mirror_deque.append_right(chain_map)
+        mirror_deque.append(chain_map)
         mirror_set.add(chain_head)
         mirror_heap.peek()
         watch("cycle_has_head", "head" in cycle_outer)

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import heapq
 import inspect
 import linecache
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 MAX_TRACE_FRAMES = 1000
 _MISSING = object()
@@ -1526,7 +1526,7 @@ class VisStack(_SequenceVisObject):
 class VisQueue(_SequenceVisObject):
     def __init__(
         self,
-        values: Optional[List[Any]] = None,
+        values: Optional[Iterable[Any]] = None,
         name: Optional[str] = None,
         *,
         panel_id: Optional[str] = None,
@@ -1540,7 +1540,7 @@ class VisQueue(_SequenceVisObject):
             constructor_name="VisQueue",
             fallback_name="queue",
             type_label="VisQueue",
-            values=values or [],
+            values=list(values) if values is not None else [],
             name=name,
             panel_id=panel_id,
             x=x,
@@ -1550,6 +1550,23 @@ class VisQueue(_SequenceVisObject):
             scale=scale,
         )
         _TRACE.emit(label=f"{self.title}: init")
+
+    def append(self, value: Any) -> None:
+        self._values.append(value)
+        self._emit_sequence_change(f"{self.title}.append({_safe_str(value)})", len(self._values) - 1)
+
+    def popleft(self) -> Any:
+        if not self._values:
+            raise IndexError("pop from empty queue")
+        value = self._values.pop(0)
+        self._emit_sequence_change(f"{self.title}.popleft()", 0)
+        return value
+
+    def peek(self) -> Any:
+        if not self._values:
+            raise IndexError("peek from empty queue")
+        self._mark_active(0)
+        return self._values[0]
 
     def enqueue(self, value: Any) -> None:
         self._values.append(value)
@@ -1562,12 +1579,6 @@ class VisQueue(_SequenceVisObject):
         self._emit_sequence_change(f"{self.title}.dequeue()", 0)
         return value
 
-    def peek(self) -> Any:
-        if not self._values:
-            raise IndexError("peek from empty queue")
-        self._mark_active(0)
-        return self._values[0]
-
     def clear(self) -> None:
         self._values.clear()
         self._emit_sequence_change(f"{self.title}.clear()")
@@ -1576,7 +1587,7 @@ class VisQueue(_SequenceVisObject):
 class VisDeque(_SequenceVisObject):
     def __init__(
         self,
-        values: Optional[List[Any]] = None,
+        values: Optional[Iterable[Any]] = None,
         name: Optional[str] = None,
         *,
         panel_id: Optional[str] = None,
@@ -1590,7 +1601,7 @@ class VisDeque(_SequenceVisObject):
             constructor_name="VisDeque",
             fallback_name="deque",
             type_label="VisDeque",
-            values=values or [],
+            values=list(values) if values is not None else [],
             name=name,
             panel_id=panel_id,
             x=x,
@@ -1600,6 +1611,29 @@ class VisDeque(_SequenceVisObject):
             scale=scale,
         )
         _TRACE.emit(label=f"{self.title}: init")
+
+    def append(self, value: Any) -> None:
+        self._values.append(value)
+        self._emit_sequence_change(f"{self.title}.append({_safe_str(value)})", len(self._values) - 1)
+
+    def appendleft(self, value: Any) -> None:
+        self._values.insert(0, value)
+        self._emit_sequence_change(f"{self.title}.appendleft({_safe_str(value)})", 0)
+
+    def pop(self) -> Any:
+        if not self._values:
+            raise IndexError("pop from empty deque")
+        value = self._values.pop()
+        next_active = len(self._values) - 1 if self._values else -1
+        self._emit_sequence_change(f"{self.title}.pop()", next_active)
+        return value
+
+    def popleft(self) -> Any:
+        if not self._values:
+            raise IndexError("popleft from empty deque")
+        value = self._values.pop(0)
+        self._emit_sequence_change(f"{self.title}.popleft()", 0)
+        return value
 
     def append_right(self, value: Any) -> None:
         self._values.append(value)
@@ -1632,7 +1666,7 @@ class VisDeque(_SequenceVisObject):
 class VisSet(_SequenceVisObject):
     def __init__(
         self,
-        values: Optional[List[Any]] = None,
+        values: Optional[Iterable[Any]] = None,
         name: Optional[str] = None,
         *,
         panel_id: Optional[str] = None,
@@ -1698,7 +1732,7 @@ class VisSet(_SequenceVisObject):
 class VisHeap(_SequenceVisObject):
     def __init__(
         self,
-        values: Optional[List[Any]] = None,
+        values: Optional[Iterable[Any]] = None,
         name: Optional[str] = None,
         *,
         panel_id: Optional[str] = None,
@@ -1725,6 +1759,41 @@ class VisHeap(_SequenceVisObject):
         )
         _TRACE.emit(label=f"{self.title}: init")
 
+    def heappush(self, value: Any) -> None:
+        heapq.heappush(self._values, value)
+        self._emit_sequence_change(f"{self.title}.heappush({_safe_str(value)})", 0)
+
+    def heappop(self) -> Any:
+        if not self._values:
+            raise IndexError("heappop from empty heap")
+        value = heapq.heappop(self._values)
+        self._emit_sequence_change(f"{self.title}.heappop()", 0)
+        return value
+
+    def peek(self) -> Any:
+        if not self._values:
+            raise IndexError("peek from empty heap")
+        self._mark_active(0)
+        return self._values[0]
+
+    def heapreplace(self, value: Any) -> Any:
+        if not self._values:
+            raise IndexError("heapreplace on empty heap")
+        removed = heapq.heapreplace(self._values, value)
+        self._emit_sequence_change(f"{self.title}.heapreplace({_safe_str(value)})", 0)
+        return removed
+
+    def heappushpop(self, value: Any) -> Any:
+        result = heapq.heappushpop(self._values, value)
+        self._emit_sequence_change(f"{self.title}.heappushpop({_safe_str(value)})", 0)
+        return result
+
+    def heapify(self, values: Iterable[Any]) -> None:
+        incoming = list(values)
+        self._set_values(incoming)
+        heapq.heapify(self._values)
+        self._emit_sequence_change(f"{self.title}.heapify({_safe_str(incoming)})", 0)
+
     def push(self, value: Any) -> None:
         heapq.heappush(self._values, value)
         self._emit_sequence_change(f"{self.title}.push({_safe_str(value)})", 0)
@@ -1735,12 +1804,6 @@ class VisHeap(_SequenceVisObject):
         value = heapq.heappop(self._values)
         self._emit_sequence_change(f"{self.title}.pop()", 0)
         return value
-
-    def peek(self) -> Any:
-        if not self._values:
-            raise IndexError("peek from empty heap")
-        self._mark_active(0)
-        return self._values[0]
 
     def replace(self, value: Any) -> Any:
         if not self._values:
@@ -1753,11 +1816,6 @@ class VisHeap(_SequenceVisObject):
         result = heapq.heappushpop(self._values, value)
         self._emit_sequence_change(f"{self.title}.pushpop({_safe_str(value)})", 0)
         return result
-
-    def heapify(self, values: List[Any]) -> None:
-        self._set_values(list(values))
-        heapq.heapify(self._values)
-        self._emit_sequence_change(f"{self.title}.heapify({_safe_str(values)})", 0)
 
 class VisTreeNode:
     _node_counter = 0

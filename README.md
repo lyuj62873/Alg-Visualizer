@@ -82,10 +82,16 @@ Current behavior:
 
 Current structure-specific operations include:
 - `VisStack`: `push`, `pop`, `peek`, `clear`
-- `VisQueue`: `enqueue`, `dequeue`, `peek`, `clear`
-- `VisDeque`: `append_left`, `append_right`, `pop_left`, `pop_right`, `clear`
+- `VisQueue`: `append`, `popleft`, `peek`, `clear`
+- `VisDeque`: `append`, `appendleft`, `pop`, `popleft`, `clear`
 - `VisSet`: `add`, `discard`, `remove`, `pop`, `clear`
-- `VisHeap`: `push`, `pop`, `peek`, `replace`, `pushpop`, `heapify`
+- `VisHeap`: `heappush`, `heappop`, `peek`, `heapreplace`, `heappushpop`, `heapify`
+
+Expected Python container alignment:
+- `VisArray`, `VisStack`, and `VisHeap` are meant to wrap list-style values
+- `VisQueue` and `VisDeque` are meant to wrap `collections.deque`
+- `VisSet` is meant to wrap `set`
+- `VisMap` is meant to wrap `dict`
 
 ### `VisTreeNode`
 
@@ -272,6 +278,7 @@ The current prototype is already usable, but several follow-up areas remain:
 - extend the minimal `VisObject` wrapper into a richer object-panel API with optional field ordering, relabeling, and hiding controls
 - keep tuning compact layout defaults for large or unusual traces
 - extend the same interaction model to future structures
+- discuss feasibility first, then consider an editor gutter "eye" workflow that lets users click an assignment line number to auto-rewrite that line into a matching `VisXxx` construction or insert `watch(...)` for primitive tracking; this should be limited to variable definition / assignment forms and ignored elsewhere because Python / LeetCode type inference may be ambiguous
 - rewrite the user guide so panel controls, examples, `watch(...)`, `delVis(...)`, and each public `VisXxx` API are all documented in one coherent flow
 - consider editor-assisted help for inserting `watch(...)`
 - consider whether the fixed 1000-frame cap and 30-second timeout should become configurable

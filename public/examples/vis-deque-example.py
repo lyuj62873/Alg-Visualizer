@@ -1,13 +1,15 @@
+from collections import deque
+
 from dsviz import VisDeque
 
 
 class Solution:
     def solve(self):
-        dq = VisDeque([2, 3], name="dq")
-        dq.append_left(1)
-        dq.append_right(4)
-        dq.pop_left()
-        dq.pop_right()
+        dq = VisDeque(deque([2, 3]), name="dq")
+        dq.appendleft(1)
+        dq.append(4)
+        dq.popleft()
+        dq.pop()
         return len(dq)
 
 

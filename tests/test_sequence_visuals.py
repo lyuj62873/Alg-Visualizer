@@ -1,3 +1,4 @@
+from collections import deque
 import sys
 import unittest
 from pathlib import Path
@@ -54,10 +55,24 @@ class SequenceVisualTests(unittest.TestCase):
         self.assertEqual(panel["cells"][1]["label"], "ok")
 
     def test_queue_and_deque_emit_expected_labels(self):
-        queue = VisQueue([1], name="queue")
+        queue = VisQueue(deque([1]), name="queue")
+        queue.append(2)
+        queue.popleft()
+        dq = VisDeque(deque([5]), name="dq")
+        dq.appendleft(4)
+        dq.pop()
+        labels = [frame["label"] for frame in export_trace()["frames"]]
+
+        self.assertIn("queue.append(2)", labels)
+        self.assertIn("queue.popleft()", labels)
+        self.assertIn("dq.appendleft(4)", labels)
+        self.assertIn("dq.pop()", labels)
+
+    def test_legacy_queue_and_deque_aliases_still_work(self):
+        queue = VisQueue(deque([1]), name="queue")
         queue.enqueue(2)
         queue.dequeue()
-        dq = VisDeque([5], name="dq")
+        dq = VisDeque(deque([5]), name="dq")
         dq.append_left(4)
         dq.pop_right()
         labels = [frame["label"] for frame in export_trace()["frames"]]
@@ -69,7 +84,7 @@ class SequenceVisualTests(unittest.TestCase):
 
     def test_set_preserves_reference_first_cells(self):
         child_map = VisMap({"a": 1}, name="child_map")
-        seen = VisSet([child_map], name="seen")
+        seen = VisSet({child_map}, name="seen")
         panel = export_trace()["frames"][-1]["panels"][-1]
 
         self.assertEqual(panel["typeLabel"], "VisSet")
@@ -78,7 +93,7 @@ class SequenceVisualTests(unittest.TestCase):
 
     def test_heap_uses_sequence_panel_and_heapifies_values(self):
         heap = VisHeap([5, 1, 3], name="heap")
-        heap.push(2)
+        heap.heappush(2)
         panel = next(
             panel
             for panel in export_trace()["frames"][-1]["panels"]
@@ -89,6 +104,15 @@ class SequenceVisualTests(unittest.TestCase):
         labels = [cell["label"] for cell in panel["cells"]]
         self.assertEqual(labels[0], "1")
         self.assertIn("2", labels)
+
+    def test_heap_legacy_aliases_still_work(self):
+        heap = VisHeap([5, 1, 3], name="heap")
+        heap.push(2)
+        heap.replace(4)
+        labels = [frame["label"] for frame in export_trace()["frames"]]
+
+        self.assertIn("heap.push(2)", labels)
+        self.assertIn("heap.replace(4)", labels)
 
     def test_tree_node_value_can_reference_other_visual_panels(self):
         child_map = VisMap({"a": 1}, name="child_map")

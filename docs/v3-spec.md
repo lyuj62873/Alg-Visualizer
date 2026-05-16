@@ -75,6 +75,7 @@ Notes:
 - normal Python containers are not visualized unless the user converts them
 - `delVis(value)` is an explicit user call that removes an existing visualization
 - `VisHeap` intentionally defaults to a sequence-like / priority-queue view rather than a tree-teaching view
+- `VisQueue` and `VisDeque` are intended to follow `collections.deque`-style usage, `VisSet` follows `set`, and `VisHeap` follows `list` plus `heapq`-style operations
 
 ## Scalar Tracking
 Scalar tracking uses:
@@ -276,6 +277,7 @@ Current behavior:
 
 Remaining follow-up:
 - extend `VisObject` with richer field ordering, relabeling, and field-hiding controls
+- discuss feasibility with the user before attempting an editor gutter "eye" workflow that auto-rewrites assignment lines into `VisXxx` constructions or inserts `watch(...)` for primitive tracking; this should only target definition / assignment forms because Python / LeetCode type inference may be ambiguous
 
 ## UI Model
 The current single-page workbench contains:

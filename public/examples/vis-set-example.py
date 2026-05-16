@@ -3,7 +3,7 @@ from dsviz import VisSet
 
 class Solution:
     def solve(self):
-        seen = VisSet([3, 1], name="seen")
+        seen = VisSet({3, 1}, name="seen")
         seen.add(4)
         seen.add(1)
         seen.discard(3)

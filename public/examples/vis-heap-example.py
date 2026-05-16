@@ -4,10 +4,10 @@ from dsviz import VisHeap
 class Solution:
     def solve(self):
         heap = VisHeap([5, 1, 3], name="heap")
-        heap.push(2)
-        heap.replace(4)
+        heap.heappush(2)
+        heap.heapreplace(4)
         heap.peek()
-        heap.pop()
+        heap.heappop()
         return len(heap)
 
 
