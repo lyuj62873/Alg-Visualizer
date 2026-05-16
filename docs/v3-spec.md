@@ -281,10 +281,10 @@ Remaining follow-up:
 - discuss feasibility with the user before attempting an editor gutter "eye" workflow that requests assisted visualization insertion from the editor gutter
 - the most promising version discussed so far is a two-pass runtime-assisted rewrite: execute the original code once to capture runtime types on marked lines, then rewrite only those marked assignments into `VisXxx` constructions or `VisObject(...)` wrappers for a second run
 - this is intentionally deferred because the runtime currently visualizes explicit object instances rather than variable names, so variable rebinding and later type changes could make the rewritten run diverge from the user's mental model
-- the next in-page learning pass should replace the current test-oriented menu content with a minimal default editor template, a workflow-oriented `User Guide`, problem-oriented `Examples`, and a renamed `Vis API` menu in place of `Guides`
-- the agreed first-wave example targets for that pass are `LCS`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`
-- the runtime namespace should be fixed and preinjected with all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq`
-- `VisArray` should gain a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support
+- the in-page learning content now uses a minimal default editor template, a workflow-oriented `User Guide`, problem-oriented `Examples`, and a `Vis API` menu in place of the old `Guides`
+- the current first-wave teaching examples are `LCS`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`
+- the runtime namespace is fixed and preinjected with all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq`
+- `VisArray` now has a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support
 
 ## UI Model
 The current single-page workbench contains:
@@ -292,17 +292,19 @@ The current single-page workbench contains:
 - a visualization pane
 - floating step controls
 - a floating `Variables` and `Output` sidebar
-- top-level `Examples` and `Guides` menus
+- top-level `User Guide`, `Examples`, and `Vis API` menus
 
 Current built-in `Examples`:
-- `Balanced Rebuild`
-- `Delete Duplicates`
-- `Multi Panel`
+- `LCS`
+- `Group Anagrams`
+- `Path Sum III`
+- `LRU Cache`
 
-Current built-in `Guides`:
+Current built-in `Vis API` entries:
 - `VisArray`
 - `VisArray 2D/3D`
 - `VisMap`
+- `VisObject`
 - `VisStack`
 - `VisQueue`
 - `VisDeque`
@@ -310,6 +312,8 @@ Current built-in `Guides`:
 - `VisHeap`
 - `VisListNode`
 - `VisTreeNode`
+- `watch(...)`
+- `delVis(...)`
 
 ## Rendering Direction
 - use `React Flow` for tree rendering

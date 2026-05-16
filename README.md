@@ -87,9 +87,9 @@ Current structure-specific operations include:
 - `VisSet`: `add`, `discard`, `remove`, `pop`, `clear`
 - `VisHeap`: `heappush`, `heappop`, `peek`, `heapreplace`, `heappushpop`, `heapify`
 
-Next Python-native polish already agreed for implementation:
-- `VisArray.sort(...)` should follow Python `list.sort(...)` closely, including `key=` and `reverse=`
-- the runtime should preinject all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq`, so users do not have to add those imports manually
+Current Python-native polish:
+- `VisArray.sort(...)` now follows Python `list.sort(...)` closely, including `key=` and `reverse=`
+- the runtime now preinjects all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq`, so users do not have to add those imports manually
 
 Expected Python container alignment:
 - `VisArray`, `VisStack`, and `VisHeap` are meant to wrap list-style values
@@ -208,15 +208,20 @@ Tree/List-specific behavior:
 - default-on `Track` for following the active node within the canvas viewport
 - clicking a reference reopens a minimized or closed target panel before bringing it forward
 
-## Built-In Examples And Guides
+## Built-In Learning Content
+
+Current top-level learning surfaces:
+- `User Guide`
+- `Examples`
+- `Vis API`
 
 Current `Examples`:
-- `Balanced Rebuild`
-- `Delete Duplicates`
-- `Multi Panel`
-- `Nested References`
+- `LCS`
+- `Group Anagrams`
+- `Path Sum III`
+- `LRU Cache`
 
-Current `Guides`:
+Current `Vis API` entries:
 - `VisArray`
 - `VisArray 2D/3D`
 - `VisMap`
@@ -228,6 +233,13 @@ Current `Guides`:
 - `VisHeap`
 - `VisTreeNode`
 - `VisListNode`
+- `watch(...)`
+- `delVis(...)`
+
+Current UI behavior:
+- `Reset` restores the minimal `class Solution` / `def run_case()` template
+- `Run` uses the streamlined green action button
+- the `Vis API` dropdown is scrollable so longer API lists stay inside the viewport
 
 ## Local Development
 
@@ -288,15 +300,15 @@ The current prototype is already usable, but several follow-up areas remain:
 - the most promising version discussed so far is a two-pass flow: first run the original code to learn runtime types on marked lines, then rewrite only those marked assignments into `VisXxx` constructions or `VisObject(...)` wrappers for a second run
 - this is intentionally deferred for now because the product currently visualizes explicit object instances rather than variable names, and variable rebinding or later type changes could make an auto-rewritten second run diverge from what users think they marked
 - if revisited later, the feature should remain opt-in, limited to narrow assignment forms, and explicit about conservative fallbacks for ambiguous Python containers such as `list` and `deque`
-- restructure the in-page learning content into four clear surfaces:
-  - default editor template with only the `class Solution` / `def run_case()` skeleton plus short pointers to `User Guide`, `Examples`, and `Vis API`
+- the in-page learning content is now split into four clear surfaces:
+  - a minimal default editor template with short pointers to `User Guide`, `Examples`, and `Vis API`
   - `User Guide` for workflow, page controls, panel interactions, and the current explicit `VisXxx` mental model
   - `Examples` for complete problem-oriented demos such as `LCS`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`
-  - `Vis API` as the renamed replacement for `Guides`, focused on per-class initialization, Python-native container alignment, and method usage
-- change `Reset` so it restores only the minimal skeleton template instead of an old runnable example
-- add the agreed Python-native convenience layer before that in-page content pass lands:
-  - support `VisArray.sort(key=..., reverse=...)` in the same style as Python `list.sort(...)`
-  - preinject all visualization classes and common container helpers so the editor behaves more like a fixed LeetCode-style environment
+  - `Vis API` as the per-class usage reference
+- `Reset` now restores only the minimal skeleton template instead of an old runnable example
+- the Python-native convenience layer is in place:
+  - `VisArray.sort(key=..., reverse=...)` follows Python `list.sort(...)`
+  - all visualization classes and common container helpers are preinjected so the editor behaves more like a fixed LeetCode-style environment
 - rewrite the user guide so panel controls, examples, `watch(...)`, `delVis(...)`, and each public `VisXxx` API are all documented in one coherent flow
 - consider editor-assisted help for inserting `watch(...)`
 - consider whether the fixed 1000-frame cap and 30-second timeout should become configurable

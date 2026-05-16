@@ -81,29 +81,26 @@ The workbench is a single-page split layout with:
 - draggable visualization panels
 
 Top navigation currently contains:
+- `User Guide`
 - `Examples`
-- `Guides`
+- `Vis API`
 
+`User Guide` contains the workflow and UI interaction overview.
 `Examples` contains runnable algorithm demos.
-`Guides` contains focused usage examples for the individual `dsviz` data structures.
+`Vis API` contains focused usage examples for the individual `dsviz` data structures.
 
 ## Current Example Inventory
 Current built-in examples:
-- `Balanced Rebuild`
-  - build an unbalanced BST
-  - collect values with inorder traversal into a `VisArray`
-  - build a second balanced BST with divide and conquer
-  - keep the original unbalanced BST visible while the balanced BST appears in a separate panel
-- `Delete Duplicates`
-  - remove adjacent duplicates from a sorted linked list in place
-  - explicitly call `delVis(...)` on each detached duplicate node
-- `Multi Panel`
-  - build two independent trees and two independent linked lists
-  - verify that each disconnected structure renders in its own panel
-- `Nested References`
-  - exercise cross-visual nesting, a `Map -> List -> Map` cycle, and a `Map -> List -> Set` chain
+- `LCS`
+  - fill a 2D `VisArray` DP table for the longest common subsequence problem
+- `Group Anagrams`
+  - use a `VisMap` whose values point to nested sequence panels
+- `Path Sum III`
+  - combine `VisTreeNode`, `VisMap`, and `watch(...)` in a recursive tree example
+- `LRU Cache`
+  - show `VisObject`, `VisMap`, and `VisListNode` working together in a custom class
 
-Current built-in guides:
+Current built-in `Vis API` entries:
 - `VisArray`
 - `VisArray 2D/3D`
 - `VisMap`
@@ -115,6 +112,8 @@ Current built-in guides:
 - `VisHeap`
 - `VisListNode`
 - `VisTreeNode`
+- `watch(...)`
+- `delVis(...)`
 
 ## Current Rendering Direction
 Use:
@@ -202,12 +201,13 @@ Known remaining gaps are narrower now:
 4. Before rewriting the guide, discuss the feasibility of an editor gutter "eye" workflow that would let users click an assignment line number to request assisted visualization insertion.
    The strongest candidate discussed so far is a two-pass runtime-assisted rewrite: run the original code once to capture runtime types on marked lines, then rewrite only those marked assignments into `VisXxx` constructions or `VisObject(...)` wrappers for a second run.
    This is still deferred because the system visualizes explicit object instances rather than variable names, so variable rebinding and later type changes could make the rewritten run diverge from the user's mental model.
-5. The next in-page learning pass should replace the current test-oriented menu content with four clearer surfaces: a minimal default editor template, a workflow-oriented `User Guide`, problem-oriented `Examples`, and a renamed `Vis API` menu for per-class usage reference.
-6. The agreed example targets for that pass are `LCS`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`; the `VisObject` material must explicitly state that inner fields are only visualized when users rewrite them to `VisXxx`.
-7. Before or alongside that content pass, the runtime should preinject all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq`, so users do not have to manage those imports manually.
-8. `VisArray` should gain a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support for custom ordering examples.
-9. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
-10. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
+5. The in-page learning content now uses four clearer surfaces: a minimal default editor template, a workflow-oriented `User Guide`, problem-oriented `Examples`, and a `Vis API` menu for per-class usage reference.
+6. The current teaching examples are `LCS`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`; the `VisObject` material explicitly states that inner fields are only visualized when users rewrite them to `VisXxx`.
+7. The runtime now preinjects all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq`, so users do not have to manage those imports manually.
+8. `VisArray` now has a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support for custom ordering examples.
+9. The `Vis API` dropdown is scrollable so the longer API list stays inside the viewport.
+10. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
+11. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
 
 `delVis(...)` is no longer an open design question.
 - default runtime visibility is intentionally conservative
