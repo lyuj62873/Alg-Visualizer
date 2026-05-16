@@ -182,35 +182,11 @@ class _TraceState:
     ) -> _PanelLayout:
         base_x = 4.0
         base_y = 6.0
-        x_step = 18.0
-        y_step = 7.0
-
-        def overlaps(x: float, y: float) -> bool:
-            left = x - padding
-            top = y - padding
-            right = x + width + padding
-            bottom = y + height + padding
-            for obj in self._objects:
-                other = obj.layout
-                if right <= other.x or left >= other.x + other.width:
-                    continue
-                if bottom <= other.y or top >= other.y + other.height:
-                    continue
-                return True
-            return False
-
-        for x_offset in range(0, 88, int(x_step)):
-            for y_offset in range(0, 88, int(y_step)):
-                x = base_x + x_offset
-                y = base_y + y_offset
-                if x + width > 98 or y + height > 96:
-                    continue
-                if not overlaps(x, y):
-                    return _PanelLayout(x=x, y=y, width=width, height=height, scale=scale)
-
+        y_step = 3.0
+        y = min(base_y + (len(self._objects) * y_step), max(base_y, 96.0 - height))
         return _PanelLayout(
             x=base_x,
-            y=base_y + (len(self._objects) * y_step),
+            y=y,
             width=width,
             height=height,
             scale=scale,
