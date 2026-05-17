@@ -171,8 +171,10 @@ class SequenceVisualTests(unittest.TestCase):
         list_entry = next(entry for entry in panel["entries"] if entry["key"]["label"] == "list")
         self.assertEqual(tree_entry["value"]["kind"], "ref")
         self.assertTrue(tree_entry["value"]["targetPanelId"].startswith("tree_panel_"))
+        self.assertEqual(tree_entry["value"]["targetItemId"], root._id)
         self.assertEqual(list_entry["value"]["kind"], "ref")
         self.assertTrue(list_entry["value"]["targetPanelId"].startswith("list_panel_"))
+        self.assertEqual(list_entry["value"]["targetItemId"], head._id)
 
     def test_sequence_can_reference_tree_and_list_panels(self):
         root = VisTreeNode(3)
@@ -186,8 +188,10 @@ class SequenceVisualTests(unittest.TestCase):
 
         self.assertEqual(panel["cells"][0]["kind"], "ref")
         self.assertTrue(panel["cells"][0]["targetPanelId"].startswith("tree_panel_"))
+        self.assertEqual(panel["cells"][0]["targetItemId"], root._id)
         self.assertEqual(panel["cells"][1]["kind"], "ref")
         self.assertTrue(panel["cells"][1]["targetPanelId"].startswith("list_panel_"))
+        self.assertEqual(panel["cells"][1]["targetItemId"], head._id)
 
     def test_map_list_map_cycle_renders_as_references(self):
         outer = VisMap(name="outer")

@@ -7,7 +7,13 @@ import type {
 } from "react";
 import { useEffect, useRef, useState } from "react";
 import { clamp, getCanvasScrollTarget } from "./canvas-tracking";
-import { TraceContentCell, TraceFrame, TraceMapEntry, TracePanel } from "./mock-trace";
+import {
+  TraceContentCell,
+  TraceFrame,
+  TraceMapEntry,
+  TracePanel,
+  TraceReferenceTarget,
+} from "./mock-trace";
 import { NodeFlowViewport } from "./tree-flow";
 
 function isNodeFlowKind(
@@ -33,6 +39,11 @@ type PanelVisibilityMode = "open" | "minimized" | "closed";
 
 type PanelFocusRequest = {
   panelId: string;
+  token: number;
+};
+
+type NodeFocusRequest = {
+  itemId: string;
   token: number;
 };
 
@@ -143,6 +154,7 @@ function summarizeContentCell(cell: TraceContentCell): unknown {
       id: cell.id,
       label: cell.label,
       targetPanelId: cell.kind === "ref" ? cell.targetPanelId ?? null : null,
+      targetItemId: cell.kind === "ref" ? cell.targetItemId ?? null : null,
       clickable: cell.kind === "ref" ? cell.clickable !== false : false,
       tone: cell.tone ?? "default",
       containsActive: !!cell.containsActive,
@@ -201,6 +213,7 @@ function getPanelSignature(panel: TracePanel) {
       shape: item.shape ?? "circle",
       containsActive: !!item.containsActive,
       targetPanelId: item.targetPanelId ?? null,
+      targetItemId: item.targetItemId ?? null,
       clickable: item.clickable !== false,
     })),
     edges: panel.edges,
@@ -281,7 +294,7 @@ function ReferenceToken({
   onReferenceClick,
 }: {
   cell: Extract<TraceContentCell, { kind: "ref" }>;
-  onReferenceClick: (panelId: string) => void;
+  onReferenceClick: (target: TraceReferenceTarget) => void;
 }) {
   const isActive = cell.tone === "active";
   const containsActive = !!cell.containsActive;
@@ -313,7 +326,10 @@ function ReferenceToken({
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        onReferenceClick(cell.targetPanelId!);
+        onReferenceClick({
+          panelId: cell.targetPanelId!,
+          itemId: cell.targetItemId,
+        });
       }}
       className={`flex min-h-10 min-w-[52px] items-center justify-center rounded-lg border px-2.5 py-2 text-[13px] font-semibold shadow-sm transition hover:-translate-y-[1px] ${
         isActive
@@ -337,7 +353,7 @@ function ContentView({
   layout: "row" | "matrix" | "stack";
   cells: TraceContentCell[];
   depth: number;
-  onReferenceClick: (panelId: string) => void;
+  onReferenceClick: (target: TraceReferenceTarget) => void;
 }) {
   if (layout === "matrix") {
     return (
@@ -412,7 +428,7 @@ function ContentCellView({
 }: {
   cell: TraceContentCell;
   depth: number;
-  onReferenceClick: (panelId: string) => void;
+  onReferenceClick: (target: TraceReferenceTarget) => void;
 }) {
   const nestedBg = depth % 2 === 0 ? "bg-[#fffaf5]" : "bg-white";
   if (cell.kind === "value") {
@@ -470,7 +486,7 @@ function ArrayPanelBody({
   panel: Extract<TracePanel, { kind: "array" }>;
   scale: number;
   setPositions: Dispatch<SetStateAction<DragPositions>>;
-  onReferenceClick: (panelId: string) => void;
+  onReferenceClick: (target: TraceReferenceTarget) => void;
   isResizing: boolean;
 }) {
   const dimensionsLabel = formatDimensions(panel.dimensions);
@@ -586,7 +602,7 @@ function MapPanelBody({
   panel: Extract<TracePanel, { kind: "map" }>;
   scale: number;
   setPositions: Dispatch<SetStateAction<DragPositions>>;
-  onReferenceClick: (panelId: string) => void;
+  onReferenceClick: (target: TraceReferenceTarget) => void;
   isResizing: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -728,6 +744,7 @@ function VisualizationPanel({
   requestFitView,
   trackingEnabled,
   toggleTracking,
+  nodeFocusRequest,
   zIndex,
   onFocusPanel,
   onReferenceClick,
@@ -742,9 +759,10 @@ function VisualizationPanel({
   requestFitView: (panelId: string) => void;
   trackingEnabled: boolean;
   toggleTracking: (panelId: string) => void;
+  nodeFocusRequest: NodeFocusRequest | null;
   zIndex: number;
   onFocusPanel: (panelId: string) => void;
-  onReferenceClick: (panelId: string) => void;
+  onReferenceClick: (target: TraceReferenceTarget) => void;
   onMinimizePanel: (panelId: string) => void;
   onClosePanel: (panelId: string) => void;
   panelRef: (node: HTMLElement | null) => void;
@@ -1143,6 +1161,7 @@ function VisualizationPanel({
             fitRequestToken={fitRequestToken}
             trackingEnabled={trackingEnabled}
             onReferenceClick={onReferenceClick}
+            focusItemRequest={nodeFocusRequest}
           />
         ) : panel.kind === "map" ? (
           <MapPanelBody
@@ -1208,6 +1227,7 @@ export function ResultsPane({
   const [panelVisibilityModes, setPanelVisibilityModes] = useState<
     Record<string, PanelVisibilityMode>
   >({});
+  const [nodeFocusRequests, setNodeFocusRequests] = useState<Record<string, NodeFocusRequest>>({});
   const [canvasZoom, setCanvasZoom] = useState(0.8);
   const [focusRequest, setFocusRequest] = useState<PanelFocusRequest | null>(null);
   const canvasViewportRef = useRef<HTMLDivElement | null>(null);
@@ -1226,7 +1246,8 @@ export function ResultsPane({
     setPanelOrder((current) => bringPanelToFront(current, panelId));
   }
 
-  function focusAndTrackPanel(panelId: string) {
+  function focusAndTrackPanel(target: TraceReferenceTarget) {
+    const { panelId, itemId } = target;
     setPanelVisibilityModes((current) => {
       if ((current[panelId] ?? "open") === "open") {
         return current;
@@ -1238,6 +1259,15 @@ export function ResultsPane({
     });
     focusPanel(panelId);
     focusRequestCounterRef.current += 1;
+    if (itemId) {
+      setNodeFocusRequests((current) => ({
+        ...current,
+        [panelId]: {
+          itemId,
+          token: focusRequestCounterRef.current,
+        },
+      }));
+    }
     setFocusRequest({
       panelId,
       token: focusRequestCounterRef.current,
@@ -1270,7 +1300,7 @@ export function ResultsPane({
       ...current,
       [panelId]: "open",
     }));
-    focusAndTrackPanel(panelId);
+    focusAndTrackPanel({ panelId });
   }
 
   function registerPanelElement(panelId: string, node: HTMLElement | null) {
@@ -1566,6 +1596,7 @@ export function ResultsPane({
                 requestFitView={requestFitView}
                 trackingEnabled={trackingModes[panel.id] ?? true}
                 toggleTracking={toggleTracking}
+                nodeFocusRequest={nodeFocusRequests[panel.id] ?? null}
                 zIndex={20 + index}
                 onFocusPanel={focusPanel}
                 onReferenceClick={focusAndTrackPanel}

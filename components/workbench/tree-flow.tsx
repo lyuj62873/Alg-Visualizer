@@ -13,7 +13,7 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { TracePanel } from "./mock-trace";
+import { TracePanel, TraceReferenceTarget } from "./mock-trace";
 
 type TreeNodeData = {
   label: string;
@@ -21,8 +21,9 @@ type TreeNodeData = {
   shape?: "circle" | "pill";
   containsActive?: boolean;
   targetPanelId?: string;
+  targetItemId?: string;
   clickable?: boolean;
-  onReferenceClick?: (panelId: string) => void;
+  onReferenceClick?: (target: TraceReferenceTarget) => void;
 };
 
 type TreeNodeModel = Node<TreeNodeData, "treeNode">;
@@ -33,7 +34,8 @@ type TreeFlowProps = {
   onScaleChange: (nextScale: number) => void;
   fitRequestToken: number;
   trackingEnabled: boolean;
-  onReferenceClick: (panelId: string) => void;
+  onReferenceClick: (target: TraceReferenceTarget) => void;
+  focusItemRequest: { itemId: string; token: number } | null;
 };
 
 const nodeTypes: NodeTypes = {
@@ -77,7 +79,10 @@ function TreeNode({ data }: NodeProps<TreeNodeModel>) {
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            data.onReferenceClick?.(data.targetPanelId!);
+            data.onReferenceClick?.({
+              panelId: data.targetPanelId!,
+              itemId: data.targetItemId,
+            });
           }}
           className="nodrag nopan select-none whitespace-nowrap rounded px-1 hover:underline"
         >
@@ -125,6 +130,8 @@ function TreeViewportSync({
   onScaleChange,
   trackingEnabled,
   activeNodeFocus,
+  focusItemRequest,
+  itemCenterById,
   isListPanel,
 }: {
   scale: number;
@@ -134,12 +141,15 @@ function TreeViewportSync({
   onScaleChange: (nextScale: number) => void;
   trackingEnabled: boolean;
   activeNodeFocus: { id: string; x: number; y: number } | null;
+  focusItemRequest: { itemId: string; token: number } | null;
+  itemCenterById: Map<string, { x: number; y: number }>;
   isListPanel: boolean;
 }) {
   const reactFlow = useReactFlow();
   const lastFitRequestRef = useRef<number>(fitRequestToken);
   const lastAppliedScaleRef = useRef<number | null>(null);
   const lastTrackedNodeRef = useRef<string | null>(null);
+  const lastFocusedItemTokenRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!size.width || !size.height || !nodeCount) return;
@@ -228,6 +238,35 @@ function TreeViewportSync({
     return () => window.cancelAnimationFrame(rafId);
   }, [activeNodeFocus, isListPanel, nodeCount, reactFlow, size.height, size.width, trackingEnabled]);
 
+  useEffect(() => {
+    if (!focusItemRequest || !size.width || !size.height || !nodeCount) return;
+    if (lastFocusedItemTokenRef.current === focusItemRequest.token) {
+      return;
+    }
+
+    const targetCenter = itemCenterById.get(focusItemRequest.itemId);
+    if (!targetCenter) {
+      lastFocusedItemTokenRef.current = focusItemRequest.token;
+      return;
+    }
+
+    const rafId = window.requestAnimationFrame(() => {
+      const viewport = reactFlow.getViewport();
+      const zoom = viewport.zoom;
+      reactFlow.setViewport(
+        {
+          x: size.width / 2 - targetCenter.x * zoom,
+          y: size.height / 2 - targetCenter.y * zoom,
+          zoom,
+        },
+        { duration: 180 },
+      );
+      lastFocusedItemTokenRef.current = focusItemRequest.token;
+    });
+
+    return () => window.cancelAnimationFrame(rafId);
+  }, [focusItemRequest, itemCenterById, nodeCount, reactFlow, size.height, size.width]);
+
   return null;
 }
 
@@ -238,6 +277,7 @@ export function NodeFlowViewport({
   fitRequestToken,
   trackingEnabled,
   onReferenceClick,
+  focusItemRequest,
 }: TreeFlowProps) {
   const { ref, size } = useElementSize<HTMLDivElement>();
   const layoutWidth = panel.layoutWidth ?? TREE_LAYOUT_WIDTH;
@@ -258,6 +298,7 @@ export function NodeFlowViewport({
         shape: item.shape,
         containsActive: item.containsActive,
         targetPanelId: item.targetPanelId,
+        targetItemId: item.targetItemId,
         clickable: item.clickable,
         onReferenceClick,
       },
@@ -300,6 +341,20 @@ export function NodeFlowViewport({
       y: centerY,
     };
   }, [isListPanel, layoutHeight, layoutWidth, panel.items]);
+
+  const itemCenterById = useMemo(
+    () =>
+      new Map(
+        panel.items.map((item) => {
+          const baseX = isListPanel ? item.x : (item.x / 100) * layoutWidth;
+          const baseY = isListPanel ? item.y : (item.y / 100) * layoutHeight;
+          const centerX = baseX + (item.shape === "pill" ? 28 : 20);
+          const centerY = baseY + (item.shape === "pill" ? 22 : 20);
+          return [item.id, { x: centerX, y: centerY }] as const;
+        }),
+      ),
+    [isListPanel, layoutHeight, layoutWidth, panel.items],
+  );
 
   const initialEdges = useMemo(
     () =>
@@ -381,6 +436,8 @@ export function NodeFlowViewport({
             onScaleChange={onScaleChange}
             trackingEnabled={trackingEnabled}
             activeNodeFocus={activeNodeFocus}
+            focusItemRequest={focusItemRequest}
+            itemCenterById={itemCenterById}
             isListPanel={isListPanel}
           />
           <Background

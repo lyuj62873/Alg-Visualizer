@@ -26,6 +26,7 @@ export type TraceContentCell =
       kind: "ref";
       label: string;
       targetPanelId?: string;
+      targetItemId?: string;
       clickable?: boolean;
       tone?: "default" | "active";
       containsActive?: boolean;
@@ -57,7 +58,13 @@ export type TraceVisualItem = {
   tone?: "default" | "active";
   containsActive?: boolean;
   targetPanelId?: string;
+  targetItemId?: string;
   clickable?: boolean;
+};
+
+export type TraceReferenceTarget = {
+  panelId: string;
+  itemId?: string;
 };
 
 type TracePanelBase = {

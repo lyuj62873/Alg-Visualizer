@@ -580,6 +580,7 @@ def _visual_item_value_fields(
     }
     if cell["kind"] == "ref":
         fields["targetPanelId"] = cell.get("targetPanelId")
+        fields["targetItemId"] = cell.get("targetItemId")
         fields["clickable"] = cell.get("clickable", False)
     if contains_active:
         fields["containsActive"] = True
@@ -1939,6 +1940,7 @@ class _TreePanel(_VisObject):
         return {
             "label": getattr(node, "_display_name", None) or ref["title"],
             "targetPanelId": ref["panelId"],
+            "targetItemId": node._id,
             "clickable": True,
         }
 
@@ -2344,6 +2346,7 @@ class _ListPanel(_VisObject):
         return {
             "label": getattr(node, "_display_name", None) or ref["title"],
             "targetPanelId": ref["panelId"],
+            "targetItemId": node._id,
             "clickable": True,
         }
 
