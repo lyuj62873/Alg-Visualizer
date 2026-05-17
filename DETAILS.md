@@ -236,7 +236,7 @@ Current top-level learning surfaces:
 
 Current `Examples`:
 
-- `LCS`
+- `Longest Common Subsequence`
 - `Group Anagrams`
 - `Path Sum III`
 - `LRU Cache`

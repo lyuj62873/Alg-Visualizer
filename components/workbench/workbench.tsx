@@ -52,7 +52,7 @@ export function Workbench() {
 
   const exampleItems = [
     {
-      label: "LCS",
+      label: "Longest Common Subsequence",
       description: "2D dynamic programming with a VisArray table and a few watched values",
       path: "/examples/lcs-example.py",
     },

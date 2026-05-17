@@ -394,7 +394,7 @@ Current unfinished TODOs:
    - a workflow-oriented `User Guide`
    - problem-oriented `Examples`
    - a `Vis API` menu that replaces the old `Guides`
-9. the current teaching examples are `LCS`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`
+9. the current teaching examples are `Longest Common Subsequence`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`
 10. the `User Guide` quick-start now uses `Longest Substring Without Repeating Characters`, and the `VisObject` material explicitly states that inner fields are only visualized when users rewrite them into `VisXxx`
 11. the runtime now preinjects a fixed namespace so all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq` are available without manual imports
 12. `VisArray` now supports a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support

@@ -10,6 +10,7 @@ class Solution:
         if node is None:
             return 0
 
+        watch("current_node_value", node.val)
         running_sum += node.val
         watch("running_sum", running_sum)
 

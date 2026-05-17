@@ -91,7 +91,7 @@ Top navigation currently contains:
 
 ## Current Example Inventory
 Current built-in examples:
-- `LCS`
+- `Longest Common Subsequence`
   - fill a 2D `VisArray` DP table for the longest common subsequence problem
 - `Group Anagrams`
   - use a `VisMap` whose values point to nested sequence panels
@@ -202,7 +202,7 @@ Known remaining gaps are narrower now:
    The strongest candidate discussed so far is a two-pass runtime-assisted rewrite: run the original code once to capture runtime types on marked lines, then rewrite only those marked assignments into `VisXxx` constructions or `VisObject(...)` wrappers for a second run.
    This is still deferred because the system visualizes explicit object instances rather than variable names, so variable rebinding and later type changes could make the rewritten run diverge from the user's mental model.
 5. The in-page learning content now uses four clearer surfaces: a minimal default editor template, a workflow-oriented `User Guide`, problem-oriented `Examples`, and a `Vis API` menu for per-class usage reference.
-6. The current teaching examples are `LCS`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`; the `VisObject` material explicitly states that inner fields are only visualized when users rewrite them to `VisXxx`.
+6. The current teaching examples are `Longest Common Subsequence`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`; the `VisObject` material explicitly states that inner fields are only visualized when users rewrite them to `VisXxx`.
 7. The runtime now preinjects all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq`, so users do not have to manage those imports manually.
 8. `VisArray` now has a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support for custom ordering examples.
 9. The `Vis API` dropdown is scrollable so the longer API list stays inside the viewport.

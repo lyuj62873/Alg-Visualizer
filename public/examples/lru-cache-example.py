@@ -2,85 +2,101 @@
 # Goal:
 # - show a custom object panel through VisObject
 # - keep the cache state in visualized child structures
-# - emphasize that VisObject does not auto-convert ordinary inner containers
+# - stay close to the standard doubly linked list + hash map solution
 
 from dsviz import VisListNode, VisMap, VisObject, delVis, watch
 
 
+class DLinkedNode(VisListNode):
+    def __init__(self, key=0, value=0):
+        super().__init__((key, value))
+        self.key = key
+        self.value = value
+        self.prev = None
+        self.next = None
+
+    @property
+    def next(self):
+        return self.right
+
+    @next.setter
+    def next(self, node):
+        self.right = node
+
+    def set_value(self, value):
+        self.value = value
+        self.val = (self.key, value)
+
+
 class LRUCache:
-    def __init__(self, capacity):
+    def __init__(self, capacity: int):
+        self.cache = VisMap({}, name="cache")
+        # Use pseudo head and pseudo tail nodes.
+        self.head = DLinkedNode()
+        self.tail = DLinkedNode()
+        self.head.next = self.tail
+        self.tail.prev = self.head
         self.capacity = capacity
-        self.nodes = VisMap({}, name="nodes")
-        self.head = VisListNode("HEAD")
-        self.tail = self.head
+        self.size = 0
 
-        # This stays a normal Python dict on purpose.
-        # VisObject only shows the fields we explicitly rewrite to VisXxx.
-        self._prev = {}
-
-    def _append_to_tail(self, node):
-        node.right = None
-        self.tail.right = node
-        self._prev[node.val[0]] = self.tail
-        self.tail = node
-
-    def _detach(self, key):
-        prev = self._prev[key]
-        node = prev.right
-        next_node = node.right
-
-        prev.right = next_node
-        if next_node is None:
-            self.tail = prev
-        else:
-            self._prev[next_node.val[0]] = prev
-
-        del self._prev[key]
-        node.right = None
-        return node
-
-    def _move_to_tail(self, key):
-        node = self.nodes[key]
-        if node is self.tail:
-            return
-        moved = self._detach(key)
-        self._append_to_tail(moved)
-
-    def get(self, key):
-        if key not in self.nodes:
+    def get(self, key: int) -> int:
+        if key not in self.cache:
             return -1
-        self._move_to_tail(key)
-        return self.nodes[key].val[1]
+        # If the key exists, move the node to the head first.
+        node = self.cache[key]
+        self.moveToHead(node)
+        return node.value
 
-    def put(self, key, value):
-        if key in self.nodes:
-            node = self.nodes[key]
-            node.val = (key, value)
-            self._move_to_tail(key)
-            return
+    def put(self, key: int, value: int) -> None:
+        if key not in self.cache:
+            # If the key does not exist, create a new node.
+            node = DLinkedNode(key, value)
+            # Insert it into the hash map.
+            self.cache[key] = node
+            # Insert it at the head of the doubly linked list.
+            self.addToHead(node)
+            self.size += 1
+            if self.size > self.capacity:
+                # Remove the tail node if the capacity is exceeded.
+                removed = self.removeTail()
+                # Remove the corresponding entry from the hash map.
+                self.cache.pop(removed.key)
+                delVis(removed)
+                self.size -= 1
+                watch("evicted", removed.key)
+        else:
+            # If the key exists, update the value and move it to the head.
+            node = self.cache[key]
+            node.set_value(value)
+            self.moveToHead(node)
 
-        if len(self.nodes) == self.capacity:
-            lru = self.head.right
-            lru_key = lru.val[0]
-            self._detach(lru_key)
-            del self.nodes[lru_key]
-            delVis(lru)
-            watch("evicted", lru_key)
+    def addToHead(self, node):
+        node.prev = self.head
+        node.next = self.head.next
+        self.head.next.prev = node
+        self.head.next = node
 
-        node = VisListNode((key, value))
-        self.nodes[key] = node
-        self._append_to_tail(node)
+    def removeNode(self, node):
+        node.prev.next = node.next
+        node.next.prev = node.prev
+
+    def moveToHead(self, node):
+        self.removeNode(node)
+        self.addToHead(node)
+
+    def removeTail(self):
+        node = self.tail.prev
+        self.removeNode(node)
+        return node
 
 
 class Solution:
     def solve(self):
         # Important:
-        # VisObject only wraps the outer custom object. It does not automatically
-        # convert ordinary inner containers, so the fields we want to inspect
-        # (`nodes`, `head`, and `tail`) are manually rewritten to VisXxx in
-        # LRUCache. The helper `_prev` dict stays ordinary Python state.
+        # VisObject only wraps the outer custom object. The internal structures
+        # that should become child panels still need to be rewritten manually.
         cache = LRUCache(2)
-        cache_panel = VisObject(cache, name="cache")
+        cache_panel = VisObject(cache, name="cache_view")
 
         cache.put(1, 10)
         cache.put(2, 20)
@@ -90,7 +106,7 @@ class Solution:
         watch("get_3", cache.get(3))
 
         _ = cache_panel
-        return len(cache.nodes)
+        return cache.size
 
 
 def run_case():

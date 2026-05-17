@@ -282,7 +282,7 @@ Remaining follow-up:
 - the most promising version discussed so far is a two-pass runtime-assisted rewrite: execute the original code once to capture runtime types on marked lines, then rewrite only those marked assignments into `VisXxx` constructions or `VisObject(...)` wrappers for a second run
 - this is intentionally deferred because the runtime currently visualizes explicit object instances rather than variable names, so variable rebinding and later type changes could make the rewritten run diverge from the user's mental model
 - the in-page learning content now uses a minimal default editor template, a workflow-oriented `User Guide`, problem-oriented `Examples`, and a `Vis API` menu in place of the old `Guides`
-- the current first-wave teaching examples are `LCS`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`
+- the current first-wave teaching examples are `Longest Common Subsequence`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`
 - the runtime namespace is fixed and preinjected with all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq`
 - `VisArray` now has a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support
 
@@ -295,7 +295,7 @@ The current single-page workbench contains:
 - top-level `User Guide`, `Examples`, and `Vis API` menus
 
 Current built-in `Examples`:
-- `LCS`
+- `Longest Common Subsequence`
 - `Group Anagrams`
 - `Path Sum III`
 - `LRU Cache`
