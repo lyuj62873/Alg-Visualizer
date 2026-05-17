@@ -1921,9 +1921,10 @@ class _TreePanel(_VisObject):
         return removed
 
     def _node_reference_payload(self, node: VisTreeNode) -> Optional[Dict[str, Any]]:
+        label = getattr(node, "_display_name", None) or _safe_str(getattr(node, "val", None))
         if not getattr(node, "_is_visualized", False):
             return {
-                "label": getattr(node, "_display_name", None) or node._id,
+                "label": label,
                 "targetPanelId": None,
                 "clickable": False,
             }
@@ -1938,7 +1939,7 @@ class _TreePanel(_VisObject):
             return None
 
         return {
-            "label": getattr(node, "_display_name", None) or ref["title"],
+            "label": label,
             "targetPanelId": ref["panelId"],
             "targetItemId": node._id,
             "clickable": True,
@@ -2327,9 +2328,10 @@ class _ListPanel(_VisObject):
         return removed
 
     def _node_reference_payload(self, node: VisListNode) -> Optional[Dict[str, Any]]:
+        label = getattr(node, "_display_name", None) or _safe_str(getattr(node, "val", None))
         if not getattr(node, "_is_visualized", False):
             return {
-                "label": getattr(node, "_display_name", None) or node._id,
+                "label": label,
                 "targetPanelId": None,
                 "clickable": False,
             }
@@ -2344,7 +2346,7 @@ class _ListPanel(_VisObject):
             return None
 
         return {
-            "label": getattr(node, "_display_name", None) or ref["title"],
+            "label": label,
             "targetPanelId": ref["panelId"],
             "targetItemId": node._id,
             "clickable": True,

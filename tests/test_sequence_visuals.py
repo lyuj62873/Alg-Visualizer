@@ -193,6 +193,18 @@ class SequenceVisualTests(unittest.TestCase):
         self.assertTrue(panel["cells"][1]["targetPanelId"].startswith("list_panel_"))
         self.assertEqual(panel["cells"][1]["targetItemId"], head._id)
 
+    def test_anonymous_list_node_reference_uses_node_value_label(self):
+        graph = VisMap({"entry": VisListNode(("k", 1))}, name="graph")
+        panel = next(
+            panel
+            for panel in export_trace()["frames"][-1]["panels"]
+            if panel["typeLabel"] == "VisMap" and panel["title"] == "graph"
+        )
+
+        entry = next(item for item in panel["entries"] if item["key"]["label"] == "entry")
+        self.assertEqual(entry["value"]["kind"], "ref")
+        self.assertEqual(entry["value"]["label"], "('k', 1)")
+
     def test_map_list_map_cycle_renders_as_references(self):
         outer = VisMap(name="outer")
         head = VisListNode("placeholder")
