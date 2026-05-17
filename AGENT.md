@@ -191,7 +191,6 @@ Still out of scope for v3:
 - backend execution
 - Java support
 - automatic debugger-style introspection for arbitrary Python state
-- production-grade layout polish for every visualization edge case
 
 ## Known v3 Gaps
 Known remaining gaps are narrower now:

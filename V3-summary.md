@@ -277,12 +277,6 @@ Implemented:
 
 These were later replaced in the user-facing menu by `User Guide`, the newer teaching `Examples`, and `Vis API`.
 
-The `Balanced Rebuild` example demonstrates:
-1. build an unbalanced BST
-2. collect values by inorder traversal into `VisArray`
-3. build a second balanced BST by divide and conquer
-4. keep both trees visible in separate panels during replay
-
 Relevant files:
 - `public/examples/vis-array-example.py`
 - `public/examples/vis-array-multidim-example.py`
@@ -331,8 +325,9 @@ The following were explicitly checked during implementation:
 - `VisStack` / `VisQueue` / `VisDeque` / `VisSet` / `VisHeap` operations run successfully in Python
 - `VisTreeNode` example runs
 - `VisListNode` example runs
-- `Balanced Rebuild` runs and emits a large trace
-- `Delete Duplicates` runs and emits a linked-list trace
+- `Longest Common Subsequence` runs as a 2D DP example
+- `Path Sum III` runs as a tree-plus-map example
+- `LRU Cache` runs as a `VisObject` example
 - canvas-only panel tracking math is covered by `Vitest`
 - default array panel height rules for 2D / 3D / higher-dimensional arrays are covered by Python `unittest`
 - TypeScript type check passes
@@ -382,26 +377,10 @@ Reference naming rule:
 The old drag / resize blockers are no longer the main TODOs. Remaining work is now narrower and more product-shaping.
 
 Current unfinished TODOs:
-1. extend the shared panel / reference contract from `VisArray`, `VisMap`, and the sequence-style structures to the remaining visual families
-2. extend the reference-first nesting model from `VisMap` and the sequence-style structures to those remaining structures
-3. extend the minimal `VisObject` wrapper with richer field ordering, relabeling, and field-hiding controls
-4. discuss feasibility with the user first, then consider an editor gutter "eye" workflow that lets users click an assignment line number to request assisted visualization insertion
-5. the strongest future direction discussed so far is a two-pass runtime-assisted rewrite: run the original code first to learn runtime types on marked lines, then rewrite only those marked assignments into `VisXxx` constructions or `VisObject(...)` wrappers for a second run
-6. that direction is intentionally deferred for now because the product visualizes explicit object instances rather than variable names, and variable rebinding or later type changes could make the rewritten run diverge from what users think they marked
-7. if revisited later, the feature should stay opt-in, limited to narrow assignment forms, and conservative around ambiguous Python containers such as `list` and `deque`
-8. the in-page learning content is now split into four clearer surfaces:
-   - a minimal default editor template that explains `class Solution`, `def run_case()`, and points to `User Guide`, `Examples`, and `Vis API`
-   - a workflow-oriented `User Guide`
-   - problem-oriented `Examples`
-   - a `Vis API` menu that replaces the old `Guides`
-9. the current teaching examples are `Longest Common Subsequence`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`
-10. the `User Guide` quick-start now uses `Longest Substring Without Repeating Characters`, and the `VisObject` material explicitly states that inner fields are only visualized when users rewrite them into `VisXxx`
-11. the runtime now preinjects a fixed namespace so all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq` are available without manual imports
-12. `VisArray` now supports a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support
-13. the `Vis API` dropdown now scrolls within the viewport instead of overflowing the page
-14. further tune compact layout defaults for extreme traces, long labels, and unusual density
-15. revisit an editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
-16. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
+1. extend the minimal `VisObject` wrapper with richer field ordering, relabeling, and field-hiding controls
+2. further tune compact layout defaults for extreme traces, long labels, and unusual density
+3. revisit a lighter editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
+4. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
 
 These TODOs are the right next-agent starting point before any new broad feature branch.
 
