@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { EditorPane } from "./editor-pane";
 
 function buildTranslatePrompt(code: string) {
   return `You are translating code for AlgoLens.
@@ -19,7 +21,9 @@ Output requirements:
 - Do not wrap the answer in markdown fences.
 
 Source code:
-${code}`;
+\`\`\`
+${code}
+\`\`\``;
 }
 
 function buildRewritePrompt(code: string) {
@@ -74,7 +78,9 @@ Small reference examples:
   cache_view = VisObject(cache)
 
 Code to rewrite:
-${code}`;
+\`\`\`python
+${code}
+\`\`\``;
 }
 
 type CopyState = "idle" | "copied" | "error";
@@ -132,8 +138,14 @@ export function AIAssistPanel({
   code: string;
   onClose: () => void;
 }) {
+  const [markedCode, setMarkedCode] = useState(code);
+
+  useEffect(() => {
+    setMarkedCode(code);
+  }, [code]);
+
   const translatePrompt = useMemo(() => buildTranslatePrompt(code), [code]);
-  const rewritePrompt = useMemo(() => buildRewritePrompt(code), [code]);
+  const rewritePrompt = useMemo(() => buildRewritePrompt(markedCode), [markedCode]);
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4 py-6">
@@ -178,30 +190,16 @@ export function AIAssistPanel({
                 <li>AlgoLens does not call any external AI provider in this flow.</li>
               </ul>
             </section>
-
-            <section className="rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-[#111827]">Current Conventions</h3>
-              <div className="mt-3 space-y-2 text-sm leading-6 text-[#4b5563]">
-                <p><code>VisQueue</code> and <code>VisDeque</code> should use <code>collections.deque</code>.</p>
-                <p><code>VisHeap</code> should use <code>list + heapq</code>, not a custom heap object.</p>
-                <p><code>VisObject</code> wraps a real custom instance; it does not replace the original object semantics.</p>
-                <p><code>VisObject</code> does not recursively convert ordinary inner containers.</p>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-[#111827]">Future Marker Format</h3>
-              <p className="mt-3 text-sm leading-6 text-[#4b5563]">
-                The planned lightweight annotation format is:
-              </p>
-              <pre className="mt-3 overflow-auto rounded-xl bg-[#111827] px-3 py-3 text-xs text-[#e5e7eb]">
-{`# algolens: visualize
-arr = []`}
-              </pre>
-              <p className="mt-3 text-sm leading-6 text-[#6b7280]">
-                This is a request to the AI, not a forced rewrite instruction.
-              </p>
-            </section>
+            <EditorPane
+              code={markedCode}
+              onCodeChange={setMarkedCode}
+              onResetCode={() => setMarkedCode(code)}
+              enableVisualizationMarkers
+              readOnly
+              showResetButton={false}
+              fileLabel="ai_assist.py"
+              minHeightPx={520}
+            />
           </div>
         </div>
       </div>

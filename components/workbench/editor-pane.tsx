@@ -39,11 +39,21 @@ export function EditorPane({
   onCodeChange,
   onResetCode,
   activeLine,
+  enableVisualizationMarkers = false,
+  readOnly = false,
+  showResetButton = true,
+  fileLabel = "solution.py",
+  minHeightPx = 720,
 }: {
   code: string;
   onCodeChange: (value: string) => void;
   onResetCode: () => void;
   activeLine?: number | null;
+  enableVisualizationMarkers?: boolean;
+  readOnly?: boolean;
+  showResetButton?: boolean;
+  fileLabel?: string;
+  minHeightPx?: number;
 }) {
   const editorHostRef = useRef<HTMLDivElement | null>(null);
   const [editorHeightPx, setEditorHeightPx] = useState(640);
@@ -127,6 +137,10 @@ export function EditorPane({
     monacoApi: typeof Monaco | null,
   ) {
     if (!monacoApi) {
+      return;
+    }
+    if (!enableVisualizationMarkers) {
+      markerDecorationIdsRef.current = editor.deltaDecorations(markerDecorationIdsRef.current, []);
       return;
     }
     const model = editor.getModel();
@@ -231,6 +245,7 @@ export function EditorPane({
     editor.onKeyDown((event) => {
       if (
         event.browserEvent.code === "Space" &&
+        !readOnly &&
         !event.browserEvent.altKey &&
         !event.browserEvent.ctrlKey &&
         !event.browserEvent.metaKey
@@ -243,6 +258,9 @@ export function EditorPane({
       syncVisualizationMarkers(editor, monacoApi);
     });
     editor.onMouseDown((event) => {
+      if (!enableVisualizationMarkers) {
+        return;
+      }
       if (event.target.type !== monacoApi.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
         return;
       }
@@ -262,39 +280,52 @@ export function EditorPane({
   useEffect(() => {
     if (!editorRef.current || !monacoRef.current) return;
     syncVisualizationMarkers(editorRef.current, monacoRef.current);
-  }, [code]);
+  }, [code, enableVisualizationMarkers]);
 
   return (
-    <section className="flex h-full min-h-[720px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#d1d5db] bg-[#1e1e1e] shadow-sm">
+    <section
+      className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#d1d5db] bg-[#1e1e1e] shadow-sm"
+      style={{ minHeight: `${minHeightPx}px` }}
+    >
       <div className="flex items-center justify-between border-b border-white/10 bg-[#262626] px-4 py-3 text-sm text-[#d1d5db]">
         <div className="flex items-center gap-3">
           <span className="rounded-md bg-[#111827] px-2 py-1 text-xs font-medium text-[#9ca3af]">
-            solution.py
+            {fileLabel}
           </span>
         </div>
-        <div className="flex items-center gap-2 text-xs text-[#9ca3af]">
-          <button
-            type="button"
-            onClick={onResetCode}
-            className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-[#232323] px-2 py-1 text-xs text-[#d1d5db] hover:bg-[#2b2b2b]"
-            title="Reset to the default Solution / run_case() template"
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 16 16"
-              className="h-3.5 w-3.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        {showResetButton ? (
+          <div className="flex items-center gap-2 text-xs text-[#9ca3af]">
+            <button
+              type="button"
+              onClick={onResetCode}
+              className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-[#232323] px-2 py-1 text-xs text-[#d1d5db] hover:bg-[#2b2b2b]"
+              title="Reset to the default Solution / run_case() template"
             >
-              <path d="M13 3v4H9" />
-              <path d="M13 7a5 5 0 1 1-1.46-3.54L13 5" />
-            </svg>
-            Reset
-          </button>
-        </div>
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 16 16"
+                className="h-3.5 w-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M13 3v4H9" />
+                <path d="M13 7a5 5 0 1 1-1.46-3.54L13 5" />
+              </svg>
+              Reset
+            </button>
+          </div>
+        ) : (
+          <div className="text-xs text-[#9ca3af]">
+            {enableVisualizationMarkers
+              ? "Click the eye icon on assignment lines to mark AI candidates."
+              : readOnly
+                ? "Read-only"
+                : null}
+          </div>
+        )}
       </div>
 
       <div ref={editorHostRef} className="h-[640px] flex-1 overflow-hidden xl:h-full">
@@ -313,10 +344,11 @@ export function EditorPane({
             scrollBeyondLastLine: false,
             padding: { top: 16, bottom: 16 },
             lineNumbersMinChars: 3,
-            glyphMargin: true,
+            glyphMargin: enableVisualizationMarkers,
             folding: false,
             renderLineHighlight: "line",
             tabSize: 4,
+            readOnly,
           }}
         />
       </div>
