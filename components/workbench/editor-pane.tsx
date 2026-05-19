@@ -41,6 +41,7 @@ export function EditorPane({
   activeLine,
   enableVisualizationMarkers = false,
   readOnly = false,
+  markerOnlyMode = false,
   showResetButton = true,
   fileLabel = "solution.py",
   minHeightPx = 720,
@@ -51,6 +52,7 @@ export function EditorPane({
   activeLine?: number | null;
   enableVisualizationMarkers?: boolean;
   readOnly?: boolean;
+  markerOnlyMode?: boolean;
   showResetButton?: boolean;
   fileLabel?: string;
   minHeightPx?: number;
@@ -61,6 +63,12 @@ export function EditorPane({
   const monacoRef = useRef<typeof Monaco | null>(null);
   const activeDecorationIdsRef = useRef<string[]>([]);
   const markerDecorationIdsRef = useRef<string[]>([]);
+  const markerEditInProgressRef = useRef(false);
+  const latestCodeRef = useRef(code);
+
+  useEffect(() => {
+    latestCodeRef.current = code;
+  }, [code]);
 
   useEffect(() => {
     const host = editorHostRef.current;
@@ -192,6 +200,7 @@ export function EditorPane({
     const indentation = getLineIndentation(line);
     const markerLine = `${indentation}${VISUALIZE_MARKER_COMMENT}`;
 
+    markerEditInProgressRef.current = true;
     editor.pushUndoStop();
     if (markerAbove) {
       editor.executeEdits("algolens-visualize-toggle", [
@@ -211,6 +220,9 @@ export function EditorPane({
     editor.pushUndoStop();
     syncVisualizationMarkers(editor, monacoApi);
     onCodeChange(editor.getValue());
+    window.setTimeout(() => {
+      markerEditInProgressRef.current = false;
+    }, 0);
   }
 
   function applyLineHighlight(
@@ -243,6 +255,28 @@ export function EditorPane({
     applyLineHighlight(editor, monacoApi, activeLine);
     syncVisualizationMarkers(editor, monacoApi);
     editor.onKeyDown((event) => {
+      if (markerOnlyMode) {
+        const allowedNavigationKeys = new Set([
+          "ArrowUp",
+          "ArrowDown",
+          "ArrowLeft",
+          "ArrowRight",
+          "PageUp",
+          "PageDown",
+          "Home",
+          "End",
+          "Escape",
+        ]);
+        const code = event.browserEvent.code;
+        const isCopyShortcut =
+          (event.browserEvent.ctrlKey || event.browserEvent.metaKey) &&
+          ["KeyC", "KeyA"].includes(code);
+        if (!allowedNavigationKeys.has(code) && !isCopyShortcut) {
+          event.preventDefault();
+          return;
+        }
+      }
+
       if (
         event.browserEvent.code === "Space" &&
         !readOnly &&
@@ -255,13 +289,23 @@ export function EditorPane({
       }
     });
     editor.onDidChangeModelContent(() => {
+      if (markerOnlyMode && !markerEditInProgressRef.current) {
+        editor.setValue(latestCodeRef.current);
+        syncVisualizationMarkers(editor, monacoApi);
+        return;
+      }
       syncVisualizationMarkers(editor, monacoApi);
     });
     editor.onMouseDown((event) => {
       if (!enableVisualizationMarkers) {
         return;
       }
-      if (event.target.type !== monacoApi.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
+      const gutterTargets = new Set([
+        monacoApi.editor.MouseTargetType.GUTTER_GLYPH_MARGIN,
+        monacoApi.editor.MouseTargetType.GUTTER_LINE_DECORATIONS,
+        monacoApi.editor.MouseTargetType.GUTTER_LINE_NUMBERS,
+      ]);
+      if (!gutterTargets.has(event.target.type)) {
         return;
       }
       const lineNumber = event.target.position?.lineNumber;
@@ -348,8 +392,9 @@ export function EditorPane({
             folding: false,
             renderLineHighlight: "line",
             tabSize: 4,
-            readOnly,
-          }}
+            readOnly: markerOnlyMode ? false : readOnly,
+            domReadOnly: markerOnlyMode ? true : readOnly,
+            }}
         />
       </div>
     </section>
