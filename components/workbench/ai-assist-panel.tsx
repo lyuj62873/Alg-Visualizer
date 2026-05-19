@@ -175,9 +175,22 @@ export function AIAssistPanel({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-[#d1d5db] bg-white px-3 py-2 text-sm text-[#374151] hover:bg-[#f9fafb]"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#d1d5db] bg-white text-[#374151] hover:bg-[#f9fafb]"
+            aria-label="Close AI Assist"
+            title="Close AI Assist"
           >
-            Close
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 16 16"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            >
+              <path d="M4 4l8 8" />
+              <path d="M12 4l-8 8" />
+            </svg>
           </button>
         </div>
 
