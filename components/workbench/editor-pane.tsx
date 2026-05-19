@@ -86,6 +86,10 @@ export function EditorPane({
     return () => ro.disconnect();
   }, []);
 
+  const fixedHeightStyle = markerOnlyMode
+    ? { height: `${minHeightPx}px`, minHeight: `${minHeightPx}px` }
+    : { minHeight: `${minHeightPx}px` };
+
   function getLineIndentation(line: string) {
     const match = line.match(/^\s*/);
     return match?.[0] ?? "";
@@ -328,8 +332,10 @@ export function EditorPane({
 
   return (
     <section
-      className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#d1d5db] bg-[#1e1e1e] shadow-sm"
-      style={{ minHeight: `${minHeightPx}px` }}
+      className={`flex min-w-0 flex-col overflow-hidden rounded-xl border border-[#d1d5db] bg-[#1e1e1e] shadow-sm ${
+        markerOnlyMode ? "" : "h-full flex-1"
+      }`}
+      style={fixedHeightStyle}
     >
       <div className="flex items-center justify-between border-b border-white/10 bg-[#262626] px-4 py-3 text-sm text-[#d1d5db]">
         <div className="flex items-center gap-3">
@@ -372,7 +378,10 @@ export function EditorPane({
         )}
       </div>
 
-      <div ref={editorHostRef} className="h-[640px] flex-1 overflow-hidden xl:h-full">
+      <div
+        ref={editorHostRef}
+        className={`overflow-hidden ${markerOnlyMode ? "h-full min-h-0" : "h-[640px] flex-1 xl:h-full"}`}
+      >
         <MonacoEditor
           height={`${editorHeightPx}px`}
           defaultLanguage="python"
