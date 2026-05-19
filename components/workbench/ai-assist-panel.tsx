@@ -53,6 +53,7 @@ Important constraints:
 
 AlgoLens conventions you must follow:
 - VisArray wraps Python list
+- VisArray already supports multidimensional Python lists
 - VisStack also uses Python list
 - VisQueue must use collections.deque
 - VisDeque must use collections.deque
@@ -63,6 +64,9 @@ AlgoLens conventions you must follow:
 - VisTreeNode and VisListNode are node classes, not container wrappers
 
 Specific rewrite rules:
+- For 2D or higher-dimensional arrays, wrap only the outermost list in VisArray.
+- Keep inner rows / slices as normal nested Python lists unless they should become separate visualized objects for a specific reason.
+- Do not rewrite a matrix like [[1, 2], [3, 4]] into VisArray([VisArray([...]), VisArray([...])]) by default.
 - Do not rewrite queue-like code into list if it should be deque-based.
 - Do not rewrite heap code into a custom heap class; keep list + heapq style.
 - For custom helper classes, do not replace the original object variable with VisObject(...) and then keep calling methods on the wrapper.
@@ -71,6 +75,8 @@ Specific rewrite rules:
 - Use delVis(...) only when explicit visual cleanup is clearly useful.
 
 Small reference examples:
+- 2D array:
+  dp = VisArray([[0] * cols for _ in range(rows)])
 - queue:
   from collections import deque
   q = VisQueue(deque())
