@@ -42,6 +42,7 @@ export function EditorPane({
   enableVisualizationMarkers = false,
   readOnly = false,
   markerOnlyMode = false,
+  fixedHeight = false,
   showResetButton = true,
   fileLabel = "solution.py",
   minHeightPx = 720,
@@ -53,6 +54,7 @@ export function EditorPane({
   enableVisualizationMarkers?: boolean;
   readOnly?: boolean;
   markerOnlyMode?: boolean;
+  fixedHeight?: boolean;
   showResetButton?: boolean;
   fileLabel?: string;
   minHeightPx?: number;
@@ -86,7 +88,7 @@ export function EditorPane({
     return () => ro.disconnect();
   }, []);
 
-  const fixedHeightStyle = markerOnlyMode
+  const fixedHeightStyle = fixedHeight || markerOnlyMode
     ? { height: `${minHeightPx}px`, minHeight: `${minHeightPx}px` }
     : { minHeight: `${minHeightPx}px` };
 
@@ -333,7 +335,7 @@ export function EditorPane({
   return (
     <section
       className={`flex min-w-0 flex-col overflow-hidden rounded-xl border border-[#d1d5db] bg-[#1e1e1e] shadow-sm ${
-        markerOnlyMode ? "" : "h-full flex-1"
+        fixedHeight || markerOnlyMode ? "" : "h-full flex-1"
       }`}
       style={fixedHeightStyle}
     >
@@ -380,7 +382,9 @@ export function EditorPane({
 
       <div
         ref={editorHostRef}
-        className={`overflow-hidden ${markerOnlyMode ? "h-full min-h-0" : "h-[640px] flex-1 xl:h-full"}`}
+        className={`overflow-hidden ${
+          fixedHeight || markerOnlyMode ? "h-full min-h-0" : "h-[640px] flex-1 xl:h-full"
+        }`}
       >
         <MonacoEditor
           height={`${editorHeightPx}px`}

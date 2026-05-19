@@ -205,6 +205,7 @@ export function AIAssistPanel({
               onCodeChange={setMarkedCode}
               onResetCode={() => setMarkedCode(normalizedCode)}
               enableVisualizationMarkers
+              fixedHeight
               showResetButton={false}
               fileLabel="ai_assist.py"
               minHeightPx={520}
