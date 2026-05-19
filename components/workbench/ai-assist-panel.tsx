@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 
 import { EditorPane } from "./editor-pane";
 
+function stripOuterCodeFence(code: string) {
+  const trimmed = code.trim();
+  const match = trimmed.match(/^```(?:[A-Za-z0-9_+-]+)?\n([\s\S]*?)\n```$/);
+  return match ? match[1] : code;
+}
+
 function buildTranslatePrompt(code: string) {
   return `You are translating code for AlgoLens.
 
@@ -140,13 +146,14 @@ export function AIAssistPanel({
   code: string;
   onClose: () => void;
 }) {
-  const [markedCode, setMarkedCode] = useState(code);
+  const normalizedCode = useMemo(() => stripOuterCodeFence(code), [code]);
+  const [markedCode, setMarkedCode] = useState(normalizedCode);
 
   useEffect(() => {
-    setMarkedCode(code);
-  }, [code]);
+    setMarkedCode(normalizedCode);
+  }, [normalizedCode]);
 
-  const translatePrompt = useMemo(() => buildTranslatePrompt(code), [code]);
+  const translatePrompt = useMemo(() => buildTranslatePrompt(normalizedCode), [normalizedCode]);
   const rewritePrompt = useMemo(() => buildRewritePrompt(markedCode), [markedCode]);
 
   return (
@@ -195,7 +202,7 @@ export function AIAssistPanel({
             <EditorPane
               code={markedCode}
               onCodeChange={setMarkedCode}
-              onResetCode={() => setMarkedCode(code)}
+              onResetCode={() => setMarkedCode(normalizedCode)}
               enableVisualizationMarkers
               markerOnlyMode
               showResetButton={false}
