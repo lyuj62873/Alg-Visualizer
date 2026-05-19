@@ -175,7 +175,7 @@ export function AIAssistPanel({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#d1d5db] bg-white text-[#374151] hover:bg-[#f9fafb]"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#d1d5db] bg-white text-[#374151] hover:border-[#fca5a5] hover:bg-[#fef2f2] hover:text-[#dc2626]"
             aria-label="Close AI Assist"
             title="Close AI Assist"
           >
