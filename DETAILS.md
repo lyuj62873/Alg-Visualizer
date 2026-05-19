@@ -264,6 +264,9 @@ Current UI behavior:
 - `Run` uses the streamlined green action button
 - the `Vis API` dropdown is scrollable so longer API lists stay inside the viewport
 - `AI Assist` generates prompt-only external AI guidance and does not store user keys
+- the `AI Assist` workspace is editable, has its own fixed-height staging editor, and supports `# algolens: visualize` gutter markers without touching the main editor
+- both `AI Assist` prompts require fenced ` ```python ` output blocks
+- the rewrite prompt explicitly treats multidimensional arrays as `VisArray` on the outermost list only
 
 ## Project Structure
 
@@ -287,7 +290,6 @@ These are the remaining follow-up items that still look real instead of abandone
 - extend `VisObject` with richer field controls such as ordering, relabeling, and hiding
 - keep tuning compact layout defaults for very large or unusual traces
 - consider a lighter editor-assisted workflow for inserting `watch(...)`
-- add a prompt-only `AI Assist` flow for language translation and AlgoLens rewrite guidance
 - consider whether the fixed 1000-frame cap and 30-second timeout should become configurable
 
 ## Deferred Explorations
@@ -296,29 +298,33 @@ The following ideas were discussed but are intentionally not active implementati
 
 - an editor gutter "eye" workflow that rewrites selected assignments into `VisXxx`
 - a two-pass runtime-assisted rewrite flow that first learns runtime types, then rewrites marked lines for a second run
+- direct BYOK / API-key-based provider integration for AI Assist
 
 These stay deferred because the current product model visualizes explicit object instances rather than variable names, so rebinding and later type changes can diverge from user expectations.
 
 ## Planned AI Assist Direction
 
-The current direction for cross-language help is intentionally prompt-only.
+The current direction for cross-language help is intentionally prompt-only, and that first version is now implemented.
 
-Planned constraints:
+Current constraints:
 
 - no built-in AI provider integration
 - no user API-key storage or pass-through model calling
 - no automatic execution of AI-generated code
 
-Planned workflow:
+Current workflow:
 
 1. generate a prompt that asks an external AI to translate another language into LeetCode-style Python
-2. generate a second prompt that asks an external AI to rewrite Python into AlgoLens-friendly `VisXxx` code
-3. later, optionally let users place lightweight editor marks that only annotate candidate visualization lines for the second prompt
+2. optionally paste or edit the translated Python inside the `AI Assist` staging editor
+3. place lightweight `# algolens: visualize` marks inside that staging editor
+4. generate a second prompt that asks an external AI to rewrite Python into AlgoLens-friendly `VisXxx` code
 
 Prompt requirements:
 
 - encode AlgoLens-specific structure rules directly in the prompt
 - include small mapping examples such as `deque -> VisQueue`, `list + heapq -> VisHeap`, and `dict -> VisMap`
+- require fenced ` ```python ` output blocks
+- tell the AI that multidimensional arrays should usually become `VisArray(...)` only at the outermost list
 - tell the AI to ignore clearly unsuitable visualization candidates instead of forcing every marked line into a `VisXxx`
 
 User-facing warning:

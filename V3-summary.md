@@ -61,6 +61,7 @@ Current reality:
 - `User Guide` is for workflow and UI behavior
 - `Examples` is for runnable algorithm demos
 - `Vis API` is for focused DS usage examples
+- the current `AI Assist` panel now includes an editable staging editor, panel-local visualization markers, fenced-code prompt requirements, and explicit multidimensional `VisArray` rewrite guidance
 
 ## Major Implementation Work Completed
 

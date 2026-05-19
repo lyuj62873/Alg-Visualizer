@@ -91,6 +91,12 @@ Top navigation currently contains:
 `Examples` contains runnable algorithm demos.
 `Vis API` contains focused usage examples for the individual `dsviz` data structures.
 
+Current `AI Assist` behavior:
+- an editable staging editor lives inside the panel
+- lightweight gutter markers insert `# algolens: visualize` without changing the main editor
+- both generated prompts require fenced ` ```python ` output
+- multidimensional arrays are expected to use `VisArray(...)` only on the outermost list
+
 ## Current Example Inventory
 Current built-in examples:
 - `Longest Common Subsequence`
@@ -209,6 +215,7 @@ Known remaining gaps are narrower now:
 9. The `Vis API` dropdown is scrollable so the longer API list stays inside the viewport.
 10. A prompt-only `AI Assist` flow is now the preferred direction for cross-language help: external AI does the translation and rewrite, while AlgoLens prepares prompts and guidance.
 11. That AI Assist flow must encode AlgoLens structure rules directly, including constraints such as `VisQueue -> deque`, `VisHeap -> list + heapq`, and `VisObject` preserving the original custom instance.
+12. The current `AI Assist` implementation now includes an editable staging workspace and lightweight marker insertion there, but it still deliberately avoids built-in provider calls or stored API keys.
 12. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
 13. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
 

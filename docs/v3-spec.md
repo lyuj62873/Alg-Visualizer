@@ -287,7 +287,10 @@ Remaining follow-up:
 - `VisArray` now has a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support
 - a prompt-only `AI Assist` flow is now the preferred cross-language support path, rather than built-in key handling or direct model execution
 - that AI Assist flow prepares two prompts: one for language-to-Python translation and one for Python-to-AlgoLens rewrite
+- the `AI Assist` panel now includes its own editable staging editor so translated Python can be refined before rewrite
+- lightweight `# algolens: visualize` markers now live inside the `AI Assist` staging editor rather than the main editor
 - the rewrite prompt encodes AlgoLens-specific conventions such as `VisQueue -> deque`, `VisSet -> set`, `VisHeap -> list + heapq`, and `VisObject` preserving the underlying custom object
+- the rewrite prompt now also requires fenced ` ```python ` output and specifies that multidimensional arrays should usually wrap only the outermost list in `VisArray(...)`
 
 ## UI Model
 The current single-page workbench contains:
