@@ -81,10 +81,12 @@ The workbench is a single-page split layout with:
 - draggable visualization panels
 
 Top navigation currently contains:
+- `AI Assist`
 - `User Guide`
 - `Examples`
 - `Vis API`
 
+`AI Assist` prepares prompt-only external AI guidance.
 `User Guide` contains the workflow and UI interaction overview.
 `Examples` contains runnable algorithm demos.
 `Vis API` contains focused usage examples for the individual `dsviz` data structures.
@@ -205,8 +207,10 @@ Known remaining gaps are narrower now:
 7. The runtime now preinjects all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq`, so users do not have to manage those imports manually.
 8. `VisArray` now has a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support for custom ordering examples.
 9. The `Vis API` dropdown is scrollable so the longer API list stays inside the viewport.
-10. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
-11. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
+10. A prompt-only `AI Assist` flow is now the preferred direction for cross-language help: external AI does the translation and rewrite, while AlgoLens prepares prompts and guidance.
+11. That AI Assist flow must encode AlgoLens structure rules directly, including constraints such as `VisQueue -> deque`, `VisHeap -> list + heapq`, and `VisObject` preserving the original custom instance.
+12. Compact layout values are tuned heuristically and may still need adjustment for extreme traces.
+13. The frame cap is fixed at 1000 and the worker timeout is fixed at 30 seconds; neither limit has a user-facing control yet.
 
 `delVis(...)` is no longer an open design question.
 - default runtime visibility is intentionally conservative

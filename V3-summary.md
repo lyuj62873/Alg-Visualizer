@@ -56,7 +56,8 @@ Current reality:
 Earlier UI drafts used `Trace` plus `Examples`.
 
 Current reality:
-- top nav now contains `User Guide`, `Examples`, and `Vis API`
+- top nav now contains `AI Assist`, `User Guide`, `Examples`, and `Vis API`
+- `AI Assist` is for prompt-only external AI guidance
 - `User Guide` is for workflow and UI behavior
 - `Examples` is for runnable algorithm demos
 - `Vis API` is for focused DS usage examples
@@ -379,8 +380,9 @@ The old drag / resize blockers are no longer the main TODOs. Remaining work is n
 Current unfinished TODOs:
 1. extend the minimal `VisObject` wrapper with richer field ordering, relabeling, and field-hiding controls
 2. further tune compact layout defaults for extreme traces, long labels, and unusual density
-3. revisit a lighter editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
-4. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
+3. extend the prompt-only `AI Assist` flow with lightweight editor-side markers instead of automatic `VisXxx` rewrites
+4. revisit a lighter editor-assisted `watch(...)` insertion workflow if low-intrusion UX is still desired
+5. consider whether the current fixed 1000-frame cap and 30-second timeout should become configurable per run or per environment
 
 These TODOs are the right next-agent starting point before any new broad feature branch.
 

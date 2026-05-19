@@ -285,6 +285,9 @@ Remaining follow-up:
 - the current first-wave teaching examples are `Longest Common Subsequence`, `Group Anagrams`, `Path Sum III`, and `LRU Cache`
 - the runtime namespace is fixed and preinjected with all `VisXxx` names plus common helpers such as `deque`, `defaultdict`, `Counter`, and `heapq`
 - `VisArray` now has a Python-native `sort(...)` that follows `list.sort(...)`, including `key=` and `reverse=` support
+- a prompt-only `AI Assist` flow is now the preferred cross-language support path, rather than built-in key handling or direct model execution
+- that AI Assist flow prepares two prompts: one for language-to-Python translation and one for Python-to-AlgoLens rewrite
+- the rewrite prompt encodes AlgoLens-specific conventions such as `VisQueue -> deque`, `VisSet -> set`, `VisHeap -> list + heapq`, and `VisObject` preserving the underlying custom object
 
 ## UI Model
 The current single-page workbench contains:
@@ -292,7 +295,7 @@ The current single-page workbench contains:
 - a visualization pane
 - floating step controls
 - a floating `Variables` and `Output` sidebar
-- top-level `User Guide`, `Examples`, and `Vis API` menus
+- top-level `AI Assist`, `User Guide`, `Examples`, and `Vis API` menus
 
 Current built-in `Examples`:
 - `Longest Common Subsequence`

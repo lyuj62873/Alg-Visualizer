@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AIAssistPanel } from "./ai-assist-panel";
 import { EditorPane } from "./editor-pane";
 import { codeSample, TraceFrame } from "./mock-trace";
 import { runMockTrace } from "./mock-runner";
@@ -26,7 +27,7 @@ const emptyTraceFrame: TraceFrame = {
   line: null,
   panels: [],
   variables: [],
-  status: "Open User Guide, Examples, or Vis API, then click Run Trace.",
+  status: "Open AI Assist, User Guide, Examples, or Vis API, then click Run.",
   stdout: "",
 };
 
@@ -38,6 +39,7 @@ export function Workbench() {
   const [frames, setFrames] = useState<TraceFrame[]>([emptyTraceFrame]);
   const [leftPaneWidth, setLeftPaneWidth] = useState(33.333);
   const [isResizing, setIsResizing] = useState(false);
+  const [aiAssistOpen, setAiAssistOpen] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [visApiOpen, setVisApiOpen] = useState(false);
   const [runError, setRunError] = useState<RunErrorDetail | null>(null);
@@ -290,6 +292,13 @@ export function Workbench() {
               <button
                 type="button"
                 className="font-medium text-[#111827]"
+                onClick={() => setAiAssistOpen(true)}
+              >
+                AI Assist
+              </button>
+              <button
+                type="button"
+                className="font-medium text-[#111827]"
                 onClick={() => {
                   void loadExample(userGuidePath);
                 }}
@@ -388,6 +397,13 @@ export function Workbench() {
           </div>
         </div>
       </div>
+
+      {aiAssistOpen ? (
+        <AIAssistPanel
+          code={code}
+          onClose={() => setAiAssistOpen(false)}
+        />
+      ) : null}
 
       <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:px-6 xl:h-[calc(100vh-65px)] xl:flex-row xl:overflow-hidden">
         <div className="hidden h-full xl:block" style={{ width: `${leftPaneWidth}%` }}>

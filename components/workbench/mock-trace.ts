@@ -4,6 +4,7 @@ export const codeSample = `# Paste your LeetCode-style Python code here.
 # User Guide explains the workflow and page features.
 # Examples shows complete problem-based demos.
 # Vis API lists each visualization class and its Python-style usage.
+# AI Assist prepares external prompts for translation and visualization rewrite.
 
 class Solution:
     def solve(self):

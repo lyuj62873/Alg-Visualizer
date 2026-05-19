@@ -33,6 +33,7 @@ You decide which structures should become `VisXxx`, which values should be watch
 - Reference-first nesting between visualized structures.
 - Forward and backward trace replay with source-line highlighting.
 - Built-in `User Guide`, problem-oriented `Examples`, and per-class `Vis API` content inside the app.
+- A prompt-only `AI Assist` entry for external language translation and AlgoLens rewrite guidance.
 - Python-native convenience behavior, including preinjected helpers and `VisArray.sort(key=..., reverse=...)`.
 
 ## How It Works
@@ -48,6 +49,7 @@ You decide which structures should become `VisXxx`, which values should be watch
 
 AlgoLens currently ships with:
 
+- `AI Assist`
 - `User Guide`
 - `Examples`
 - `Vis API`
