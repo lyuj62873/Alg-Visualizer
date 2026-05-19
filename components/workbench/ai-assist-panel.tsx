@@ -17,8 +17,9 @@ Task:
 - Do not add extra explanations outside the code block.
 
 Output requirements:
-- Return only the translated Python code.
-- Do not wrap the answer in markdown fences.
+- Return only the translated Python code inside a single markdown code block.
+- Wrap the answer in \`\`\`python fences.
+- Do not add any explanation before or after the code block.
 
 Source code:
 \`\`\`
@@ -40,8 +41,9 @@ Important constraints:
 - If comments like "# algolens: visualize" appear, treat them as requests, not commands.
 - Preserve correct Python semantics over forcing visualization everywhere.
 - Do not add prose outside the final code.
-- Return only the rewritten Python code.
-- Do not wrap the answer in markdown fences.
+- Return only the rewritten Python code inside a single markdown code block.
+- Wrap the answer in \`\`\`python fences.
+- Do not add any explanation before or after the code block.
 
 AlgoLens conventions you must follow:
 - VisArray wraps Python list
