@@ -4,6 +4,27 @@ import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import type * as Monaco from "monaco-editor";
 
+const VISUALIZE_MARKER_COMMENT = "# algolens: visualize";
+const assignmentPrefixes = [
+  "if ",
+  "elif ",
+  "while ",
+  "for ",
+  "return",
+  "assert ",
+  "raise ",
+  "import ",
+  "from ",
+  "with ",
+  "class ",
+  "def ",
+  "@",
+];
+const augmentedAssignmentPattern =
+  /^\s*[A-Za-z_][A-Za-z0-9_]*\s*(\+=|-=|\*=|\/=|%=|\/\/=|\*\*=|&=|\|=|\^=|>>=|<<=)\s*.+$/;
+const simpleAssignmentPattern =
+  /^\s*[A-Za-z_][A-Za-z0-9_]*\s*=\s*.+$/;
+
 const MonacoEditor = dynamic(() => import("@monaco-editor/react").then((mod) => mod.default), {
   ssr: false,
   loading: () => (
@@ -28,7 +49,8 @@ export function EditorPane({
   const [editorHeightPx, setEditorHeightPx] = useState(640);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
-  const decorationIdsRef = useRef<string[]>([]);
+  const activeDecorationIdsRef = useRef<string[]>([]);
+  const markerDecorationIdsRef = useRef<string[]>([]);
 
   useEffect(() => {
     const host = editorHostRef.current;
@@ -46,15 +68,146 @@ export function EditorPane({
     return () => ro.disconnect();
   }, []);
 
+  function getLineIndentation(line: string) {
+    const match = line.match(/^\s*/);
+    return match?.[0] ?? "";
+  }
+
+  function stripInlineComment(line: string) {
+    const hashIndex = line.indexOf("#");
+    if (hashIndex === -1) {
+      return line;
+    }
+    return line.slice(0, hashIndex);
+  }
+
+  function isVisualizationCandidateLine(line: string) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      return false;
+    }
+    if (assignmentPrefixes.some((prefix) => trimmed.startsWith(prefix))) {
+      return false;
+    }
+
+    const withoutComment = stripInlineComment(line).trimEnd();
+    if (!withoutComment) {
+      return false;
+    }
+
+    if (augmentedAssignmentPattern.test(withoutComment)) {
+      return true;
+    }
+
+    if (!simpleAssignmentPattern.test(withoutComment)) {
+      return false;
+    }
+
+    if (
+      withoutComment.includes("==") ||
+      withoutComment.includes("!=") ||
+      withoutComment.includes("<=") ||
+      withoutComment.includes(">=")
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  function hasVisualizationMarkerAbove(model: Monaco.editor.ITextModel, lineNumber: number) {
+    if (lineNumber <= 1) {
+      return false;
+    }
+    return model.getLineContent(lineNumber - 1).trim() === VISUALIZE_MARKER_COMMENT;
+  }
+
+  function syncVisualizationMarkers(
+    editor: Monaco.editor.IStandaloneCodeEditor,
+    monacoApi: typeof Monaco | null,
+  ) {
+    if (!monacoApi) {
+      return;
+    }
+    const model = editor.getModel();
+    if (!model) {
+      return;
+    }
+
+    const decorations: Monaco.editor.IModelDeltaDecoration[] = [];
+    for (let lineNumber = 1; lineNumber <= model.getLineCount(); lineNumber += 1) {
+      const line = model.getLineContent(lineNumber);
+      if (!isVisualizationCandidateLine(line)) {
+        continue;
+      }
+      const marked = hasVisualizationMarkerAbove(model, lineNumber);
+      decorations.push({
+        range: new monacoApi.Range(lineNumber, 1, lineNumber, 1),
+        options: {
+          isWholeLine: false,
+          glyphMarginClassName: marked
+            ? "algolens-visualize-marker-active"
+            : "algolens-visualize-marker",
+          glyphMarginHoverMessage: {
+            value: marked
+              ? "AlgoLens marker enabled for the next line. Click to remove."
+              : "Mark this assignment as a visualization candidate for AI Assist.",
+          },
+        },
+      });
+    }
+
+    markerDecorationIdsRef.current = editor.deltaDecorations(markerDecorationIdsRef.current, decorations);
+  }
+
+  function toggleVisualizationMarker(
+    editor: Monaco.editor.IStandaloneCodeEditor,
+    monacoApi: typeof Monaco,
+    lineNumber: number,
+  ) {
+    const model = editor.getModel();
+    if (!model) {
+      return;
+    }
+    const line = model.getLineContent(lineNumber);
+    if (!isVisualizationCandidateLine(line)) {
+      return;
+    }
+
+    const markerAbove = hasVisualizationMarkerAbove(model, lineNumber);
+    const indentation = getLineIndentation(line);
+    const markerLine = `${indentation}${VISUALIZE_MARKER_COMMENT}`;
+
+    editor.pushUndoStop();
+    if (markerAbove) {
+      editor.executeEdits("algolens-visualize-toggle", [
+        {
+          range: new monacoApi.Range(lineNumber - 1, 1, lineNumber, 1),
+          text: "",
+        },
+      ]);
+    } else {
+      editor.executeEdits("algolens-visualize-toggle", [
+        {
+          range: new monacoApi.Range(lineNumber, 1, lineNumber, 1),
+          text: `${markerLine}\n`,
+        },
+      ]);
+    }
+    editor.pushUndoStop();
+    syncVisualizationMarkers(editor, monacoApi);
+    onCodeChange(editor.getValue());
+  }
+
   function applyLineHighlight(
     editor: Monaco.editor.IStandaloneCodeEditor,
     monacoApi: typeof Monaco | null,
     line: number | null | undefined,
   ) {
-    decorationIdsRef.current = editor.deltaDecorations(decorationIdsRef.current, []);
+    activeDecorationIdsRef.current = editor.deltaDecorations(activeDecorationIdsRef.current, []);
     if (!monacoApi || !line || line < 1) return;
 
-    decorationIdsRef.current = editor.deltaDecorations([], [
+    activeDecorationIdsRef.current = editor.deltaDecorations([], [
       {
         range: new monacoApi.Range(line, 1, line, 1),
         options: {
@@ -74,6 +227,7 @@ export function EditorPane({
     editorRef.current = editor;
     monacoRef.current = monacoApi;
     applyLineHighlight(editor, monacoApi, activeLine);
+    syncVisualizationMarkers(editor, monacoApi);
     editor.onKeyDown((event) => {
       if (
         event.browserEvent.code === "Space" &&
@@ -85,12 +239,30 @@ export function EditorPane({
         editor.trigger("keyboard", "type", { text: " " });
       }
     });
+    editor.onDidChangeModelContent(() => {
+      syncVisualizationMarkers(editor, monacoApi);
+    });
+    editor.onMouseDown((event) => {
+      if (event.target.type !== monacoApi.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
+        return;
+      }
+      const lineNumber = event.target.position?.lineNumber;
+      if (!lineNumber) {
+        return;
+      }
+      toggleVisualizationMarker(editor, monacoApi, lineNumber);
+    });
   }
 
   useEffect(() => {
     if (!editorRef.current) return;
     applyLineHighlight(editorRef.current, monacoRef.current, activeLine);
   }, [activeLine]);
+
+  useEffect(() => {
+    if (!editorRef.current || !monacoRef.current) return;
+    syncVisualizationMarkers(editorRef.current, monacoRef.current);
+  }, [code]);
 
   return (
     <section className="flex h-full min-h-[720px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#d1d5db] bg-[#1e1e1e] shadow-sm">
@@ -141,7 +313,7 @@ export function EditorPane({
             scrollBeyondLastLine: false,
             padding: { top: 16, bottom: 16 },
             lineNumbersMinChars: 3,
-            glyphMargin: false,
+            glyphMargin: true,
             folding: false,
             renderLineHighlight: "line",
             tabSize: 4,
