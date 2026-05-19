@@ -193,6 +193,7 @@ export function AIAssistPanel({
             <section className="rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm">
               <h3 className="text-sm font-semibold text-[#111827]">Important</h3>
               <ul className="mt-3 space-y-2 text-sm leading-6 text-[#4b5563]">
+                <li>You can paste translated Python directly into the editor below.</li>
                 <li>You are responsible for what you ask the AI to visualize.</li>
                 <li>Marking impossible or poor candidates can make the rewrite worse.</li>
                 <li>Check the AI result before you paste it back and run it.</li>
@@ -204,7 +205,6 @@ export function AIAssistPanel({
               onCodeChange={setMarkedCode}
               onResetCode={() => setMarkedCode(normalizedCode)}
               enableVisualizationMarkers
-              markerOnlyMode
               showResetButton={false}
               fileLabel="ai_assist.py"
               minHeightPx={520}
