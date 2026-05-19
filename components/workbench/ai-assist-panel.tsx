@@ -153,7 +153,7 @@ export function AIAssistPanel({
     setMarkedCode(normalizedCode);
   }, [normalizedCode]);
 
-  const translatePrompt = useMemo(() => buildTranslatePrompt(normalizedCode), [normalizedCode]);
+  const translatePrompt = useMemo(() => buildTranslatePrompt(markedCode), [markedCode]);
   const rewritePrompt = useMemo(() => buildRewritePrompt(markedCode), [markedCode]);
 
   return (
