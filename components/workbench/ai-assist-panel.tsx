@@ -20,6 +20,14 @@ Task:
 - Do not add any AlgoLens visualization classes yet.
 - Keep the result suitable for pasting into an editor with class-based LeetCode structure.
 - Prefer class Solution style when the source problem structure suggests it.
+- Keep the final structure compatible with:
+  class Solution:
+      def solve(self):
+          return None
+
+  def run_case():
+      return Solution().solve()
+- If the translated solve method needs input arguments, build one concrete sample input set inside run_case() and call Solution().solve(...) there.
 - Do not add extra explanations outside the code block.
 
 Output requirements:
