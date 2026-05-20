@@ -72,6 +72,11 @@ Specific rewrite rules:
 - For custom helper classes, do not replace the original object variable with VisObject(...) and then keep calling methods on the wrapper.
 - Instead, preserve the real object and create a separate VisObject(...) panel variable when appropriate.
 - Use watch(...) only for scalar or compact values worth tracking in the Variables panel.
+- Prefer watch(...) for simple state such as indices, counters, booleans, coordinates, or a short current answer.
+- Call watch(...) only after the watched variable or value has already been initialized.
+- Prefer the pattern "assignment first, immediate watch on the next line" when introducing watched values.
+- Do not rewrite an initialization statement itself into watch(...), and do not place watch(...) before a variable is defined.
+- Do not call watch(...) on large containers such as full arrays, maps, heaps, trees, or custom objects when those structures are already visualized elsewhere.
 - Use delVis(...) only when explicit visual cleanup is clearly useful.
 
 Small reference examples:
@@ -90,6 +95,13 @@ Small reference examples:
 - custom object:
   cache = LRUCache(2)
   cache_view = VisObject(cache)
+- watch:
+  i = 0
+  watch("i", i)
+  best = 0
+  watch("best", best)
+  row, col = 1, 2
+  watch("cell", (row, col))
 
 Code to rewrite:
 \`\`\`python
