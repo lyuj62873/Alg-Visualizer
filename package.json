@@ -5,8 +5,10 @@
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true});\"",
     "sync-pyodide": "node scripts/sync-pyodide.mjs",
-    "postinstall": "node scripts/sync-pyodide.mjs",
-    "prebuild": "node scripts/sync-pyodide.mjs",
+    "sync-monaco": "node scripts/sync-monaco.mjs",
+    "sync-assets": "node scripts/sync-pyodide.mjs && node scripts/sync-monaco.mjs",
+    "postinstall": "npm run sync-assets",
+    "prebuild": "npm run sync-assets",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

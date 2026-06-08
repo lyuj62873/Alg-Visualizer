@@ -1,5 +1,6 @@
 "use client";
 
+import "./monaco-setup";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import type * as Monaco from "monaco-editor";

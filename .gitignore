@@ -5,6 +5,7 @@ node_modules/
 .playwright-mcp/
 out/
 public/pyodide/
+public/monaco/
 tsconfig.tsbuildinfo
 .env
 .env.local
