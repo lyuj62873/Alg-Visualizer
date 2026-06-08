@@ -7,6 +7,8 @@ import { codeSample, TraceFrame } from "./mock-trace";
 import { runMockTrace } from "./mock-runner";
 import {
   cancelPyodideTrace,
+  preloadPyodide,
+  PyodideInitTimeoutError,
   PyodideRunCancelledError,
   PyodideRunTimeoutError,
   PyodideUnavailableError,
@@ -43,6 +45,8 @@ export function Workbench() {
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [visApiOpen, setVisApiOpen] = useState(false);
   const [runError, setRunError] = useState<RunErrorDetail | null>(null);
+  const [pyodideReady, setPyodideReady] = useState(false);
+  const [pyodideLoading, setPyodideLoading] = useState(true);
   const activeFrame = frames[activeFrameIndex] ?? frames[0];
   const userGuidePath = "/examples/user-guide-example.py";
 
@@ -216,20 +220,27 @@ export function Workbench() {
         return;
       }
 
+      const isInitTimeout = error instanceof PyodideInitTimeoutError;
       const isTimeout = error instanceof PyodideRunTimeoutError;
-      const message = isTimeout
-        ? "Please check your code for an infinite loop, or try reducing unnecessary visualization."
-        : error instanceof Error
-          ? error.message
-          : String(error);
-      const traceback = isTimeout
-        ? "User code exceeded the 30-second execution limit and the Pyodide worker was terminated."
-        : message;
-      const errorType = isTimeout
-        ? "ExecutionTimeout"
-        : error instanceof Error
-          ? error.name
-          : "Error";
+      const message = isInitTimeout
+        ? "Python runtime is still loading. Check your network connection and refresh the page."
+        : isTimeout
+          ? "Please check your code for an infinite loop, or try reducing unnecessary visualization."
+          : error instanceof Error
+            ? error.message
+            : String(error);
+      const traceback = isInitTimeout
+        ? "Pyodide failed to download or initialize from this site within the loading time limit."
+        : isTimeout
+          ? "User code exceeded the 30-second execution limit and the Pyodide worker was terminated."
+          : message;
+      const errorType = isInitTimeout
+        ? "RuntimeLoadTimeout"
+        : isTimeout
+          ? "ExecutionTimeout"
+          : error instanceof Error
+            ? error.name
+            : "Error";
 
       setRunError({
         errorType,
@@ -254,7 +265,27 @@ export function Workbench() {
   }
 
   useEffect(() => {
+    let cancelled = false;
+
+    void preloadPyodide()
+      .then(() => {
+        if (!cancelled) {
+          setPyodideReady(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPyodideReady(false);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setPyodideLoading(false);
+        }
+      });
+
     return () => {
+      cancelled = true;
       cancelPyodideTrace();
     };
   }, []);
@@ -382,7 +413,7 @@ export function Workbench() {
           <div className="flex items-center gap-3">
             <button
               onClick={handleRunTrace}
-              disabled={phase === "running"}
+              disabled={phase === "running" || pyodideLoading}
               className="inline-flex items-center gap-2 rounded-lg bg-[#16a34a] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#15803d] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <svg
@@ -392,8 +423,17 @@ export function Workbench() {
               >
                 <path d="M4 3.25c0-.63.69-1.01 1.22-.67l6.5 4.08a.8.8 0 0 1 0 1.34l-6.5 4.08A.8.8 0 0 1 4 11.42V3.25Z" />
               </svg>
-              {phase === "running" ? "Running..." : "Run"}
+              {phase === "running"
+                ? "Running..."
+                : pyodideLoading
+                  ? "Loading Python..."
+                  : "Run"}
             </button>
+            {!pyodideLoading && !pyodideReady ? (
+              <span className="hidden text-xs text-[#b45309] sm:inline">
+                Python runtime failed to preload. Run will retry on click.
+              </span>
+            ) : null}
           </div>
         </div>
       </div>

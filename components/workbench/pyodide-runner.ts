@@ -27,6 +27,10 @@ export class PyodideUnavailableError extends Error {
   name = "PyodideUnavailableError";
 }
 
+export class PyodideInitTimeoutError extends Error {
+  name = "PyodideInitTimeoutError";
+}
+
 export class PyodideRunTimeoutError extends Error {
   name = "PyodideRunTimeoutError";
 }
@@ -43,11 +47,20 @@ type WorkerRunResult =
       message: string;
     };
 
-type WorkerResponse = {
+type WorkerInitResponse = {
+  type: "init-result";
+  initId: number;
+  ok: boolean;
+  message?: string;
+};
+
+type WorkerRunResponse = {
   type: "result";
   runId: number;
   result: WorkerRunResult;
 };
+
+type WorkerResponse = WorkerInitResponse | WorkerRunResponse;
 
 type ActiveRun = {
   runId: number;
@@ -60,8 +73,11 @@ type ActiveRun = {
 let workerInstance: Worker | null = null;
 let activeRun: ActiveRun | null = null;
 let runCounter = 0;
+let initCounter = 0;
+let initPromise: Promise<void> | null = null;
 
-const DEFAULT_RUN_TIMEOUT_MS = 30000;
+const PYODIDE_INIT_TIMEOUT_MS = 120_000;
+const PYODIDE_RUN_TIMEOUT_MS = 30_000;
 
 function ensureWorker() {
   if (!workerInstance) {
@@ -77,6 +93,7 @@ function teardownWorker() {
     workerInstance.terminate();
     workerInstance = null;
   }
+  initPromise = null;
 }
 
 function clearActiveRun() {
@@ -99,8 +116,65 @@ export function cancelPyodideTrace(reason = "Run cancelled.") {
   pendingRun.reject(new PyodideRunCancelledError(reason));
 }
 
+function waitForWorkerInit(worker: Worker): Promise<void> {
+  const initId = ++initCounter;
+
+  return new Promise<void>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(
+        new PyodideInitTimeoutError(
+          `Python runtime failed to load within ${Math.round(PYODIDE_INIT_TIMEOUT_MS / 1000)} seconds.`,
+        ),
+      );
+    }, PYODIDE_INIT_TIMEOUT_MS);
+
+    const handleMessage = (event: MessageEvent<WorkerResponse>) => {
+      const message = event.data;
+      if (!message || message.type !== "init-result" || message.initId !== initId) {
+        return;
+      }
+
+      window.clearTimeout(timeoutId);
+      cleanup();
+
+      if (message.ok) {
+        resolve();
+        return;
+      }
+
+      reject(new PyodideUnavailableError(message.message || "Failed to initialize Pyodide."));
+    };
+
+    const cleanup = () => {
+      worker.removeEventListener("message", handleMessage);
+    };
+
+    worker.addEventListener("message", handleMessage);
+    worker.postMessage({
+      type: "init",
+      initId,
+    });
+  });
+}
+
+export function preloadPyodide(): Promise<void> {
+  if (!initPromise) {
+    const worker = ensureWorker();
+    initPromise = waitForWorkerInit(worker).catch((error) => {
+      initPromise = null;
+      teardownWorker();
+      throw error;
+    });
+  }
+
+  return initPromise;
+}
+
 export async function runPyodideTrace(code: string): Promise<PyodideRunOutput | PyodideRunError> {
   cancelPyodideTrace("A newer run started.");
+
+  await preloadPyodide();
 
   const worker = ensureWorker();
   const runId = ++runCounter;
@@ -133,10 +207,10 @@ export async function runPyodideTrace(code: string): Promise<PyodideRunOutput | 
       teardownWorker();
       reject(
         new PyodideRunTimeoutError(
-          `Execution timed out after ${Math.round(DEFAULT_RUN_TIMEOUT_MS / 1000)} seconds.`,
+          `Execution timed out after ${Math.round(PYODIDE_RUN_TIMEOUT_MS / 1000)} seconds.`,
         ),
       );
-    }, DEFAULT_RUN_TIMEOUT_MS);
+    }, PYODIDE_RUN_TIMEOUT_MS);
 
     const cleanup = () => {
       worker.removeEventListener("message", handleMessage);

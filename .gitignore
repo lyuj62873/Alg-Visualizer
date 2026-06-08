@@ -4,6 +4,7 @@ node_modules/
 .next/
 .playwright-mcp/
 out/
+public/pyodide/
 tsconfig.tsbuildinfo
 .env
 .env.local

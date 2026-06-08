@@ -11,11 +11,18 @@ type Pyodide = {
   runPythonAsync(code: string): Promise<unknown>;
 };
 
-type WorkerRequest = {
+type WorkerInitRequest = {
+  type: "init";
+  initId: number;
+};
+
+type WorkerRunRequest = {
   type: "run";
   runId: number;
   code: string;
 };
+
+type WorkerRequest = WorkerInitRequest | WorkerRunRequest;
 
 type WorkerResult =
   | PyodideRunOutput
@@ -25,11 +32,20 @@ type WorkerResult =
       message: string;
     };
 
-type WorkerResponse = {
+type WorkerInitResponse = {
+  type: "init-result";
+  initId: number;
+  ok: boolean;
+  message?: string;
+};
+
+type WorkerRunResponse = {
   type: "result";
   runId: number;
   result: WorkerResult;
 };
+
+type WorkerResponse = WorkerInitResponse | WorkerRunResponse;
 
 declare global {
   interface WorkerGlobalScope {
@@ -38,11 +54,20 @@ declare global {
   }
 }
 
-const PYODIDE_VERSION = "0.26.2";
-const PYODIDE_INDEX_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
+const PYODIDE_INDEX_URL = "/pyodide/";
+
+function postInitResult(initId: number, ok: boolean, message?: string) {
+  const response: WorkerInitResponse = {
+    type: "init-result",
+    initId,
+    ok,
+    message,
+  };
+  self.postMessage(response);
+}
 
 function postResult(runId: number, result: WorkerResult) {
-  const response: WorkerResponse = {
+  const response: WorkerRunResponse = {
     type: "result",
     runId,
     result,
@@ -180,7 +205,28 @@ except Exception as exc:
 
 self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
   const message = event.data;
-  if (!message || message.type !== "run") {
+  if (!message) {
+    return;
+  }
+
+  if (message.type === "init") {
+    void (async () => {
+      try {
+        await getPyodide();
+        postInitResult(message.initId, true);
+      } catch (error) {
+        const messageText = error instanceof Error ? error.message : String(error);
+        postInitResult(
+          message.initId,
+          false,
+          messageText || "Failed to initialize Pyodide.",
+        );
+      }
+    })();
+    return;
+  }
+
+  if (message.type !== "run") {
     return;
   }
 
