@@ -1573,6 +1573,9 @@ export function ResultsPane({
             </button>
             <div className="rounded-md bg-[#f3f4f6] px-3 py-2 text-sm text-[#4b5563]">
               {frame.index + 1} / {totalFrames}
+              {errorInfo && phase === "ready" ? (
+                <span className="ml-2 text-xs font-medium text-[#b45309]">Crashed</span>
+              ) : null}
             </div>
           </div>
         </div>
@@ -1628,7 +1631,7 @@ export function ResultsPane({
           Output
         </div>
         <div className="space-y-3 overflow-auto p-4 text-sm text-[#4b5563]">
-          {phase === "error" && errorInfo ? (
+          {errorInfo ? (
             <div className="rounded-xl border border-[#fecaca] bg-[#fef2f2] p-3 text-[#7f1d1d]">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#dc2626]">
                 Runtime error
@@ -1644,6 +1647,11 @@ export function ResultsPane({
                   Line {errorInfo.line}
                 </div>
               ) : null}
+              {phase === "ready" && totalFrames > 1 ? (
+                <div className="mt-2 text-xs text-[#b45309]">
+                  Stepping forward from the first frame. Use Next to reach the crash.
+                </div>
+              ) : null}
               <details className="mt-3 rounded-lg border border-[#fecaca] bg-white px-3 py-2 text-xs text-[#7f1d1d]">
                 <summary className="cursor-pointer select-none font-medium text-[#b91c1c]">
                   Traceback
@@ -1653,16 +1661,23 @@ export function ResultsPane({
                 </pre>
               </details>
             </div>
-          ) : (
+          ) : null}
+          {phase !== "error" ? (
             <>
-              <div className="rounded-lg border border-[#d1fae5] bg-[#ecfdf5] px-3 py-3 text-[#065f46]">
+              <div
+                className={`rounded-lg border px-3 py-3 ${
+                  errorInfo
+                    ? "border-[#fed7aa] bg-[#fff7ed] text-[#9a3412]"
+                    : "border-[#d1fae5] bg-[#ecfdf5] text-[#065f46]"
+                }`}
+              >
                 {frame.status}
               </div>
               <div className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-3 py-3 font-mono text-xs text-[#374151]">
-                {frame.stdout}
+                {frame.stdout || (errorInfo ? "No stdout for this step." : "")}
               </div>
             </>
-          )}
+          ) : null}
         </div>
       </aside>
     </section>

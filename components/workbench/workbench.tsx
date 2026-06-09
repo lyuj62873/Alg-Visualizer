@@ -183,6 +183,21 @@ export function Workbench() {
       if (runId !== runIdRef.current) return;
 
       if (result.kind === "error") {
+        const runErrorDetail = {
+          errorType: result.errorType,
+          message: result.message,
+          traceback: result.traceback,
+          line: result.line,
+        };
+        setRunError(runErrorDetail);
+
+        if (result.frames.length > 0) {
+          setFrames(result.frames);
+          setActiveFrameIndex(0);
+          setPhase("ready");
+          return;
+        }
+
         setFrames([
           {
             index: 0,
@@ -195,12 +210,6 @@ export function Workbench() {
           },
         ]);
         setActiveFrameIndex(0);
-        setRunError({
-          errorType: result.errorType,
-          message: result.message,
-          traceback: result.traceback,
-          line: result.line,
-        });
         setPhase("error");
         return;
       }

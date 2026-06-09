@@ -17,6 +17,7 @@ export type PyodideRunOutput = {
 
 export type PyodideRunError = {
   kind: "error";
+  frames: PyodideTraceFrame[];
   errorType: string;
   message: string;
   traceback: string;

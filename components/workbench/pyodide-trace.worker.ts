@@ -189,11 +189,25 @@ except Exception as exc:
             if frame.filename == "user_code.py":
                 trace_line = frame.lineno
                 break
+    frames = dsviz.export_trace()["frames"]
+    formatted_traceback = traceback.format_exc()
+    if frames:
+        last_frame = frames[-1]
+        frames = frames + [{
+            "index": len(frames),
+            "label": f"{exc.__class__.__name__}: {str(exc)}",
+            "line": trace_line,
+            "panels": last_frame.get("panels", []),
+            "variables": last_frame.get("variables", []),
+            "status": f"Crashed: {exc.__class__.__name__}",
+            "stdout": formatted_traceback,
+        }]
     __algolens_trace_json__ = json.dumps({
         "kind": "error",
+        "frames": frames,
         "errorType": exc.__class__.__name__,
         "message": str(exc),
-        "traceback": traceback.format_exc(),
+        "traceback": formatted_traceback,
         "line": trace_line,
     })
 `;
